@@ -1,18 +1,15 @@
 <?php
 
-namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\ClassEnrollment;
-use App\Helpers\ValidationHelper;
-use App\Models\Classes;
-use DB;
+namespace App\Swagger\V1\Class;
 
-class ClassEnrollmentController extends Controller
+use OpenApi\Annotations as OA;
+
+class ClassEnrollmentDocs
 {
     /**
      * @OA\Get(
-     *     path="/api/enrollments",
+     *     path="/api/v1/class/enrollments",
      *     tags={"Enrollments"},
      *     summary="Get all enrollments based on user role",
      *     description="Admin sees all enrollments, teacher sees only enrollments in their classes, student sees only their enrolled classes.",
@@ -67,30 +64,11 @@ class ClassEnrollmentController extends Controller
      *     )
      * )
      */
-    public function index()
-    {
-        $user = auth()->user();
-
-        $enrollments = match ($user->role) {
-            'admin' => ClassEnrollment::with(['class', 'student'])->get(),
-            'teacher' => ClassEnrollment::with(['class', 'student'])
-                ->whereIn('class_id', Classes::where('teacher_id', $user->id)->pluck('id'))
-                ->get(),
-            'student' => ClassEnrollment::with(['class.teacher:id,name,email,avatar', 'student'])
-                ->where('student_id', $user->id)
-                ->get(),
-            default => null,
-        };
-
-        if (is_null($enrollments)) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-        return response()->json($enrollments, 200);
-    }
+    public function getAllEnrollments() {}
 
     /**
      * @OA\Post(
-     *     path="/api/enrollments/create",
+     *     path="/api/v1/class/enrollments/create",
      *     tags={"Enrollments"},
      *     summary="Enroll student to class",
      *     description="Student enrolls to a class using class_id and class_code.",
@@ -134,48 +112,11 @@ class ClassEnrollmentController extends Controller
      *     @OA\Response(response=422, description="Invalid class code or validation error")
      * )
      */
-    public function store(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $validator = ValidationHelper::classEnrollment($request->all());
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-
-            $class = Classes::where('class_code', $request->input('class_code'))->first();
-
-            if (!$class) {
-                return response()->json(['message' => 'Invalid class code'], 422);
-            }
-
-            $alreadyEnrolled = ClassEnrollment::where('class_id', $class->id)
-                ->where('student_id', auth()->id())
-                ->exists();
-
-            if ($alreadyEnrolled) {
-                return response()->json(['message' => 'You are already enrolled in this class.'], 409);
-            }
-
-            $enrollment = ClassEnrollment::create([
-                'class_id' => $class->id,
-                'student_id' => auth()->id(),
-                'status' => 'active',
-                'enrolled_at' => now(),
-            ]);
-
-            DB::commit();
-            return response()->json(['message' => 'Enrolled successfully', 'data' => $enrollment], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
-        }
-    }
-
+    public function enrollStudent() {}
 
     /**
      * @OA\Get(
-     *     path="/api/enrollments/{id}",
+     *     path="/api/class/enrollments/{id}",
      *     tags={"Enrollments"},
      *     summary="Get enrollment details",
      *     description="Show enrollment details including class and student info.",
@@ -223,18 +164,11 @@ class ClassEnrollmentController extends Controller
      *     @OA\Response(response=404, description="Enrollment not found")
      * )
      */
-    public function show($id)
-    {
-        $enrollment = ClassEnrollment::with(['class', 'student'])->find($id);
-        if (!$enrollment) {
-            return response()->json(['message' => 'Enrollment not found'], 404);
-        }
-        return response()->json($enrollment, 200);
-    }
+    public function getEnrollmentDetail() {}
 
     /**
      * @OA\Patch(
-     *     path="/api/enrollments/update/{id}",
+     *     path="/api//v1/class/enrollments/update/{id}",
      *     tags={"Enrollments"},
      *     summary="Update enrollment status",
      *     description="Admin, teacher, or student can update enrollment (depends on role).",
@@ -281,45 +215,11 @@ class ClassEnrollmentController extends Controller
      *     )
      * )
      */
-    public function update(Request $request, $id)
-    {
-        $enrollment = ClassEnrollment::find($id);
-        if (!$enrollment) {
-            return response()->json(['message' => 'Enrollment not found'], 404);
-        }
-
-        DB::beginTransaction();
-        try {
-            $validator = ValidationHelper::classEnrollment($request->all(), true);
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-
-            $user = auth()->user();
-
-            $unauthorized = [
-                'teacher' => $enrollment->class->teacher_id !== $user->id,
-                'student' => $enrollment->student_id !== $user->id,
-            ];
-
-            if (isset($unauthorized[$user->role]) && $unauthorized[$user->role]) {
-                return response()->json(['error' => 'Unauthorized'], 403);
-            }
-
-            $data = $validator->validated();
-            $enrollment->update($data);
-
-            DB::commit();
-            return response()->json(['message' => 'Enrollment updated successfully', 'data' => $enrollment], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
-        }
-    }
+    public function updateEnrollment() {}
 
     /**
      * @OA\Delete(
-     *     path="/api/enrollments/delete/{id}",
+     *     path="/api/v1/class/enrollments/delete/{id}",
      *     tags={"Enrollments"},
      *     summary="Delete enrollment",
      *     description="Admin, teacher, or student can delete enrollment based on role authorization.",
@@ -354,25 +254,5 @@ class ClassEnrollmentController extends Controller
      *     @OA\Response(response=403, description="Unauthorized")
      * )
      */
-    public function destroy($id)
-    {
-        $enrollment = ClassEnrollment::find($id);
-        if (!$enrollment) {
-            return response()->json(['message' => 'Enrollment not found'], 404);
-        }
-
-        $user = auth()->user();
-
-        $unauthorized = [
-            'teacher' => $enrollment->class->teacher_id !== $user->id,
-            'student' => $enrollment->student_id !== $user->id,
-        ];
-
-        if (isset($unauthorized[$user->role]) && $unauthorized[$user->role]) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $enrollment->delete();
-        return response()->json(['message' => 'Enrollment deleted successfully'], 200);
-    }
+    public function deleteEnrollment() {}
 }

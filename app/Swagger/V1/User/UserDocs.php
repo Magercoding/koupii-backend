@@ -1,22 +1,26 @@
 <?php
 
-namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\User;
-use App\Helpers\ValidationHelper;
-use App\Helpers\FileUploadHelper;
-use DB;
+namespace App\Swagger\V1\User;
 
-class UserController extends Controller
+use OpenApi\Annotations as OA;
+
+class UserDocs
 {
     /**
      * @OA\Get(
-     *     path="/api/profile",
+     *     path="/api/v1/user/profile",
      *     tags={"Profile"},
      *     summary="Get current user profile",
      *     description="Retrieve profile information for the authenticated user.",
      *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Current user profile data",
@@ -42,28 +46,11 @@ class UserController extends Controller
      *     )
      * )
      */
-    public function profile()
-    {
-        $user = auth()->user();
-        if (!$user) {
-            return response()->json(['message' => 'User not found'], 404);
-        }
-
-        $data = [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role,
-            'avatar' => $user->avatar ? url($user->avatar) : null,
-            'bio' => $user->bio
-        ];
-
-        return response()->json($data, 200);
-    }
+    public function getProfile() {}
 
     /**
      * @OA\Get(
-     *     path="/api/profile/{id}",
+     *     path="/api/v1/user/profile/{id}",
      *     tags={"Profile"},
      *     summary="Get user details by ID",
      *     description="Retrieve public details of a user by their ID.",
@@ -74,6 +61,13 @@ class UserController extends Controller
      *         required=true,
      *         description="User ID (UUID)",
      *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *  @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string")
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -95,27 +89,11 @@ class UserController extends Controller
      *     )
      * )
      */
-    public function show($id)
-    {
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json(['message' => 'User not found'], 404);
-        }
-
-        $data = [
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role,
-            'avatar' => $user->avatar ? url($user->avatar) : null,
-            'bio' => $user->bio
-        ];
-
-        return response()->json($data, 200);
-    }
+    public function getUserDetail() {}
 
     /**
      * @OA\Post(
-     *     path="/api/profile/update",
+     *     path="/api/v1/user/profile/update",
      *     tags={"Profile"},
      *     summary="Update user profile",
      *     description="Update authenticated user's profile including name, email, role, avatar, and bio.",
@@ -126,6 +104,13 @@ class UserController extends Controller
      *         required=true,
      *         description="Override HTTP method for PATCH requests",
      *         @OA\Schema(type="string", example="PATCH")
+     *     ),
+     *  @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string")
      *     ),
      *     @OA\RequestBody(
      *         required=true,
@@ -170,68 +155,22 @@ class UserController extends Controller
      *     )
      * )
      */
-    public function update(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $user = auth()->user();
-            if (!$user) {
-                return response()->json(['message' => 'User not found'], 404);
-            }
-
-            $validator = ValidationHelper::profile($request->all());
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-
-            $data = $validator->validated();
-
-            if (
-                isset($data['email']) &&
-                User::where('email', $data['email'])
-                ->where('id', '!=', $user->id)
-                ->exists()
-            ) {
-                return response()->json([
-                    'message' => "Email already exists",
-                ], 422);
-            }
-
-            if ($request->hasFile('avatar')) {
-                if ($user->avatar) {
-                    FileUploadHelper::delete($user->avatar);
-                }
-                $data['avatar'] = FileUploadHelper::upload($request->file('avatar'), 'avatar');
-            }
-
-            $user->update($data);
-
-            DB::commit();
-            $user->refresh();
-            $userData = [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-                'avatar' => $user->avatar ? url($user->avatar) : null,
-                'bio' => $user->bio,
-                'created_at' => $user->created_at,
-                'updated_at' => $user->updated_at
-            ];
-            return response()->json(['message' => 'User updated successfully'], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
-        }
-    }
+    public function updateProfile() {}
 
     /**
      * @OA\Delete(
-     *     path="/api/profile/destroy",
+     *     path="/api/v1/user/profile/destroy",
      *     tags={"Profile"},
      *     summary="Delete user profile",
      *     description="Delete the authenticated user's account, including avatar file if present.",
      *     security={{"bearerAuth":{}}},
+     *  @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="User deleted successfully",
@@ -256,25 +195,5 @@ class UserController extends Controller
      *     )
      * )
      */
-    public function destroy(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $user = auth()->user();
-            if (!$user) {
-                return response()->json(['message' => 'User not found'], 404);
-            }
-
-            if ($user->avatar) {
-                FileUploadHelper::delete($user->avatar);
-            }
-
-            $user->delete();
-            DB::commit();
-            return response()->json(['message' => 'User deleted successfully'], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
-        }
-    }
+    public function deleteProfile() {}
 }

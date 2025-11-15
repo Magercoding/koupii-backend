@@ -1,19 +1,14 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Swagger\V1\Class;
 
-use Illuminate\Http\Request;
-use App\Models\Classes;
-use App\Helpers\ValidationHelper;
-use App\Helpers\FileUploadHelper;
-use Illuminate\Support\Str;
-use DB;
+use OpenApi\Annotations as OA;
 
-class ClassController extends Controller
+class ClassDocs
 {
     /**
      * @OA\Get(
-     *     path="/api/classes",
+     *     path="/api/v1/class",
      *     tags={"Classes"},
      *     summary="Get all classes",
      *     description="Admin & Student can see all classes, Teacher can only see their own classes.",
@@ -56,76 +51,11 @@ class ClassController extends Controller
      *     @OA\Response(response=403, description="Unauthorized")
      * )
      */
-    public function index(Request $request)
-    {
-        $user = auth()->user();
-
-        $classes = match ($user->role) {
-            'admin' => Classes::with([
-                'teacher:id,name,email,avatar,bio',
-                'students:id,name,email,avatar'
-            ])->get(),
-
-            'teacher' => Classes::where('teacher_id', $user->id)
-                ->with([
-                    'teacher:id,name,email,avatar,bio',
-                    'students:id,name,email,avatar'
-                ])->get(),
-
-            'student' => Classes::whereHas('students', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
-            })
-                ->with([
-                    'teacher:id,name,email,avatar,bio',
-                    'students:id,name,email,avatar',
-                ])
-                ->get(),
-
-            default => null,
-        };
-
-        if (is_null($classes)) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $classes = $classes->map(function ($class) use ($user) {
-            $base = [
-                'id'          => $class->id,
-                'name'        => $class->name,
-                'description' => $class->description,
-                'cover_image' => $class->cover_image ? url($class->cover_image) : null,
-                'is_active'   => $class->is_active,
-                'created_at'  => $class->created_at,
-                'updated_at'  => $class->updated_at,
-                'teacher'     => $class->teacher ? [
-                    'id'     => $class->teacher->id,
-                    'name'   => $class->teacher->name,
-                    'email'  => $class->teacher->email,
-                    'bio'    => $class->teacher->bio,
-                    'avatar' => $class->teacher->avatar ? url($class->teacher->avatar) : null,
-                ] : null,
-                'students' => $class->students->map(function ($student) {
-                    return [
-                        'id'         => $student->id,
-                        'name'       => $student->name,
-                        'avatar'     => $student->avatar ? url($student->avatar) : null,
-                    ];
-                }),
-            ];
-
-            if (in_array($user->role, ['admin', 'teacher'])) {
-                $base['class_code'] = $class->class_code;
-            }
-
-            return $base;
-        });
-
-        return response()->json($classes, 200);
-    }
+    public function getAllClasses() {}
 
     /**
      * @OA\Post(
-     *     path="/api/classes/create",
+     *     path="/api/v1/class/create",
      *     tags={"Classes"},
      *     summary="Create a new class",
      *     description="Only admin and teacher can create a new class.",
@@ -155,56 +85,11 @@ class ClassController extends Controller
      *     @OA\Response(response=422, description="Validation error")
      * )
      */
-    public function store(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $validator = ValidationHelper::class($request->all());
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-
-            $existingClass = Classes::where('name', $request->input('name'))
-                ->where('teacher_id', auth()->user()['id'])
-                ->first();
-
-            if ($existingClass) {
-                return response()->json(['message' => 'Class name already exists'], 409);
-            }
-
-            $existingClassCode = Classes::where('class_code', $request->input('class_code'))
-                ->where('teacher_id', auth()->user()['id']);
-
-            if ($existingClassCode->exists()) {
-                return response()->json(['message' => 'Class code already exists'], 409);
-            }
-
-            $data = $validator->validated();
-
-            if ($request->hasFile('cover_image')) {
-                $data['cover_image'] = FileUploadHelper::upload($request->file('cover_image'), 'cover');
-            }
-
-            $class = Classes::create([
-                'teacher_id' => auth()->user()->id,
-                'name' => $data['name'],
-                'description' => $data['description'] ?? null,
-                'class_code' => $data['class_code'] ?? strtoupper(Str::random(8)),
-                'cover_image' => isset($data['cover_image']) ? $data['cover_image'] : null,
-                'is_active' => $data['is_active'] ?? true,
-            ]);
-
-            DB::commit();
-            return response()->json(['message' => 'Class created successfully'], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
-        }
-    }
+    public function createClass() {}
 
     /**
      * @OA\Get(
-     *     path="/api/classes/{id}",
+     *     path="/api/v1/class/{id}",
      *     tags={"Classes"},
      *     summary="Get class details",
      *     description="Get class detail including teacher info.",
@@ -251,74 +136,11 @@ class ClassController extends Controller
      *     @OA\Response(response=404, description="Class not found")
      * )
      */
-    public function show($id)
-    {
-        $user = auth()->user();
-
-        $class = match ($user->role) {
-            'admin' => Classes::with([
-                'teacher:id,name,email,avatar,bio',
-                'students:id,name,email,avatar',
-            ])->find($id),
-
-            'teacher' => Classes::where('teacher_id', $user->id)
-                ->with([
-                    'teacher:id,name,email,avatar,bio',
-                    'students:id,name,email,avatar',
-                ])
-                ->find($id),
-
-            'student' => Classes::whereHas('students', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
-            })
-                ->with([
-                    'teacher:id,name,email,avatar,bio',
-                    'students:id,name,email,avatar',
-                ])
-                ->find($id),
-
-            default => null,
-        };
-
-        if (!$class) {
-            return response()->json(['message' => 'Class not found'], 404);
-        }
-
-        $data = [
-            'id'          => $class->id,
-            'name'        => $class->name,
-            'description' => $class->description,
-            'cover_image' => $class->cover_image ? url($class->cover_image) : null,
-            'is_active'   => $class->is_active,
-            'created_at'  => $class->created_at,
-            'updated_at'  => $class->updated_at,
-            'teacher'     => $class->teacher ? [
-                'id'     => $class->teacher->id,
-                'name'   => $class->teacher->name,
-                'email'  => $class->teacher->email,
-                'bio'    => $class->teacher->bio,
-                'avatar' => $class->teacher->avatar ? url($class->teacher->avatar) : null,
-            ] : null,
-            'students' => $class->students->map(function ($student) {
-                return [
-                    'id'          => $student->id,
-                    'name'        => $student->name,
-                    'avatar'      => $student->avatar ? url($student->avatar) : null,
-                ];
-            }),
-        ];
-
-        if (in_array($user->role, ['admin', 'teacher'])) {
-            $data['class_code'] = $class->class_code;
-        }
-
-        return response()->json($data, 200);
-    }
-
+    public function getClassDetail() {}
 
     /**
      * @OA\Post(
-     *     path="/api/classes/update/{id}",
+     *     path="/api/v1/class/update/{id}",
      *     tags={"Classes"},
      *     summary="Update class",
      *     description="Only admin and teacher (class owner) can update class data.",
@@ -364,71 +186,11 @@ class ClassController extends Controller
      *     @OA\Response(response=422, description="Validation error")
      * )
      */
-    public function update(Request $request, $id)
-    {
-        $class = Classes::find($id);
-        if (!$class) {
-            return response()->json(['message' => 'Class not found'], 404);
-        }
-
-        $user = auth()->user();
-        if ($user->role !== 'admin' && $class->teacher_id !== $user->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        DB::beginTransaction();
-        try {
-            $validator = ValidationHelper::class($request->all(), true);
-
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-
-            if ($request->filled('name')) {
-                $existingClass = Classes::where('name', $request->input('name'))
-                    ->where('teacher_id', auth()->id())
-                    ->where('id', '!=', $id)
-                    ->first();
-
-                if ($existingClass) {
-                    return response()->json(['message' => 'Class name already exists'], 409);
-                }
-            }
-
-            if ($request->filled('class_code')) {
-                $existingClassCode = Classes::where('class_code', $request->input('class_code'))
-                    ->where('teacher_id', auth()->id())
-                    ->where('id', '!=', $id)
-                    ->first();
-
-                if ($existingClassCode) {
-                    return response()->json(['message' => 'Class code already exists'], 409);
-                }
-            }
-
-            $data = $validator->validated();
-
-            if ($request->hasFile('cover_image')) {
-                if ($class->cover_image) {
-                    FileUploadHelper::delete($class->cover_image);
-                }
-
-                $data['cover_image'] = FileUploadHelper::upload($request->file('cover_image'), 'cover');
-            }
-
-            $class->update($data);
-
-            DB::commit();
-            return response()->json(['message' => 'Class updated successfully'], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
-        }
-    }
+    public function updateClass() {}
 
     /**
      * @OA\Delete(
-     *     path="/api/classes/delete/{id}",
+     *     path="/api/v1/class/delete/{id}",
      *     tags={"Classes"},
      *     summary="Delete a class",
      *     description="Only admin and teacher (class owner) can delete a class.",
@@ -451,23 +213,5 @@ class ClassController extends Controller
      *     @OA\Response(response=404, description="Class not found")
      * )
      */
-    public function destroy($id)
-    {
-        $class = Classes::find($id);
-        if (!$class) {
-            return response()->json(['message' => 'Class not found'], 404);
-        }
-
-        $user = auth()->user();
-        if ($user->role !== 'admin' && $class->teacher_id !== $user->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        if ($class->cover_image) {
-            FileUploadHelper::delete($class->cover_image);
-        }
-
-        $class->delete();
-        return response()->json(['message' => 'Class deleted successfully'], 200);
-    }
+    public function deleteClass() {}
 }

@@ -83,4 +83,38 @@ class Classes extends Model
     {
         return $this->hasMany(TestReport::class, 'class_id');
     }
+
+    public function scopeForAdmin($query)
+    {
+        return $query->with(['teacher:id,name,email,avatar,bio', 'students:id,name,email,avatar']);
+    }
+
+    public function scopeForTeacher($query, $teacherId)
+    {
+        return $query->where('teacher_id', $teacherId)
+            ->with(['teacher:id,name,email,avatar,bio', 'students:id,name,email,avatar']);
+    }
+
+    public function scopeForStudent($query, $studentId)
+    {
+        return $query->whereHas('students', function ($q) use ($studentId) {
+            $q->where('users.id', $studentId);
+        })
+            ->with(['teacher:id,name,email,avatar,bio', 'students:id,name,email,avatar']);
+    }
+    public function scopeVisibleTo($query, $user)
+    {
+        return match ($user->role) {
+            'admin' => $query,
+            'teacher' => $query->where('teacher_id', $user->id),
+            'student' => $query->whereHas(
+                'students',
+                fn($q) =>
+                $q->where('users.id', $user->id)
+            ),
+            default => $query->whereRaw('0 = 1'),
+        };
+    }
+
+
 }

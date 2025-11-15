@@ -37,4 +37,34 @@ class ClassEnrollment extends Model
     {
         return $this->belongsTo(User::class, 'student_id');
     }
+
+    public function isOwnedByUser($user): bool
+    {
+        return match ($user->role) {
+            'admin' => true,
+            'teacher' => $this->class->teacher_id === $user->id,
+            'student' => $this->student_id === $user->id,
+            default => false,
+        };
+    }
+
+
+    public function scopeForAdmin($query)
+    {
+        return $query->with(['class', 'student']);
+    }
+
+   
+    public function scopeForTeacher($query, $teacherId)
+    {
+        return $query->with(['class', 'student'])
+            ->whereIn('class_id', Classes::where('teacher_id', $teacherId)->pluck('id'));
+    }
+
+   
+    public function scopeForStudent($query, $studentId)
+    {
+        return $query->with(['class.teacher:id,name,email,avatar', 'student'])
+            ->where('student_id', $studentId);
+    }
 }

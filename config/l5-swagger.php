@@ -45,6 +45,7 @@ return [
                  */
                 'annotations' => [
                     base_path('app'),
+                    // base_path('app/Swagger'),
                     base_path('routes/api.php'),
                 ],
             ],

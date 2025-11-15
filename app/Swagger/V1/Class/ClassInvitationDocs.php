@@ -1,20 +1,14 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Swagger\V1\Class;
 
-use App\Models\User;
-use App\Models\ClassInvitation;
-use App\Models\Classes;
-use App\Models\ClassEnrollment;
-use App\Helpers\ValidationHelper;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use OpenApi\Annotations as OA;
 
-class ClassInvitationController extends Controller
+class ClassInvitationDocs
 {
     /**
      * @OA\Get(
-     *     path="/api/invitations",
+     *     path="/api/v1/class/invitations",
      *     tags={"Invitations"},
      *     summary="Get all invitations based on user role",
      *     description="Admin sees all invitations, teacher sees only invitations in their classes, student sees only invitations sent to them.",
@@ -75,31 +69,13 @@ class ClassInvitationController extends Controller
      *     @OA\Response(response=403, description="Unauthorized")
      * )
      */
-    public function index()
+    public function getAllInvitations()
     {
-        $user = auth()->user();
-
-        $invitations = match ($user->role) {
-            'admin' => ClassInvitation::with(['class', 'student', 'teacher'])->get(),
-            'teacher' => ClassInvitation::with(['class', 'student'])
-                ->whereHas('class', fn($q) => $q->where('teacher_id', $user->id))
-                ->get(),
-            'student' => ClassInvitation::with(['class', 'student', 'teacher' => fn($q) => $q->select('id', 'name')])
-                ->where('student_id', $user->id)
-                ->get(),
-            default => null,
-        };
-
-        if (is_null($invitations)) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        return response()->json($invitations, 200);
     }
 
     /**
      * @OA\Post(
-     *     path="/api/invitations/create",
+     *     path="/api/v1/class/invitations/create",
      *     tags={"Invitations"},
      *     summary="Send invitation to student",
      *     description="Teacher or admin sends an invitation to a student to join a class.",
@@ -147,62 +123,13 @@ class ClassInvitationController extends Controller
      *     @OA\Response(response=403, description="Unauthorized")
      * )
      */
-    public function store(Request $request)
+    public function createInvitation()
     {
-        DB::beginTransaction();
-        try {
-            $validator = ValidationHelper::classInvitation($request->all());
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-
-            $user = auth()->user();
-
-            $class = Classes::where('class_code', $request->class_code)->first();
-
-            if ($user->role === 'teacher' && $class->teacher_id !== $user->id) {
-                return response()->json(['message' => 'Unauthorized to invite to this class'], 403);
-            }
-
-            $student = User::where('email', $request->email)->where('role', 'student')->first();
-            if (!$student) {
-                return response()->json(['message' => 'User not found or not a student'], 404);
-            }
-
-            $alreadyEnrolled = ClassEnrollment::where('class_id', $class->id)
-                ->where('student_id', $student->id)
-                ->exists();
-            if ($alreadyEnrolled) {
-                return response()->json(['message' => 'Student already enrolled in this class'], 409);
-            }
-
-            $existingInvitation = ClassInvitation::where('class_id', $class->id)
-                ->where('student_id', $student->id)
-                ->first();
-            if ($existingInvitation) {
-                return response()->json(['message' => 'Invitation already sent'], 409);
-            }
-
-            $invitation = ClassInvitation::create([
-                'teacher_id' => $user->id,
-                'class_id' => $class->id,
-                'student_id' => $student->id,
-                'email' => $student->email,
-                'invitation_token' => bin2hex(random_bytes(16)),
-                'expires_at' => now()->addDays(1),
-            ]);
-
-            DB::commit();
-            return response()->json(['message' => 'Invitation sent successfully', 'data' => $invitation], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
-        }
     }
 
     /**
      * @OA\Patch(
-     *     path="/api/invitations/update/{id}",
+     *     path="/api/v1/class/invitations/update/{id}",
      *     tags={"Invitations"},
      *     summary="Update invitation status",
      *     description="Student accepts or declines the invitation.",
@@ -258,52 +185,13 @@ class ClassInvitationController extends Controller
      *     @OA\Response(response=403, description="Unauthorized")
      * )
      */
-    public function update(Request $request, $id)
+    public function updateInvitation()
     {
-        $invitation = ClassInvitation::find($id);
-        if (!$invitation) {
-            return response()->json(['message' => 'Invitation not found'], 404);
-        }
-
-        $user = auth()->user();
-
-        if ($user->role === 'student' && $invitation->student_id !== $user->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $status = $request->input('status');
-        if (!in_array($status, ['accepted', 'declined'])) {
-            return response()->json(['message' => 'Invalid status'], 422);
-        }
-
-        DB::beginTransaction();
-        try {
-            $invitation->update(['status' => $status]);
-
-            if ($status === 'accepted') {
-                ClassEnrollment::firstOrCreate(
-                    [
-                        'class_id' => $invitation->class_id,
-                        'student_id' => $invitation->student_id,
-                    ],
-                    [
-                        'status' => 'active',
-                        'enrolled_at' => now(),
-                    ]
-                );
-            }
-
-            DB::commit();
-            return response()->json(['message' => 'Invitation status updated', 'data' => $invitation], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error', 'error' => $e->getMessage()], 500);
-        }
     }
 
     /**
      * @OA\Delete(
-     *     path="/api/invitations/delete/{id}",
+     *     path="/api/v1/class/invitations/delete/{id}",
      *     tags={"Invitations"},
      *     summary="Delete invitation",
      *     description="Teacher or admin deletes the invitation before it is accepted or declined.",
@@ -339,20 +227,7 @@ class ClassInvitationController extends Controller
      *     @OA\Response(response=403, description="Unauthorized")
      * )
      */
-    public function destroy($id)
+    public function deleteInvitation()
     {
-        $invitation = ClassInvitation::find($id);
-        if (!$invitation) {
-            return response()->json(['message' => 'Invitation not found'], 404);
-        }
-
-        $user = auth()->user();
-
-        if ($user->role === 'teacher' && $invitation->class->teacher_id !== $user->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $invitation->delete();
-        return response()->json(['message' => 'Invitation deleted successfully'], 200);
     }
 }
