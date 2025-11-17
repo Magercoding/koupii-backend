@@ -5,9 +5,18 @@ namespace App\Http\Controllers\V1\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Auth\LoginRequest;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class AuthController extends Controller
+class AuthController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware(['auth:sanctum'], only: ['logout']),
+        ];
+    }
+
     public function login(LoginRequest $request){
         $request->authenticate();
 

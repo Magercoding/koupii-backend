@@ -1,13 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Swagger\V1\VocabularyCategory;
 
-use Illuminate\Http\Request;
-use App\Models\VocabularyCategory;
-use App\Helpers\ValidationHelper;
-use DB;
-
-class VocabularyCategoryController extends Controller
+use OpenApi\Annotations as OA;
+class VocabularyCategoryDocs
 {
     /**
      * @OA\Get(
@@ -48,8 +44,6 @@ class VocabularyCategoryController extends Controller
      */
     public function index()
     {
-        $vocabularyCategories = VocabularyCategory::all();
-        return response()->json($vocabularyCategories, 200);
     }
 
     /**
@@ -99,28 +93,9 @@ class VocabularyCategoryController extends Controller
      *     @OA\Response(response=500, description="Server error")
      * )
      */
-    public function store(Request $request)
+    public function store()
     {
-        DB::beginTransaction();
-        try{
-            $validator = ValidationHelper::vocabularyCategory($request->all());
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-            
-            $existingCategory = VocabularyCategory::where('name', $request->input('name'))->first();
-            if ($existingCategory) {
-                return response()->json(['error' => 'Category name already exists'], 422);
-            }
 
-            $category = VocabularyCategory::create($validator->validated());
-
-            DB::commit();
-            return response()->json(['message' => 'Category created successfully', 'data' => $category], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error' ,'error' => $e->getMessage()], 500);
-        }
     }
 
     /**
@@ -167,11 +142,7 @@ class VocabularyCategoryController extends Controller
      */
     public function show($id)
     {
-        $category = VocabularyCategory::find($id);
-        if (!$category) {
-            return response()->json(['error' => 'Category not found'], 404);
-        }
-        return response()->json($category, 200);
+
     }
 
     /**
@@ -229,28 +200,9 @@ class VocabularyCategoryController extends Controller
      *     @OA\Response(response=500, description="Server error")
      * )
      */
-    public function update(Request $request, $id)
+    public function update()
     {
-        $category = VocabularyCategory::find($id);
-        if (!$category) {
-            return response()->json(['error' => 'Category not found'], 404);
-        }
 
-        DB::beginTransaction();
-        try{
-            $validator = ValidationHelper::vocabularyCategory($request->all());
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-
-            $category->update($validator->validated());
-
-            DB::commit();
-            return response()->json(['message' => 'Category updated successfully', 'data' => $category], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Server error' ,'error' => $e->getMessage()], 500);
-        }
     }
 
     /**
@@ -291,14 +243,8 @@ class VocabularyCategoryController extends Controller
      *     @OA\Response(response=404, description="Category not found")
      * )
      */
-    public function destroy($id)
+    public function destroy()
     {
-        $category = VocabularyCategory::find($id);
-        if (!$category) {
-            return response()->json(['error' => 'Category not found'], 404);
-        }
 
-        $category->delete();
-        return response()->json(['message' => 'Category deleted successfully'], 200);
     }
 }

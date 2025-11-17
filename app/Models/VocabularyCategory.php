@@ -28,4 +28,19 @@ class VocabularyCategory extends Model
     {
         return $this->hasMany(Vocabulary::class, 'category_id');
     }
+
+    public function scopeSearch($query, $search)
+    {
+        if (!empty($search)) {
+            return $query->where('name', 'like', "%$search%");
+        }
+
+        return $query;
+    }
+
+    
+    public function scopePerPage($query, $perPage)
+    {
+        return $query->paginate($perPage ?? 10);
+    }
 }
