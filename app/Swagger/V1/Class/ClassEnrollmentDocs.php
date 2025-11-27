@@ -9,7 +9,7 @@ class ClassEnrollmentDocs
 {
     /**
      * @OA\Get(
-     *     path="/api/v1/class/enrollments",
+     *     path="/api/v1/enrollments",
      *     tags={"Enrollments"},
      *     summary="Get all enrollments based on user role",
      *     description="Admin sees all enrollments, teacher sees only enrollments in their classes, student sees only their enrolled classes.",
@@ -68,7 +68,7 @@ class ClassEnrollmentDocs
 
     /**
      * @OA\Post(
-     *     path="/api/v1/class/enrollments/create",
+     *     path="/api/v1/enrollments/create",
      *     tags={"Enrollments"},
      *     summary="Enroll student to class",
      *     description="Student enrolls to a class using class_id and class_code.",
@@ -116,7 +116,7 @@ class ClassEnrollmentDocs
 
     /**
      * @OA\Get(
-     *     path="/api/class/enrollments/{id}",
+     *     path="/api/v1/enrollments/{id}",
      *     tags={"Enrollments"},
      *     summary="Get enrollment details",
      *     description="Show enrollment details including class and student info.",
@@ -168,7 +168,7 @@ class ClassEnrollmentDocs
 
     /**
      * @OA\Patch(
-     *     path="/api//v1/class/enrollments/update/{id}",
+     *     path="/api/v1/enrollments/update/{id}",
      *     tags={"Enrollments"},
      *     summary="Update enrollment status",
      *     description="Admin, teacher, or student can update enrollment (depends on role).",
@@ -219,7 +219,7 @@ class ClassEnrollmentDocs
 
     /**
      * @OA\Delete(
-     *     path="/api/v1/class/enrollments/delete/{id}",
+     *     path="/api/v1/enrollments/delete/{id}",
      *     tags={"Enrollments"},
      *     summary="Delete enrollment",
      *     description="Admin, teacher, or student can delete enrollment based on role authorization.",

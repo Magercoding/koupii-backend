@@ -10,1183 +10,23 @@
     },
     "servers": [
         {
+            "url": "http://127.0.0.1:8000",
+            "description": "Local development server"
+        },
+        {
             "url": "https://api-koupii.magercoding.com",
             "description": "Production server"
         }
     ],
     "paths": {
-        "/api/vocab/categories": {
-            "get": {
-                "tags": [
-                    "Vocabulary Categories"
-                ],
-                "summary": "Get all vocabulary categories",
-                "description": "Returns a list of all vocabulary categories.",
-                "operationId": "aa81c1060a88e116e57bc39836e1455e",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "List of vocabulary categories",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "properties": {
-                                            "id": {
-                                                "type": "string",
-                                                "example": "uuid-string"
-                                            },
-                                            "name": {
-                                                "type": "string",
-                                                "example": "nouns"
-                                            },
-                                            "color_code": {
-                                                "type": "string",
-                                                "example": "#FF0000"
-                                            },
-                                            "created_at": {
-                                                "type": "string",
-                                                "example": "2025-07-15T07:19:54.000000Z"
-                                            },
-                                            "updated_at": {
-                                                "type": "string",
-                                                "example": "2025-07-15T07:19:54.000000Z"
-                                            }
-                                        },
-                                        "type": "object"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/vocab/categories/create": {
-            "post": {
-                "tags": [
-                    "Vocabulary Categories"
-                ],
-                "summary": "Create a new vocabulary category",
-                "description": "Adds a new vocabulary category. Requires authentication.",
-                "operationId": "7b4a1e4b73dd2bbff472bd310da04905",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "name"
-                                ],
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "example": "nouns"
-                                    },
-                                    "color_code": {
-                                        "type": "string",
-                                        "example": "#FF0000"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Category created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Category created successfully"
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string",
-                                                    "example": "uuid-string"
-                                                },
-                                                "name": {
-                                                    "type": "string",
-                                                    "example": "nouns"
-                                                },
-                                                "color_code": {
-                                                    "type": "string",
-                                                    "example": "#FF0000"
-                                                },
-                                                "created_at": {
-                                                    "type": "string",
-                                                    "example": "2025-07-15T07:19:54.000000Z"
-                                                },
-                                                "updated_at": {
-                                                    "type": "string",
-                                                    "example": "2025-07-15T07:19:54.000000Z"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation failed"
-                    },
-                    "500": {
-                        "description": "Server error"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/vocab/categories/{id}": {
-            "get": {
-                "tags": [
-                    "Vocabulary Categories"
-                ],
-                "summary": "Get a specific vocabulary category",
-                "description": "Retrieve details of a specific category by its ID.",
-                "operationId": "3aa412353611facc4650612c497e7276",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "UUID of the category",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Category retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "id": {
-                                            "type": "string",
-                                            "example": "uuid-string"
-                                        },
-                                        "name": {
-                                            "type": "string",
-                                            "example": "nouns"
-                                        },
-                                        "color_code": {
-                                            "type": "string",
-                                            "example": "#FF0000"
-                                        },
-                                        "created_at": {
-                                            "type": "string",
-                                            "example": "2025-07-15T07:19:54.000000Z"
-                                        },
-                                        "updated_at": {
-                                            "type": "string",
-                                            "example": "2025-07-15T07:19:54.000000Z"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Category not found"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            },
-            "delete": {
-                "tags": [
-                    "Vocabulary Categories"
-                ],
-                "summary": "Delete a vocabulary category",
-                "description": "Delete a category by its UUID.",
-                "operationId": "d12f541c21b8d5a2c51c233602e9b9d4",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "UUID of the category",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Category deleted successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Category deleted successfully"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Category not found"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/vocab/categories/update/{id}": {
-            "patch": {
-                "tags": [
-                    "Vocabulary Categories"
-                ],
-                "summary": "Update an existing vocabulary category",
-                "description": "Update a vocabulary category's name or description.",
-                "operationId": "12c346f2bea07ebffb85618db290036d",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "UUID of the category",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "name"
-                                ],
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "example": "verb"
-                                    },
-                                    "color_code": {
-                                        "type": "string",
-                                        "example": "#FFA000"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Category created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Category created successfully"
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string",
-                                                    "example": "uuid-string"
-                                                },
-                                                "name": {
-                                                    "type": "string",
-                                                    "example": "verb"
-                                                },
-                                                "color_code": {
-                                                    "type": "string",
-                                                    "example": "#FFA000"
-                                                },
-                                                "created_at": {
-                                                    "type": "string",
-                                                    "example": "2025-07-15T07:19:54.000000Z"
-                                                },
-                                                "updated_at": {
-                                                    "type": "string",
-                                                    "example": "2025-07-15T07:19:54.000000Z"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Category not found"
-                    },
-                    "422": {
-                        "description": "Validation failed"
-                    },
-                    "500": {
-                        "description": "Server error"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/vocab/vocabularies": {
-            "get": {
-                "tags": [
-                    "Vocabulary"
-                ],
-                "summary": "Get all vocabularies",
-                "description": "Returns a list of all vocabulary entries.",
-                "operationId": "8deda9b34a4e017b542cd087eadd78c1",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "List of vocabulary entries",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "properties": {
-                                            "id": {
-                                                "type": "string",
-                                                "example": "uuid-string"
-                                            },
-                                            "teacher_id": {
-                                                "type": "string",
-                                                "example": "uuid-teacher"
-                                            },
-                                            "category_id": {
-                                                "type": "string",
-                                                "example": "uuid-category"
-                                            },
-                                            "word": {
-                                                "type": "string",
-                                                "example": "Elephant"
-                                            },
-                                            "translation": {
-                                                "type": "string",
-                                                "example": "Gajah"
-                                            },
-                                            "spelling": {
-                                                "type": "string",
-                                                "example": "ˈeləfənt"
-                                            },
-                                            "explanation": {
-                                                "type": "string",
-                                                "example": "A large mammal with trunk."
-                                            },
-                                            "audio_file_path": {
-                                                "type": "string",
-                                                "example": "/storage/audio/688cb485b0b72.mp3"
-                                            },
-                                            "is_public": {
-                                                "type": "boolean",
-                                                "example": true
-                                            },
-                                            "created_at": {
-                                                "type": "string",
-                                                "example": "2025-08-01T10:00:00Z"
-                                            },
-                                            "updated_at": {
-                                                "type": "string",
-                                                "example": "2025-08-01T10:00:00Z"
-                                            },
-                                            "is_bookmarked": {
-                                                "type": "boolean",
-                                                "example": false
-                                            },
-                                            "teacher": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "string",
-                                                        "format": "uuid",
-                                                        "example": "571bd78d-4879-44e0-9697-05b6e8bebc5d"
-                                                    },
-                                                    "name": {
-                                                        "type": "string",
-                                                        "example": "Teacher User 1"
-                                                    }
-                                                },
-                                                "type": "object"
-                                            },
-                                            "category": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "string",
-                                                        "format": "uuid",
-                                                        "example": "01985aba-6229-7398-8eb3-aec300a712a0"
-                                                    },
-                                                    "name": {
-                                                        "type": "string",
-                                                        "example": "Noun"
-                                                    },
-                                                    "color_code": {
-                                                        "type": "string",
-                                                        "example": "#FFC107"
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        },
-                                        "type": "object"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/vocab/create": {
-            "post": {
-                "tags": [
-                    "Vocabulary"
-                ],
-                "summary": "Create a new vocabulary entry",
-                "description": "Adds a new vocabulary entry to the system.",
-                "operationId": "2f4905fe290f9629fe6d93ae00a0addd",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "required": [
-                                    "category_id",
-                                    "word",
-                                    "translation",
-                                    "is_public"
-                                ],
-                                "properties": {
-                                    "category_id": {
-                                        "type": "string",
-                                        "example": "uuid-category"
-                                    },
-                                    "word": {
-                                        "type": "string",
-                                        "example": "Elephant"
-                                    },
-                                    "translation": {
-                                        "type": "string",
-                                        "example": "Gajah"
-                                    },
-                                    "spelling": {
-                                        "type": "string",
-                                        "example": "ˈeləfənt"
-                                    },
-                                    "explanation": {
-                                        "type": "string",
-                                        "example": "A large mammal with trunk."
-                                    },
-                                    "audio_file_path": {
-                                        "type": "file",
-                                        "example": "elephant.mp3"
-                                    },
-                                    "is_public": {
-                                        "type": "boolean",
-                                        "example": 1
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Vocabulary created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Vocabulary created successfully"
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string",
-                                                    "example": "uuid-string"
-                                                },
-                                                "teacher_id": {
-                                                    "type": "string",
-                                                    "example": "uuid-teacher"
-                                                },
-                                                "category_id": {
-                                                    "type": "string",
-                                                    "example": "uuid-category"
-                                                },
-                                                "word": {
-                                                    "type": "string",
-                                                    "example": "Elephant"
-                                                },
-                                                "translation": {
-                                                    "type": "string",
-                                                    "example": "Gajah"
-                                                },
-                                                "spelling": {
-                                                    "type": "string",
-                                                    "example": "ˈeləfənt"
-                                                },
-                                                "explanation": {
-                                                    "type": "string",
-                                                    "example": "A large mammal with trunk."
-                                                },
-                                                "audio_file_path": {
-                                                    "type": "string",
-                                                    "example": "/storage/audio/688cb485b0b72.mp3"
-                                                },
-                                                "is_public": {
-                                                    "type": "boolean",
-                                                    "example": 1
-                                                },
-                                                "created_at": {
-                                                    "type": "string",
-                                                    "example": "2025-08-01T10:00:00Z"
-                                                },
-                                                "updated_at": {
-                                                    "type": "string",
-                                                    "example": "2025-08-01T10:00:00Z"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation failed"
-                    },
-                    "500": {
-                        "description": "Server error"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/vocab/{id}": {
-            "get": {
-                "tags": [
-                    "Vocabulary"
-                ],
-                "summary": "Get a specific vocabulary entry",
-                "description": "Retrieve details of a vocabulary entry by its ID.",
-                "operationId": "6d139319c3bfab78f8915a27fb55eba4",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "UUID of the vocabulary",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Vocabulary retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "id": {
-                                            "type": "string",
-                                            "example": "uuid-string"
-                                        },
-                                        "teacher_id": {
-                                            "type": "string",
-                                            "example": "uuid-teacher"
-                                        },
-                                        "category_id": {
-                                            "type": "string",
-                                            "example": "uuid-category"
-                                        },
-                                        "word": {
-                                            "type": "string",
-                                            "example": "Elephant"
-                                        },
-                                        "translation": {
-                                            "type": "string",
-                                            "example": "Gajah"
-                                        },
-                                        "spelling": {
-                                            "type": "string",
-                                            "example": "ˈeləfənt"
-                                        },
-                                        "explanation": {
-                                            "type": "string",
-                                            "example": "A large mammal with trunk."
-                                        },
-                                        "audio_file_path": {
-                                            "type": "string",
-                                            "example": "/storage/audio/688cb485b0b72.mp3"
-                                        },
-                                        "is_public": {
-                                            "type": "boolean",
-                                            "example": 1
-                                        },
-                                        "created_at": {
-                                            "type": "string",
-                                            "example": "2025-08-01T10:00:00Z"
-                                        },
-                                        "updated_at": {
-                                            "type": "string",
-                                            "example": "2025-08-01T10:00:00Z"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Vocabulary not found"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/vocab/update/{id}": {
-            "patch": {
-                "tags": [
-                    "Vocabulary"
-                ],
-                "summary": "Update a vocabulary entry",
-                "description": "Updates an existing vocabulary entry.",
-                "operationId": "8f39630d626e23bdb7b32f625e478c92",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "UUID of the vocabulary",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    },
-                    {
-                        "name": "_method",
-                        "in": "query",
-                        "description": "Override HTTP method for PATCH requests",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "PATCH"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "properties": {
-                                    "category_id": {
-                                        "type": "string",
-                                        "example": "uuid-category"
-                                    },
-                                    "word": {
-                                        "type": "string",
-                                        "example": "Elephant Updated"
-                                    },
-                                    "translation": {
-                                        "type": "string",
-                                        "example": "Gajah Besar"
-                                    },
-                                    "spelling": {
-                                        "type": "string",
-                                        "example": "ˈeləfənt"
-                                    },
-                                    "explanation": {
-                                        "type": "string",
-                                        "example": "Updated explanation"
-                                    },
-                                    "audio_file_path": {
-                                        "type": "file",
-                                        "example": "elephant-new.mp3"
-                                    },
-                                    "is_public": {
-                                        "type": "boolean",
-                                        "example": 0
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Vocabulary updated successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Vocabulary updated successfully"
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "string",
-                                                    "example": "uuid-string"
-                                                },
-                                                "teacher_id": {
-                                                    "type": "string",
-                                                    "example": "uuid-teacher"
-                                                },
-                                                "category_id": {
-                                                    "type": "string",
-                                                    "example": "uuid-category"
-                                                },
-                                                "word": {
-                                                    "type": "string",
-                                                    "example": "Elephant Updated"
-                                                },
-                                                "translation": {
-                                                    "type": "string",
-                                                    "example": "Gajah Besar"
-                                                },
-                                                "spelling": {
-                                                    "type": "string",
-                                                    "example": "ˈeləfənt"
-                                                },
-                                                "explanation": {
-                                                    "type": "string",
-                                                    "example": "Updated explanation"
-                                                },
-                                                "audio_file_path": {
-                                                    "type": "string",
-                                                    "example": "/storage/audio/688cb485b0b72.mp3"
-                                                },
-                                                "is_public": {
-                                                    "type": "boolean",
-                                                    "example": 0
-                                                },
-                                                "created_at": {
-                                                    "type": "string",
-                                                    "example": "2025-08-01T10:00:00Z"
-                                                },
-                                                "updated_at": {
-                                                    "type": "string",
-                                                    "example": "2025-08-01T10:00:00Z"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Vocabulary not found"
-                    },
-                    "422": {
-                        "description": "Validation failed"
-                    },
-                    "500": {
-                        "description": "Server error"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/vocab/delete/{id}": {
-            "delete": {
-                "tags": [
-                    "Vocabulary"
-                ],
-                "summary": "Delete a vocabulary entry",
-                "description": "Deletes a vocabulary entry by its UUID.",
-                "operationId": "8e62d2bc3c170c1d880b56cd72a31ca8",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "UUID of the vocabulary",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Vocabulary deleted successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Vocabulary deleted successfully"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Vocabulary not found"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/vocab/{id}/bookmark": {
-            "post": {
-                "tags": [
-                    "Vocabulary"
-                ],
-                "summary": "Toggle vocabulary bookmark",
-                "description": "Toggle the bookmark status of a vocabulary entry for the authenticated user.",
-                "operationId": "f41bc45a1c299103022122574706401f",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "ID of the vocabulary",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "example": "123"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Bookmark toggled successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Vocabulary bookmarked."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Vocabulary not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "error": {
-                                            "type": "string",
-                                            "example": "Vocabulary not found"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/auth/v1/login": {
+        "/api/v1/auth/login": {
             "post": {
                 "tags": [
                     "Auth"
                 ],
                 "summary": "Login user",
                 "description": "Authenticates a user and returns an access token",
-                "operationId": "31f5c0d6fdb774bdbbe13782efbabb10",
+                "operationId": "0dce593c17bc79d29606e352610c2f1f",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1359,14 +199,14 @@
                 }
             }
         },
-        "/api/v1/class": {
+        "/api/v1/classes": {
             "get": {
                 "tags": [
                     "Classes"
                 ],
                 "summary": "Get all classes",
                 "description": "Admin & Student can see all classes, Teacher can only see their own classes.",
-                "operationId": "01a73cf5a810b4ab4581274f48a949af",
+                "operationId": "204cceb50112ff46623f7f6da4b8fe3c",
                 "responses": {
                     "200": {
                         "description": "List of classes",
@@ -1479,14 +319,14 @@
                 ]
             }
         },
-        "/api/v1/class/create": {
+        "/api/v1/classes/create": {
             "post": {
                 "tags": [
                     "Classes"
                 ],
                 "summary": "Create a new class",
                 "description": "Only admin and teacher can create a new class.",
-                "operationId": "5fc2078ac127a3eae4c8185310292c73",
+                "operationId": "f12ea03217729d1f9fe04665c0e87358",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1554,14 +394,14 @@
                 ]
             }
         },
-        "/api/v1/class/{id}": {
+        "/api/v1/classes/{id}": {
             "get": {
                 "tags": [
                     "Classes"
                 ],
                 "summary": "Get class details",
                 "description": "Get class detail including teacher info.",
-                "operationId": "01b4c6cbcd909e42eca0bc43de90b800",
+                "operationId": "d15573fc1f14109e46aef3264537c019",
                 "parameters": [
                     {
                         "name": "id",
@@ -1683,14 +523,14 @@
                 ]
             }
         },
-        "/api/v1/class/update/{id}": {
+        "/api/v1/classes/update/{id}": {
             "post": {
                 "tags": [
                     "Classes"
                 ],
                 "summary": "Update class",
                 "description": "Only admin and teacher (class owner) can update class data.",
-                "operationId": "057899c06b2def28339cd775d8da347e",
+                "operationId": "d0973f672f1d8cd658b8836057b10abe",
                 "parameters": [
                     {
                         "name": "id",
@@ -1786,14 +626,14 @@
                 ]
             }
         },
-        "/api/v1/class/delete/{id}": {
+        "/api/v1/classes/delete/{id}": {
             "delete": {
                 "tags": [
                     "Classes"
                 ],
                 "summary": "Delete a class",
                 "description": "Only admin and teacher (class owner) can delete a class.",
-                "operationId": "573b0861bd6e05f50c1ef6dde62d3e32",
+                "operationId": "a9193ac747bda295d033b8d0bb94e067",
                 "parameters": [
                     {
                         "name": "id",
@@ -1837,14 +677,14 @@
                 ]
             }
         },
-        "/api/v1/class/enrollments": {
+        "/api/v1/enrollments": {
             "get": {
                 "tags": [
                     "Enrollments"
                 ],
                 "summary": "Get all enrollments based on user role",
                 "description": "Admin sees all enrollments, teacher sees only enrollments in their classes, student sees only their enrolled classes.",
-                "operationId": "f9821f2994e99363c420c23a79b5a6e9",
+                "operationId": "9acda90d9a567aeb0cd8a370f962f307",
                 "parameters": [
                     {
                         "name": "X-XSRF-TOKEN",
@@ -1974,14 +814,14 @@
                 ]
             }
         },
-        "/api/v1/class/enrollments/create": {
+        "/api/v1/enrollments/create": {
             "post": {
                 "tags": [
                     "Enrollments"
                 ],
                 "summary": "Enroll student to class",
                 "description": "Student enrolls to a class using class_id and class_code.",
-                "operationId": "f7abe1cfbe4ddb9ffe4a8a03002dc205",
+                "operationId": "d98302a7f23c9d998c5ba38d3aeb92f6",
                 "parameters": [
                     {
                         "name": "X-XSRF-TOKEN",
@@ -2079,14 +919,14 @@
                 ]
             }
         },
-        "/api/class/enrollments/{id}": {
+        "/api/v1/enrollments/{id}": {
             "get": {
                 "tags": [
                     "Enrollments"
                 ],
                 "summary": "Get enrollment details",
                 "description": "Show enrollment details including class and student info.",
-                "operationId": "260517283999bbadbae4c7debe5a3801",
+                "operationId": "a790a737b803bad083b0c89ef68d879d",
                 "parameters": [
                     {
                         "name": "X-XSRF-TOKEN",
@@ -2188,14 +1028,14 @@
                 ]
             }
         },
-        "/api//v1/class/enrollments/update/{id}": {
+        "/api/v1/enrollments/update/{id}": {
             "patch": {
                 "tags": [
                     "Enrollments"
                 ],
                 "summary": "Update enrollment status",
                 "description": "Admin, teacher, or student can update enrollment (depends on role).",
-                "operationId": "517645a1f9030ab93ea43ce4cc94ad18",
+                "operationId": "0a01558beee4e2f1d44d82a2c6fa0cc5",
                 "parameters": [
                     {
                         "name": "X-XSRF-TOKEN",
@@ -2292,14 +1132,14 @@
                 ]
             }
         },
-        "/api/v1/class/enrollments/delete/{id}": {
+        "/api/v1/enrollments/delete/{id}": {
             "delete": {
                 "tags": [
                     "Enrollments"
                 ],
                 "summary": "Delete enrollment",
                 "description": "Admin, teacher, or student can delete enrollment based on role authorization.",
-                "operationId": "0f364140313da55f50ffe50ad707112d",
+                "operationId": "ac8b66d056a0e9c0baad579afd326bf9",
                 "parameters": [
                     {
                         "name": "X-XSRF-TOKEN",
@@ -2358,14 +1198,14 @@
                 ]
             }
         },
-        "/api/v1/class/invitations": {
+        "/api/v1/invitations": {
             "get": {
                 "tags": [
                     "Invitations"
                 ],
                 "summary": "Get all invitations based on user role",
                 "description": "Admin sees all invitations, teacher sees only invitations in their classes, student sees only invitations sent to them.",
-                "operationId": "c9ff7ff855de1b8cb8b865060182e807",
+                "operationId": "730ffa7940f3cf6898a9464f080d25bc",
                 "parameters": [
                     {
                         "name": "X-XSRF-TOKEN",
@@ -2507,14 +1347,14 @@
                 ]
             }
         },
-        "/api/v1/class/invitations/create": {
+        "/api/v1/invitations/create": {
             "post": {
                 "tags": [
                     "Invitations"
                 ],
                 "summary": "Send invitation to student",
                 "description": "Teacher or admin sends an invitation to a student to join a class.",
-                "operationId": "ff0747306cef6d26742775b5e1ca420b",
+                "operationId": "36d1d1930115b8b9518e5dbf24919102",
                 "parameters": [
                     {
                         "name": "X-XSRF-TOKEN",
@@ -2627,14 +1467,14 @@
                 ]
             }
         },
-        "/api/v1/class/invitations/update/{id}": {
+        "/api/v1/invitations/update/{id}": {
             "patch": {
                 "tags": [
                     "Invitations"
                 ],
                 "summary": "Update invitation status",
                 "description": "Student accepts or declines the invitation.",
-                "operationId": "05ffe1744d543d053acd09653e51d93f",
+                "operationId": "93e7f8496d0d2c4b7245315b8bc406ab",
                 "parameters": [
                     {
                         "name": "X-XSRF-TOKEN",
@@ -2768,14 +1608,14 @@
                 ]
             }
         },
-        "/api/v1/class/invitations/delete/{id}": {
+        "/api/v1/invitations/delete/{id}": {
             "delete": {
                 "tags": [
                     "Invitations"
                 ],
                 "summary": "Delete invitation",
                 "description": "Teacher or admin deletes the invitation before it is accepted or declined.",
-                "operationId": "0eeda3522cc443206d79ce9d9a451db7",
+                "operationId": "11db00174b6d8d67542429fb29546e3e",
                 "parameters": [
                     {
                         "name": "X-XSRF-TOKEN",
@@ -2831,6 +1671,737 @@
                 "security": [
                     {
                         "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/tests": {
+            "get": {
+                "tags": [
+                    "Reading Tests"
+                ],
+                "summary": "Get all reading tests",
+                "description": "Retrieve reading tests based on user role. Admin sees all tests, students see only published tests, teachers see only their own tests.",
+                "operationId": "1449357cd966972a840334cb2f094ecb",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reading tests retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Reading tests retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                    },
+                                                    "creator_id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                                                    },
+                                                    "creator_name": {
+                                                        "type": "string",
+                                                        "example": "Teacher Name"
+                                                    },
+                                                    "test_type": {
+                                                        "type": "string",
+                                                        "example": "academic"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "example": "reading"
+                                                    },
+                                                    "difficulty": {
+                                                        "type": "string",
+                                                        "example": "intermediate"
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "Reading Comprehension Test"
+                                                    },
+                                                    "description": {
+                                                        "type": "string",
+                                                        "example": "Test description"
+                                                    },
+                                                    "timer_mode": {
+                                                        "type": "string",
+                                                        "example": "test"
+                                                    },
+                                                    "timer_settings": {
+                                                        "type": "object"
+                                                    },
+                                                    "allow_repetition": {
+                                                        "type": "boolean",
+                                                        "example": true
+                                                    },
+                                                    "max_repetition_count": {
+                                                        "type": "integer",
+                                                        "example": 3
+                                                    },
+                                                    "is_public": {
+                                                        "type": "boolean",
+                                                        "example": false
+                                                    },
+                                                    "is_published": {
+                                                        "type": "boolean",
+                                                        "example": true
+                                                    },
+                                                    "settings": {
+                                                        "type": "object"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "passages": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/create": {
+            "post": {
+                "tags": [
+                    "Reading Tests"
+                ],
+                "summary": "Create a new reading test",
+                "description": "Create a new reading test with passages and questions.",
+                "operationId": "63aa2b65f8b97017e55dcb3a9c579129",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "description",
+                                    "test_type",
+                                    "difficulty",
+                                    "passages"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Reading Test 1"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "A comprehensive reading test"
+                                    },
+                                    "test_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "academic",
+                                            "general"
+                                        ],
+                                        "example": "academic"
+                                    },
+                                    "difficulty": {
+                                        "type": "string",
+                                        "enum": [
+                                            "beginner",
+                                            "intermediate",
+                                            "advanced"
+                                        ],
+                                        "example": "intermediate"
+                                    },
+                                    "timer_mode": {
+                                        "type": "string",
+                                        "enum": [
+                                            "test",
+                                            "passage",
+                                            "question"
+                                        ],
+                                        "example": "test"
+                                    },
+                                    "timer_settings": {
+                                        "type": "object",
+                                        "example": {
+                                            "test_time": 60
+                                        }
+                                    },
+                                    "allow_repetition": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "max_repetition_count": {
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "is_public": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "is_published": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "settings": {
+                                        "type": "object",
+                                        "example": []
+                                    },
+                                    "passages": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "Passage 1"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "Passage description"
+                                                },
+                                                "content": {
+                                                    "type": "string",
+                                                    "example": "Passage content text..."
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Reading test created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Reading test created successfully"
+                                        },
+                                        "test_id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/tests/{id}": {
+            "get": {
+                "tags": [
+                    "Reading Tests"
+                ],
+                "summary": "Get a specific reading test",
+                "description": "Retrieve a specific reading test with all its passages and questions.",
+                "operationId": "0aced292ef95c2e9ed803a6e1ab088d9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Test ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Test retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                        },
+                                        "creator_id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "creator_name": {
+                                            "type": "string",
+                                            "example": "Teacher Name"
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "example": "Reading Test 1"
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "example": "Test description"
+                                        },
+                                        "test_type": {
+                                            "type": "string",
+                                            "example": "academic"
+                                        },
+                                        "difficulty": {
+                                            "type": "string",
+                                            "example": "intermediate"
+                                        },
+                                        "is_published": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "passages": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "passage_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "content": {
+                                                        "type": "string"
+                                                    },
+                                                    "question_groups": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Test not found or unauthorized access"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/update/{id}": {
+            "put": {
+                "tags": [
+                    "Reading Tests"
+                ],
+                "summary": "Update a reading test",
+                "description": "Update an existing reading test. Only the creator or admin can update.",
+                "operationId": "a3293f62ab30ebb43444193464be7451",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Test ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Updated Reading Test"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Updated description"
+                                    },
+                                    "test_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "academic",
+                                            "general"
+                                        ],
+                                        "example": "academic"
+                                    },
+                                    "difficulty": {
+                                        "type": "string",
+                                        "enum": [
+                                            "beginner",
+                                            "intermediate",
+                                            "advanced"
+                                        ],
+                                        "example": "advanced"
+                                    },
+                                    "timer_mode": {
+                                        "type": "string",
+                                        "enum": [
+                                            "test",
+                                            "passage",
+                                            "question"
+                                        ],
+                                        "example": "test"
+                                    },
+                                    "timer_settings": {
+                                        "type": "object"
+                                    },
+                                    "allow_repetition": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "max_repetition_count": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "is_public": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "is_published": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "settings": {
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Test updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test updated"
+                                        },
+                                        "test_id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Test not found"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "500": {
+                        "description": "Update failed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/delete/passage/{id}": {
+            "delete": {
+                "tags": [
+                    "Reading Tests"
+                ],
+                "summary": "Delete a passage",
+                "description": "Delete a specific passage from a reading test.",
+                "operationId": "d5fb93161ec9ebbe02af637df92a508a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Passage ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Passage deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Passage deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Passage not found"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/delete/question/{id}": {
+            "delete": {
+                "tags": [
+                    "Reading Tests"
+                ],
+                "summary": "Delete a question",
+                "description": "Delete a specific question from a reading test. May also delete the question group if it becomes empty.",
+                "operationId": "18e97be0226f68119c5c239edbea77c4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Question ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Question deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Question deleted successfully"
+                                        },
+                                        "group_deleted": {
+                                            "type": "boolean",
+                                            "example": false
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Question not found"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/delete/{id}": {
+            "delete": {
+                "tags": [
+                    "Reading Tests"
+                ],
+                "summary": "Delete a reading test",
+                "description": "Delete an entire reading test including all passages, questions, and associated images. Only the creator or admin can delete.",
+                "operationId": "8e28762bfd70c4df39de7cbab99bd97c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Test ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Test deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Test not found"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2963,14 +2534,14 @@
                 ]
             }
         },
-        "/api/v1/user/profile": {
+        "/api/v1/profile": {
             "get": {
                 "tags": [
                     "Profile"
                 ],
                 "summary": "Get current user profile",
                 "description": "Retrieve profile information for the authenticated user.",
-                "operationId": "0a7b134ed540325b965d6f6b0a444aa9",
+                "operationId": "e0b0c0978f156994e685f904d67404ac",
                 "parameters": [
                     {
                         "name": "Authorization",
@@ -3048,14 +2619,14 @@
                 ]
             }
         },
-        "/api/v1/user/profile/{id}": {
+        "/api/v1/profile/{id}": {
             "get": {
                 "tags": [
                     "Profile"
                 ],
                 "summary": "Get user details by ID",
                 "description": "Retrieve public details of a user by their ID.",
-                "operationId": "a0e21763abbdf9613f782a5a29f944cd",
+                "operationId": "8346b8f38dcb67038b5d783b9938d6ec",
                 "parameters": [
                     {
                         "name": "id",
@@ -3065,6 +2636,15 @@
                         "schema": {
                             "type": "string",
                             "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ],
@@ -3126,14 +2706,14 @@
                 ]
             }
         },
-        "/api/v1/user/profile/update": {
+        "/api/v1/profile/update": {
             "post": {
                 "tags": [
                     "Profile"
                 ],
                 "summary": "Update user profile",
                 "description": "Update authenticated user's profile including name, email, role, avatar, and bio.",
-                "operationId": "81116453fbfa47eb38c0c0c0101bb31a",
+                "operationId": "0f9bb9cdef25170d7c4ba9f32ace9d1f",
                 "parameters": [
                     {
                         "name": "_method",
@@ -3245,14 +2825,14 @@
                 ]
             }
         },
-        "/api/v1/user/profile/destroy": {
+        "/api/v1/profile/destroy": {
             "delete": {
                 "tags": [
                     "Profile"
                 ],
                 "summary": "Delete user profile",
                 "description": "Delete the authenticated user's account, including avatar file if present.",
-                "operationId": "0a46dd6e13544baf7ccfb6b41abbcd74",
+                "operationId": "9f28bfca7a1c4630772412a3ff0bfeea",
                 "parameters": [
                     {
                         "name": "Authorization",
@@ -3310,17 +2890,1263 @@
                     }
                 ]
             }
+        },
+        "/api/v1/change-password": {
+            "patch": {
+                "tags": [
+                    "User"
+                ],
+                "summary": "Change user password",
+                "description": "Change the authenticated user's password.",
+                "operationId": "b174343edc98904cef30870ab948b0b2",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "current_password",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "current_password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "oldpassword123"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword123"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password changed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Password changed successfully"
+                                        },
+                                        "access_token": {
+                                            "type": "string",
+                                            "example": "1|abcdef1234567890"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Current password is incorrect"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/categories": {
+            "get": {
+                "tags": [
+                    "Vocabulary Categories"
+                ],
+                "summary": "Get all vocabulary categories",
+                "description": "Returns a list of all vocabulary categories.",
+                "operationId": "37e66738792adbdf19177b4143aac2c5",
+                "parameters": [
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of vocabulary categories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "string",
+                                                "example": "uuid-string"
+                                            },
+                                            "name": {
+                                                "type": "string",
+                                                "example": "nouns"
+                                            },
+                                            "color_code": {
+                                                "type": "string",
+                                                "example": "#FF0000"
+                                            },
+                                            "created_at": {
+                                                "type": "string",
+                                                "example": "2025-07-15T07:19:54.000000Z"
+                                            },
+                                            "updated_at": {
+                                                "type": "string",
+                                                "example": "2025-07-15T07:19:54.000000Z"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/categories/create": {
+            "post": {
+                "tags": [
+                    "Vocabulary Categories"
+                ],
+                "summary": "Create a new vocabulary category",
+                "description": "Adds a new vocabulary category. Requires authentication.",
+                "operationId": "0c0155820350c7c04cc8e1dc8d585858",
+                "parameters": [
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "nouns"
+                                    },
+                                    "color_code": {
+                                        "type": "string",
+                                        "example": "#FF0000"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Category created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Category created successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "example": "uuid-string"
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "nouns"
+                                                },
+                                                "color_code": {
+                                                    "type": "string",
+                                                    "example": "#FF0000"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "example": "2025-07-15T07:19:54.000000Z"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "example": "2025-07-15T07:19:54.000000Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/categories/{id}": {
+            "get": {
+                "tags": [
+                    "Vocabulary Categories"
+                ],
+                "summary": "Get a specific vocabulary category",
+                "description": "Retrieve details of a specific category by its ID.",
+                "operationId": "de5592ef4cdf2a9cd5d6c685ee1f0b0a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "UUID of the category",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "uuid-string"
+                        }
+                    },
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Category retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "example": "uuid-string"
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "example": "nouns"
+                                        },
+                                        "color_code": {
+                                            "type": "string",
+                                            "example": "#FF0000"
+                                        },
+                                        "created_at": {
+                                            "type": "string",
+                                            "example": "2025-07-15T07:19:54.000000Z"
+                                        },
+                                        "updated_at": {
+                                            "type": "string",
+                                            "example": "2025-07-15T07:19:54.000000Z"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Category not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Vocabulary Categories"
+                ],
+                "summary": "Delete a vocabulary category",
+                "description": "Delete a category by its UUID.",
+                "operationId": "77409c25c9289f10f53e3de71988fce1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "UUID of the category",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "uuid-string"
+                        }
+                    },
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Category deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Category deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Category not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/categories/update/{id}": {
+            "patch": {
+                "tags": [
+                    "Vocabulary Categories"
+                ],
+                "summary": "Update an existing vocabulary category",
+                "description": "Update a vocabulary category's name or description.",
+                "operationId": "ed798fc7a06facf3d2cf8d18feca311a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "UUID of the category",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "uuid-string"
+                        }
+                    },
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "verb"
+                                    },
+                                    "color_code": {
+                                        "type": "string",
+                                        "example": "#FFA000"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Category created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Category created successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "example": "uuid-string"
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "verb"
+                                                },
+                                                "color_code": {
+                                                    "type": "string",
+                                                    "example": "#FFA000"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "example": "2025-07-15T07:19:54.000000Z"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "example": "2025-07-15T07:19:54.000000Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Category not found"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/vocabularies": {
+            "get": {
+                "tags": [
+                    "Vocabulary"
+                ],
+                "summary": "Get all vocabularies",
+                "description": "Returns a list of all vocabulary entries.",
+                "operationId": "c432b54cbc322a1ebb36c467c4cbf9e9",
+                "parameters": [
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of vocabulary entries",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "string",
+                                                "example": "uuid-string"
+                                            },
+                                            "teacher_id": {
+                                                "type": "string",
+                                                "example": "uuid-teacher"
+                                            },
+                                            "category_id": {
+                                                "type": "string",
+                                                "example": "uuid-category"
+                                            },
+                                            "word": {
+                                                "type": "string",
+                                                "example": "Elephant"
+                                            },
+                                            "translation": {
+                                                "type": "string",
+                                                "example": "Gajah"
+                                            },
+                                            "spelling": {
+                                                "type": "string",
+                                                "example": "ˈeləfənt"
+                                            },
+                                            "explanation": {
+                                                "type": "string",
+                                                "example": "A large mammal with trunk."
+                                            },
+                                            "audio_file_path": {
+                                                "type": "string",
+                                                "example": "/storage/audio/688cb485b0b72.mp3"
+                                            },
+                                            "is_public": {
+                                                "type": "boolean",
+                                                "example": true
+                                            },
+                                            "created_at": {
+                                                "type": "string",
+                                                "example": "2025-08-01T10:00:00Z"
+                                            },
+                                            "updated_at": {
+                                                "type": "string",
+                                                "example": "2025-08-01T10:00:00Z"
+                                            },
+                                            "is_bookmarked": {
+                                                "type": "boolean",
+                                                "example": false
+                                            },
+                                            "teacher": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "571bd78d-4879-44e0-9697-05b6e8bebc5d"
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Teacher User 1"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "category": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "01985aba-6229-7398-8eb3-aec300a712a0"
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Noun"
+                                                    },
+                                                    "color_code": {
+                                                        "type": "string",
+                                                        "example": "#FFC107"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/create": {
+            "post": {
+                "tags": [
+                    "Vocabulary"
+                ],
+                "summary": "Create a new vocabulary entry",
+                "description": "Adds a new vocabulary entry to the system.",
+                "operationId": "a29c99246c8122412f6ea3b7f32ca6a7",
+                "parameters": [
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "category_id",
+                                    "word",
+                                    "translation",
+                                    "is_public"
+                                ],
+                                "properties": {
+                                    "category_id": {
+                                        "type": "string",
+                                        "example": "uuid-category"
+                                    },
+                                    "word": {
+                                        "type": "string",
+                                        "example": "Elephant"
+                                    },
+                                    "translation": {
+                                        "type": "string",
+                                        "example": "Gajah"
+                                    },
+                                    "spelling": {
+                                        "type": "string",
+                                        "example": "ˈeləfənt"
+                                    },
+                                    "explanation": {
+                                        "type": "string",
+                                        "example": "A large mammal with trunk."
+                                    },
+                                    "audio_file_path": {
+                                        "type": "file",
+                                        "example": "elephant.mp3"
+                                    },
+                                    "is_public": {
+                                        "type": "boolean",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Vocabulary created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Vocabulary created successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "example": "uuid-string"
+                                                },
+                                                "teacher_id": {
+                                                    "type": "string",
+                                                    "example": "uuid-teacher"
+                                                },
+                                                "category_id": {
+                                                    "type": "string",
+                                                    "example": "uuid-category"
+                                                },
+                                                "word": {
+                                                    "type": "string",
+                                                    "example": "Elephant"
+                                                },
+                                                "translation": {
+                                                    "type": "string",
+                                                    "example": "Gajah"
+                                                },
+                                                "spelling": {
+                                                    "type": "string",
+                                                    "example": "ˈeləfənt"
+                                                },
+                                                "explanation": {
+                                                    "type": "string",
+                                                    "example": "A large mammal with trunk."
+                                                },
+                                                "audio_file_path": {
+                                                    "type": "string",
+                                                    "example": "/storage/audio/688cb485b0b72.mp3"
+                                                },
+                                                "is_public": {
+                                                    "type": "boolean",
+                                                    "example": 1
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "example": "2025-08-01T10:00:00Z"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "example": "2025-08-01T10:00:00Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/{id}": {
+            "get": {
+                "tags": [
+                    "Vocabulary"
+                ],
+                "summary": "Get a specific vocabulary entry",
+                "description": "Retrieve details of a vocabulary entry by its ID.",
+                "operationId": "df60fcf58379515a4b46e99fdc5d6e7e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "UUID of the vocabulary",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "uuid-string"
+                        }
+                    },
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Vocabulary retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "example": "uuid-string"
+                                        },
+                                        "teacher_id": {
+                                            "type": "string",
+                                            "example": "uuid-teacher"
+                                        },
+                                        "category_id": {
+                                            "type": "string",
+                                            "example": "uuid-category"
+                                        },
+                                        "word": {
+                                            "type": "string",
+                                            "example": "Elephant"
+                                        },
+                                        "translation": {
+                                            "type": "string",
+                                            "example": "Gajah"
+                                        },
+                                        "spelling": {
+                                            "type": "string",
+                                            "example": "ˈeləfənt"
+                                        },
+                                        "explanation": {
+                                            "type": "string",
+                                            "example": "A large mammal with trunk."
+                                        },
+                                        "audio_file_path": {
+                                            "type": "string",
+                                            "example": "/storage/audio/688cb485b0b72.mp3"
+                                        },
+                                        "is_public": {
+                                            "type": "boolean",
+                                            "example": 1
+                                        },
+                                        "created_at": {
+                                            "type": "string",
+                                            "example": "2025-08-01T10:00:00Z"
+                                        },
+                                        "updated_at": {
+                                            "type": "string",
+                                            "example": "2025-08-01T10:00:00Z"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Vocabulary not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/update/{id}": {
+            "patch": {
+                "tags": [
+                    "Vocabulary"
+                ],
+                "summary": "Update a vocabulary entry",
+                "description": "Updates an existing vocabulary entry.",
+                "operationId": "c0619272361cd1ba948248fa84426f1c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "UUID of the vocabulary",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "uuid-string"
+                        }
+                    },
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    },
+                    {
+                        "name": "_method",
+                        "in": "query",
+                        "description": "Override HTTP method for PATCH requests",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "PATCH"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "category_id": {
+                                        "type": "string",
+                                        "example": "uuid-category"
+                                    },
+                                    "word": {
+                                        "type": "string",
+                                        "example": "Elephant Updated"
+                                    },
+                                    "translation": {
+                                        "type": "string",
+                                        "example": "Gajah Besar"
+                                    },
+                                    "spelling": {
+                                        "type": "string",
+                                        "example": "ˈeləfənt"
+                                    },
+                                    "explanation": {
+                                        "type": "string",
+                                        "example": "Updated explanation"
+                                    },
+                                    "audio_file_path": {
+                                        "type": "file",
+                                        "example": "elephant-new.mp3"
+                                    },
+                                    "is_public": {
+                                        "type": "boolean",
+                                        "example": 0
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Vocabulary updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Vocabulary updated successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "example": "uuid-string"
+                                                },
+                                                "teacher_id": {
+                                                    "type": "string",
+                                                    "example": "uuid-teacher"
+                                                },
+                                                "category_id": {
+                                                    "type": "string",
+                                                    "example": "uuid-category"
+                                                },
+                                                "word": {
+                                                    "type": "string",
+                                                    "example": "Elephant Updated"
+                                                },
+                                                "translation": {
+                                                    "type": "string",
+                                                    "example": "Gajah Besar"
+                                                },
+                                                "spelling": {
+                                                    "type": "string",
+                                                    "example": "ˈeləfənt"
+                                                },
+                                                "explanation": {
+                                                    "type": "string",
+                                                    "example": "Updated explanation"
+                                                },
+                                                "audio_file_path": {
+                                                    "type": "string",
+                                                    "example": "/storage/audio/688cb485b0b72.mp3"
+                                                },
+                                                "is_public": {
+                                                    "type": "boolean",
+                                                    "example": 0
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "example": "2025-08-01T10:00:00Z"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "example": "2025-08-01T10:00:00Z"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Vocabulary not found"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/delete/{id}": {
+            "delete": {
+                "tags": [
+                    "Vocabulary"
+                ],
+                "summary": "Delete a vocabulary entry",
+                "description": "Deletes a vocabulary entry by its UUID.",
+                "operationId": "3b37df1afb2d09334eb0b75dc9703cde",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "UUID of the vocabulary",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "uuid-string"
+                        }
+                    },
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Vocabulary deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Vocabulary deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Vocabulary not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/vocab/{id}/bookmark": {
+            "post": {
+                "tags": [
+                    "Vocabulary"
+                ],
+                "summary": "Toggle vocabulary bookmark",
+                "description": "Toggle the bookmark status of a vocabulary entry for the authenticated user.",
+                "operationId": "2f02bc0d41dc5c2699ef015a2f366948",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the vocabulary",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "123"
+                        }
+                    },
+                    {
+                        "name": "X-XSRF-TOKEN",
+                        "in": "header",
+                        "description": "CSRF token for session-based auth (Sanctum)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Referer",
+                        "in": "header",
+                        "description": "Referring URL Frontend for CSRF protection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "http://localhost:3000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bookmark toggled successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Vocabulary bookmarked."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Vocabulary not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary not found"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
         }
     },
     "tags": [
-        {
-            "name": "Vocabulary Categories",
-            "description": "Vocabulary Categories"
-        },
-        {
-            "name": "Vocabulary",
-            "description": "Vocabulary"
-        },
         {
             "name": "Auth",
             "description": "Auth"
@@ -3338,12 +4164,28 @@
             "description": "Invitations"
         },
         {
+            "name": "Reading Tests",
+            "description": "Reading Tests"
+        },
+        {
             "name": "Password",
             "description": "Password"
         },
         {
             "name": "Profile",
             "description": "Profile"
+        },
+        {
+            "name": "User",
+            "description": "User"
+        },
+        {
+            "name": "Vocabulary Categories",
+            "description": "Vocabulary Categories"
+        },
+        {
+            "name": "Vocabulary",
+            "description": "Vocabulary"
         }
     ]
 }

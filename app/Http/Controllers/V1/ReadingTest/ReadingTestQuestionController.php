@@ -10,8 +10,8 @@ use App\Http\Resources\V1\ReadingTest\ReadingTestResource;
 use App\Models\Test;
 
 use App\Models\TestQuestion;
-use App\Services\Reading\ReadingTestDeleteService;
-use App\Services\Reading\ReadingTestService;
+use App\Services\V1\ReadingTest\ReadingTestDeleteService;
+use App\Services\V1\ReadingTest\ReadingTestService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

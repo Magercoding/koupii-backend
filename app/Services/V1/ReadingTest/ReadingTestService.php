@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Reading;
+namespace App\Services\V1\ReadingTest;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Reading;
+namespace App\Services\V1\ReadingTest;
 
 use App\Models\Passage;
 use App\Models\TestQuestion;

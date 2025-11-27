@@ -8,7 +8,7 @@ class ClassDocs
 {
     /**
      * @OA\Get(
-     *     path="/api/v1/class",
+     *     path="/api/v1/classes",
      *     tags={"Classes"},
      *     summary="Get all classes",
      *     description="Admin & Student can see all classes, Teacher can only see their own classes.",
@@ -55,7 +55,7 @@ class ClassDocs
 
     /**
      * @OA\Post(
-     *     path="/api/v1/class/create",
+     *     path="/api/v1/classes/create",
      *     tags={"Classes"},
      *     summary="Create a new class",
      *     description="Only admin and teacher can create a new class.",
@@ -89,7 +89,7 @@ class ClassDocs
 
     /**
      * @OA\Get(
-     *     path="/api/v1/class/{id}",
+     *     path="/api/v1/classes/{id}",
      *     tags={"Classes"},
      *     summary="Get class details",
      *     description="Get class detail including teacher info.",
@@ -140,7 +140,7 @@ class ClassDocs
 
     /**
      * @OA\Post(
-     *     path="/api/v1/class/update/{id}",
+     *     path="/api/v1/classes/update/{id}",
      *     tags={"Classes"},
      *     summary="Update class",
      *     description="Only admin and teacher (class owner) can update class data.",
@@ -190,7 +190,7 @@ class ClassDocs
 
     /**
      * @OA\Delete(
-     *     path="/api/v1/class/delete/{id}",
+     *     path="/api/v1/classes/delete/{id}",
      *     tags={"Classes"},
      *     summary="Delete a class",
      *     description="Only admin and teacher (class owner) can delete a class.",

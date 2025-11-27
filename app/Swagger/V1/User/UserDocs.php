@@ -9,7 +9,7 @@ class UserDocs
 {
     /**
      * @OA\Get(
-     *     path="/api/v1/user/profile",
+     *     path="/api/v1/profile",
      *     tags={"Profile"},
      *     summary="Get current user profile",
      *     description="Retrieve profile information for the authenticated user.",
@@ -50,7 +50,7 @@ class UserDocs
 
     /**
      * @OA\Get(
-     *     path="/api/v1/user/profile/{id}",
+     *     path="/api/v1/profile/{id}",
      *     tags={"Profile"},
      *     summary="Get user details by ID",
      *     description="Retrieve public details of a user by their ID.",
@@ -93,7 +93,7 @@ class UserDocs
 
     /**
      * @OA\Post(
-     *     path="/api/v1/user/profile/update",
+     *     path="/api/v1/profile/update",
      *     tags={"Profile"},
      *     summary="Update user profile",
      *     description="Update authenticated user's profile including name, email, role, avatar, and bio.",
@@ -159,7 +159,7 @@ class UserDocs
 
     /**
      * @OA\Delete(
-     *     path="/api/v1/user/profile/destroy",
+     *     path="/api/v1/profile/destroy",
      *     tags={"Profile"},
      *     summary="Delete user profile",
      *     description="Delete the authenticated user's account, including avatar file if present.",
@@ -196,4 +196,48 @@ class UserDocs
      * )
      */
     public function deleteProfile() {}
+
+    /**
+     * @OA\Patch(
+     *     path="/api/v1/change-password",
+     *     tags={"User"},
+     *     summary="Change user password",
+     *     description="Change the authenticated user's password.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"current_password", "password", "password_confirmation"},
+     *             @OA\Property(property="current_password", type="string", format="password", example="oldpassword123"),
+     *             @OA\Property(property="password", type="string", format="password", example="newpassword123"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="newpassword123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Password changed successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Password changed successfully"),
+     *             @OA\Property(property="access_token", type="string", example="1|abcdef1234567890"),
+     *             @OA\Property(property="token_type", type="string", example="Bearer")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Current password is incorrect"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error"
+     *     )
+     * )
+     */
+    public function changePassword() {}
 }

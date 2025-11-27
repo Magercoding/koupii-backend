@@ -9,7 +9,7 @@ class AuthDocs
 {
     /**
      * @OA\Post(
-     *     path="/api/auth/v1/login",
+     *     path="/api/v1/auth/login",
      *     tags={"Auth"},
      *     summary="Login user",
      *     description="Authenticates a user and returns an access token",

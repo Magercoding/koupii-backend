@@ -8,7 +8,7 @@ class ClassInvitationDocs
 {
     /**
      * @OA\Get(
-     *     path="/api/v1/class/invitations",
+     *     path="/api/v1/invitations",
      *     tags={"Invitations"},
      *     summary="Get all invitations based on user role",
      *     description="Admin sees all invitations, teacher sees only invitations in their classes, student sees only invitations sent to them.",
@@ -75,7 +75,7 @@ class ClassInvitationDocs
 
     /**
      * @OA\Post(
-     *     path="/api/v1/class/invitations/create",
+     *     path="/api/v1/invitations/create",
      *     tags={"Invitations"},
      *     summary="Send invitation to student",
      *     description="Teacher or admin sends an invitation to a student to join a class.",
@@ -129,7 +129,7 @@ class ClassInvitationDocs
 
     /**
      * @OA\Patch(
-     *     path="/api/v1/class/invitations/update/{id}",
+     *     path="/api/v1/invitations/update/{id}",
      *     tags={"Invitations"},
      *     summary="Update invitation status",
      *     description="Student accepts or declines the invitation.",
@@ -191,7 +191,7 @@ class ClassInvitationDocs
 
     /**
      * @OA\Delete(
-     *     path="/api/v1/class/invitations/delete/{id}",
+     *     path="/api/v1/invitations/delete/{id}",
      *     tags={"Invitations"},
      *     summary="Delete invitation",
      *     description="Teacher or admin deletes the invitation before it is accepted or declined.",
