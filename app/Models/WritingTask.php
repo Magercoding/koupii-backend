@@ -36,15 +36,46 @@ class WritingTask extends Model
         'min_word_count',
         'sample_answer',
         'images',
+
+        'allow_retake',
+        'max_retake_attempts',
+        'retake_options',
+        'timer_type',
+        'time_limit_seconds',
+        'allow_submission_files',
     ];
 
     protected $casts = [
         'task_type' => 'string',
         'images' => 'array',
     ];
-
+    /**
+     * relationships
+     */
     public function test()
     {
         return $this->belongsTo(Test::class, 'test_id');
     }
+
+    public function assignments()
+    {
+        return $this->hasMany(WritingTaskAssignment::class, 'writing_task_id');
+    }
+
+    public function submissions()
+    {
+        return $this->hasMany(WritingSubmission::class, 'writing_task_id');
+    }
+    /**
+     * helpers
+     */
+    public function is_retakable(): bool
+    {
+        return (bool) $this->allow_retake;
+    }
+    public const TIMER_NONE = 'none';
+    public const TIMER_COUNTDOWN = 'countdown';
+    public const TIMER_COUNTUP = 'countup';
+
+    public const TASK_TYPES = ['report', 'essay'];
 }

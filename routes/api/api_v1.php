@@ -37,7 +37,10 @@ Route::get('/version', function () {
  * Authentication 
  */
 require __DIR__ . '/../v1/auth.php';
-
+/**
+ * oauth Authentication 
+ */
+require __DIR__ . '/../v1/oauth.php';
 /**
  * User Management
  */

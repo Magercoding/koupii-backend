@@ -50,7 +50,7 @@ class ReadingTestQuestionController extends Controller
 
     public function show(Request $request, $id)
     {
-        $user = auth()->user();
+        $user = Auth::user();
 
         $query = Test::with([
             'creator',
@@ -85,7 +85,7 @@ class ReadingTestQuestionController extends Controller
             return response()->json(['message' => 'Test not found'], 404);
         }
 
-        if ($test->creator_id !== auth()->id() && auth()->user()->role !== 'admin') {
+        if ($test->creator_id !==  Auth::id() && Auth::user()->role !== 'admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -136,7 +136,7 @@ class ReadingTestQuestionController extends Controller
             return ['error' => 'Test not found', 'status' => 404];
         }
 
-        if (!auth()->user()->isAdmin() && $test->creator_id !== auth()->id()) {
+        if (!Auth::user()->isAdmin() && $test->creator_id !== Auth::id()) {
             return ['error' => 'Unauthorized', 'status' => 403];
         }
 
