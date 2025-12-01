@@ -88,4 +88,22 @@ class Test extends Model
     {
         return $this->hasMany(TestReport::class, 'test_id');
     }
+
+    public function scopeVisibleTo($query, $user)
+    {
+        return match ($user->role) {
+            'admin' => $query,
+            'student' => $query->where('is_published', true),
+            default => $query->where('creator_id', $user->id),
+        };
+    }
+
+    public function scopeWithRelations($query)
+    {
+        return $query->with([
+            'passages.questionGroups.questions.options',
+            'passages.questionGroups.questions.breakdowns.highlightSegments',
+            'creator'
+        ]);
+    }
 }

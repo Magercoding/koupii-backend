@@ -60,4 +60,29 @@ class Vocabulary extends Model
     {
         return $this->hasMany(VocabularyBookmark::class, 'vocabulary_id');
     }
+
+    public function scopeForAdmin($query)
+    {
+        return $query->with(['teacher', 'category']);
+    }
+
+    public function scopeForTeacher($query, $teacherId)
+    {
+        return $query->where('teacher_id', $teacherId)
+            ->with([
+                'teacher:id,name',
+                'category:id,name,color_code',
+            ]);
+    }
+
+    public function scopeForStudent($query, $userId)
+    {
+        return $query->where('is_public', 1)
+            ->with([
+                'teacher:id,name',
+                'category:id,name,color_code',
+                'bookmarks' => fn($q) => $q->where('user_id', $userId)
+            ]);
+    }
+
 }

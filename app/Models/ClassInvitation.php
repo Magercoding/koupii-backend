@@ -48,4 +48,27 @@ class ClassInvitation extends Model
     {
         return $this->belongsTo(User::class, 'student_id');
     }
+
+
+    public function scopeVisibleTo($query, $user)
+    {
+        return match ($user->role) {
+            'admin' => $query->with(['class', 'student', 'teacher']),
+
+            'teacher' => $query
+                ->whereHas('class', fn($q) => $q->where('teacher_id', $user->id))
+                ->with(['class', 'student']),
+
+            'student' => $query
+                ->where('student_id', $user->id)
+                ->with([
+                    'class',
+                    'student',
+                    'teacher' => fn($q) => $q->select('id', 'name')
+                ]),
+
+            default => $query->whereRaw('0 = 1'),
+        };
+    }
+
 }
