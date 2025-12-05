@@ -9,7 +9,8 @@ Route::get('/', function () {
         'status' => 'OK',
         'message' => 'Koupii API is running',
         'timestamp' => now(),
-        'version' => '1.0.0'
+        'version' => '1.0.0',
+        'api-documentation' =>  config('app.url') . '/api/documentation',
     ]);
 });
 
