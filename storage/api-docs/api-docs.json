@@ -125,6 +125,132 @@
                 ]
             }
         },
+        "/api/v1/oauth/google/redirect": {
+            "get": {
+                "tags": [
+                    "OAuth"
+                ],
+                "summary": "Redirect to Google OAuth",
+                "description": "Redirects the user to Google's OAuth consent screen",
+                "operationId": "aeed7acd7999f23f1faa7cc8cfc456a2",
+                "responses": {
+                    "302": {
+                        "description": "Redirection to Google OAuth"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/oauth/google/callback": {
+            "get": {
+                "tags": [
+                    "OAuth"
+                ],
+                "summary": "Handle Google OAuth Callback",
+                "description": "Handles the callback from Google OAuth and authenticates the user",
+                "operationId": "e8dc122835540f185ead92a781cffb8f",
+                "responses": {
+                    "200": {
+                        "description": "Authentication successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        },
+                                        "access_token": {
+                                            "type": "string",
+                                            "example": "1|abcdef1234567890"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/oauth/facebook/redirect": {
+            "get": {
+                "tags": [
+                    "OAuth"
+                ],
+                "summary": "Redirect to Facebook OAuth",
+                "description": "Redirects the user to Facebook's OAuth consent screen",
+                "operationId": "5c56ba6dd4a6d9b5f4976f007e355d64",
+                "responses": {
+                    "302": {
+                        "description": "Redirection to Facebook OAuth"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/oauth/facebook/callback": {
+            "get": {
+                "tags": [
+                    "OAuth"
+                ],
+                "summary": "Handle Facebook OAuth Callback",
+                "description": "Handles the callback from Facebook OAuth and authenticates the user",
+                "operationId": "dc4061eb9210e3cba0c04ef695601bb1",
+                "responses": {
+                    "200": {
+                        "description": "Authentication successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        },
+                                        "access_token": {
+                                            "type": "string",
+                                            "example": "1|abcdef1234567890"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication failed"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
         "/api/v1/auth/register": {
             "post": {
                 "tags": [
@@ -4144,12 +4270,825 @@
                     }
                 ]
             }
+        },
+        "/api/v1/writing/tests": {
+            "get": {
+                "tags": [
+                    "Writing Tests"
+                ],
+                "summary": "Get all writing tests",
+                "description": "Retrieve writing tests based on user role. Admin sees all tests, students see only published tests, teachers see only their own tests.",
+                "operationId": "5d9a02f3371f268edab188d491b90026",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Writing tests retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Writing tests retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                    },
+                                                    "creator_id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                                                    },
+                                                    "creator_name": {
+                                                        "type": "string",
+                                                        "example": "Teacher Name"
+                                                    },
+                                                    "test_type": {
+                                                        "type": "string",
+                                                        "example": "academic"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "example": "writing"
+                                                    },
+                                                    "difficulty": {
+                                                        "type": "string",
+                                                        "example": "intermediate"
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "Essay Writing Test"
+                                                    },
+                                                    "description": {
+                                                        "type": "string",
+                                                        "example": "Test for academic essay writing skills"
+                                                    },
+                                                    "timer_mode": {
+                                                        "type": "string",
+                                                        "example": "test"
+                                                    },
+                                                    "timer_settings": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "test_time": 90
+                                                        }
+                                                    },
+                                                    "allow_repetition": {
+                                                        "type": "boolean",
+                                                        "example": false
+                                                    },
+                                                    "max_repetition_count": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "is_public": {
+                                                        "type": "boolean",
+                                                        "example": false
+                                                    },
+                                                    "is_published": {
+                                                        "type": "boolean",
+                                                        "example": true
+                                                    },
+                                                    "settings": {
+                                                        "type": "object"
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "writing_prompts": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Writing Tests"
+                ],
+                "summary": "Create a new writing test",
+                "description": "Create a new writing test with prompts and evaluation criteria. Only admins and teachers can create tests.",
+                "operationId": "376893501ef9bcf3247725bf5801c5ee",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "description",
+                                    "test_type",
+                                    "difficulty",
+                                    "writing_prompts"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Academic Essay Writing Test"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "A comprehensive test for academic essay writing skills"
+                                    },
+                                    "test_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "academic",
+                                            "general"
+                                        ],
+                                        "example": "academic"
+                                    },
+                                    "difficulty": {
+                                        "type": "string",
+                                        "enum": [
+                                            "beginner",
+                                            "intermediate",
+                                            "advanced"
+                                        ],
+                                        "example": "intermediate"
+                                    },
+                                    "timer_mode": {
+                                        "type": "string",
+                                        "enum": [
+                                            "test",
+                                            "prompt"
+                                        ],
+                                        "example": "test"
+                                    },
+                                    "timer_settings": {
+                                        "type": "object",
+                                        "example": {
+                                            "test_time": 90
+                                        }
+                                    },
+                                    "allow_repetition": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "max_repetition_count": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "is_public": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "is_published": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "settings": {
+                                        "type": "object",
+                                        "example": []
+                                    },
+                                    "writing_prompts": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "Opinion Essay"
+                                                },
+                                                "prompt_text": {
+                                                    "type": "string",
+                                                    "example": "Some people believe that technology has made our lives easier. Others think it has made life more complicated. Discuss both views and give your opinion."
+                                                },
+                                                "prompt_type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "essay",
+                                                        "letter",
+                                                        "report",
+                                                        "review",
+                                                        "article",
+                                                        "proposal"
+                                                    ],
+                                                    "example": "essay"
+                                                },
+                                                "word_limit": {
+                                                    "type": "integer",
+                                                    "example": 250
+                                                },
+                                                "time_limit": {
+                                                    "type": "integer",
+                                                    "example": 40
+                                                },
+                                                "instructions": {
+                                                    "type": "string",
+                                                    "example": "Write a clear, well-structured essay with introduction, body paragraphs, and conclusion."
+                                                },
+                                                "sample_answer": {
+                                                    "type": "string",
+                                                    "example": "Sample essay response..."
+                                                },
+                                                "criteria": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "Content & Ideas"
+                                                            },
+                                                            "description": {
+                                                                "type": "string",
+                                                                "example": "Relevance, development, and support of ideas"
+                                                            },
+                                                            "max_score": {
+                                                                "type": "integer",
+                                                                "example": 9
+                                                            },
+                                                            "weight": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 0.25
+                                                            },
+                                                            "rubric": {
+                                                                "type": "object",
+                                                                "example": []
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Writing test created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Writing test created successfully"
+                                        },
+                                        "test_id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Only admins and teachers can create tests"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing/tests/{id}": {
+            "get": {
+                "tags": [
+                    "Writing Tests"
+                ],
+                "summary": "Get a specific writing test",
+                "description": "Retrieve a specific writing test with all its prompts and criteria.",
+                "operationId": "7d05f6fbc1ccdcd1b78deab61fd74ce1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Test ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Test retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                        },
+                                        "creator_id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "creator_name": {
+                                            "type": "string",
+                                            "example": "Teacher Name"
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "example": "Academic Essay Writing Test"
+                                        },
+                                        "description": {
+                                            "type": "string",
+                                            "example": "Test description"
+                                        },
+                                        "test_type": {
+                                            "type": "string",
+                                            "example": "academic"
+                                        },
+                                        "difficulty": {
+                                            "type": "string",
+                                            "example": "intermediate"
+                                        },
+                                        "is_published": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "writing_prompts": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "Opinion Essay"
+                                                    },
+                                                    "prompt_text": {
+                                                        "type": "string",
+                                                        "example": "Prompt text..."
+                                                    },
+                                                    "prompt_type": {
+                                                        "type": "string",
+                                                        "example": "essay"
+                                                    },
+                                                    "word_limit": {
+                                                        "type": "integer",
+                                                        "example": 250
+                                                    },
+                                                    "time_limit": {
+                                                        "type": "integer",
+                                                        "example": 40
+                                                    },
+                                                    "instructions": {
+                                                        "type": "string",
+                                                        "example": "Instructions..."
+                                                    },
+                                                    "sample_answer": {
+                                                        "type": "string",
+                                                        "example": "Sample answer (hidden from students)"
+                                                    },
+                                                    "criteria": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": "string",
+                                                                    "format": "uuid"
+                                                                },
+                                                                "name": {
+                                                                    "type": "string",
+                                                                    "example": "Content & Ideas"
+                                                                },
+                                                                "description": {
+                                                                    "type": "string",
+                                                                    "example": "Description..."
+                                                                },
+                                                                "max_score": {
+                                                                    "type": "integer",
+                                                                    "example": 9
+                                                                },
+                                                                "weight": {
+                                                                    "type": "number",
+                                                                    "format": "float",
+                                                                    "example": 0.25
+                                                                },
+                                                                "rubric": {
+                                                                    "type": "object"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Test not found or unauthorized access"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Writing Tests"
+                ],
+                "summary": "Delete a writing test",
+                "description": "Delete an entire writing test including all prompts and criteria. Only the creator or admin can delete.",
+                "operationId": "b0232781052a27664a9d1fe9b1fc89c7",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Test ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Test deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Writing test deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Test not found"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Writing Tests"
+                ],
+                "summary": "Update a writing test",
+                "description": "Update an existing writing test. Only the creator or admin can update.",
+                "operationId": "cd671804e2ae9181429fac72847f708d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Test ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Updated Essay Writing Test"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Updated description"
+                                    },
+                                    "test_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "academic",
+                                            "general"
+                                        ],
+                                        "example": "academic"
+                                    },
+                                    "difficulty": {
+                                        "type": "string",
+                                        "enum": [
+                                            "beginner",
+                                            "intermediate",
+                                            "advanced"
+                                        ],
+                                        "example": "advanced"
+                                    },
+                                    "timer_mode": {
+                                        "type": "string",
+                                        "enum": [
+                                            "test",
+                                            "prompt"
+                                        ],
+                                        "example": "prompt"
+                                    },
+                                    "timer_settings": {
+                                        "type": "object"
+                                    },
+                                    "allow_repetition": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "max_repetition_count": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "is_public": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "is_published": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "settings": {
+                                        "type": "object"
+                                    },
+                                    "writing_prompts": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "id": {
+                                                    "description": "Optional - include for existing prompts",
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "Updated Prompt Title"
+                                                },
+                                                "prompt_text": {
+                                                    "type": "string",
+                                                    "example": "Updated prompt text..."
+                                                },
+                                                "prompt_type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "essay",
+                                                        "letter",
+                                                        "report",
+                                                        "review",
+                                                        "article",
+                                                        "proposal"
+                                                    ],
+                                                    "example": "letter"
+                                                },
+                                                "word_limit": {
+                                                    "type": "integer",
+                                                    "example": 300
+                                                },
+                                                "time_limit": {
+                                                    "type": "integer",
+                                                    "example": 30
+                                                },
+                                                "instructions": {
+                                                    "type": "string",
+                                                    "example": "Updated instructions..."
+                                                },
+                                                "sample_answer": {
+                                                    "type": "string",
+                                                    "example": "Updated sample answer..."
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Test updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Writing test updated successfully"
+                                        },
+                                        "test_id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Test not found"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "500": {
+                        "description": "Update failed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing/prompts/{id}": {
+            "delete": {
+                "tags": [
+                    "Writing Tests"
+                ],
+                "summary": "Delete a writing prompt",
+                "description": "Delete a specific writing prompt from a test. Only the test creator or admin can delete.",
+                "operationId": "cd4c7ac7a385c1e035c30ffb71446e30",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Prompt ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Prompt deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Writing prompt deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Prompt not found"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "tags": [
         {
             "name": "Auth",
             "description": "Auth"
+        },
+        {
+            "name": "OAuth",
+            "description": "OAuth"
         },
         {
             "name": "Classes",
@@ -4186,6 +5125,10 @@
         {
             "name": "Vocabulary",
             "description": "Vocabulary"
+        },
+        {
+            "name": "Writing Tests",
+            "description": "Writing Tests"
         }
     ]
 }

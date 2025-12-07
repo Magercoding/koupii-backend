@@ -10,15 +10,21 @@ use App\Models\Test;
 use App\Services\V1\WritingTest\WritingTestService;
 use App\Services\V1\WritingTest\WritingTestDeleteService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Routing\Controllers\Middleware;
 
-class WritingTestController extends Controller
+class WritingTestController extends Controller implements HasMiddleware
 {
-    public function __construct()
+
+    public static function middleware(): array
     {
-        $this->middleware('auth:sanctum');
+        return [
+            new Middleware('auth:sanctum'),
+        ];
     }
+
 
     public function index(Request $request)
     {
@@ -26,11 +32,11 @@ class WritingTestController extends Controller
 
         $query = Test::query()
             ->where('type', 'writing')
-            ->with(['creator', 'writingPrompts.criteria']);
+            ->with(['creator']);
 
-        // Role-based access control
+      
         if ($user->role === 'admin') {
-            // Admin sees all tests
+            
         } elseif ($user->role === 'student') {
             // Students see only published tests
             $query->where('is_published', true);
@@ -39,7 +45,7 @@ class WritingTestController extends Controller
             $query->where('creator_id', $user->id);
         }
 
-        $tests = $query->get();
+        $tests = $query->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'message' => 'Writing tests retrieved successfully',
@@ -51,19 +57,27 @@ class WritingTestController extends Controller
     {
         Gate::authorize('create', Test::class);
 
-        $test = $service->create($request->validated(), $request);
+        try {
+            $test = $service->createTest($request->validated());
 
-        return response()->json([
-            'message' => 'Writing test created successfully',
-            'test_id' => $test->id,
-        ], 201);
+            return response()->json([
+                'message' => 'Writing test created successfully',
+                'test_id' => $test->id,
+                'data' => new WritingTestResource($test),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to create writing test',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function show(Request $request, string $id)
     {
         $user = $request->user();
 
-        $query = Test::with(['creator', 'writingPrompts.criteria'])
+        $query = Test::with(['creator'])
             ->where('type', 'writing')
             ->where('id', $id);
 
@@ -96,13 +110,14 @@ class WritingTestController extends Controller
         try {
             DB::beginTransaction();
 
-            (new WritingTestService())->updateTest($test, $request->validated(), $request);
+            $updatedTest = (new WritingTestService())->updateTest($test, $request->validated());
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Writing test updated successfully',
                 'test_id' => $test->id,
+                'data' => new WritingTestResource($updatedTest),
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -119,23 +134,63 @@ class WritingTestController extends Controller
 
         Gate::authorize('delete', $test);
 
-        $service = new WritingTestDeleteService();
-        $response = $service->deleteTest($id);
+        try {
+            $service = new WritingTestDeleteService();
+            $response = $service->deleteTest($id);
 
-        return response()->json(
-            ['message' => $response['message'] ?? $response['error']],
-            $response['status']
-        );
+            return response()->json(
+                ['message' => $response['message'] ?? $response['error']],
+                $response['status']
+            );
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to delete test',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    public function deletePrompt(string $id)
+    /**
+     * Toggle publish status of a test.
+     */
+    public function togglePublish(string $id)
     {
-        $service = new WritingTestDeleteService();
-        $response = $service->deletePrompt($id);
+        $test = Test::findOrFail($id);
 
-        return response()->json(
-            ['message' => $response['message'] ?? $response['error']],
-            $response['status']
-        );
+        Gate::authorize('update', $test);
+
+        try {
+            $test->update([
+                'is_published' => !$test->is_published
+            ]);
+
+            return response()->json([
+                'message' => $test->is_published ? 'Test published successfully' : 'Test unpublished successfully',
+                'is_published' => $test->is_published,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to toggle publish status',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function search(Request $request, WritingTestService $service)
+    {
+        $criteria = $request->validate([
+            'title' => 'nullable|string|max:255',
+            'difficulty' => 'nullable|in:beginner,intermediate,advanced',
+            'test_type' => 'nullable|in:academic,general,business,ielts,toefl',
+            'creator_id' => 'nullable|uuid|exists:users,id',
+            'is_published' => 'nullable|boolean',
+        ]);
+
+        $tests = $service->searchTests($criteria);
+
+        return response()->json([
+            'message' => 'Search results retrieved successfully',
+            'data' => WritingTestResource::collection($tests),
+        ], 200);
     }
 }

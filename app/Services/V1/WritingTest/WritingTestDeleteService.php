@@ -2,123 +2,55 @@
 
 namespace App\Services\V1\WritingTest;
 
-use App\Models\WritingTask;
-use App\Models\WritingTaskAssignment;
-use App\Models\WritingSubmission;
-use App\Models\WritingReview;
+use App\Models\Test;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-
+use App\Models\WritingTask;
 class WritingTestDeleteService
 {
     /**
-     * Delete a writing task and all related data.
+     * Delete a writing test.
      */
-    public function deleteTask(string $taskId): array
+    public function deleteTest(string $testId): array
     {
-        $task = WritingTask::find($taskId);
+        $test = Test::find($testId);
 
-        if (!$task) {
-            return ['error' => 'Task not found', 'status' => 404];
+        if (!$test) {
+            return ['error' => 'Test not found', 'status' => 404];
         }
 
-        if (!$this->canDeleteTask($task)) {
+        if (!$this->canDeleteTest($test)) {
             return ['error' => 'Unauthorized', 'status' => 403];
         }
 
         try {
-            DB::transaction(function () use ($task) {
-                // Delete all files from submissions
-                $submissions = WritingSubmission::where('writing_task_id', $task->id)->get();
-                foreach ($submissions as $submission) {
-                    $this->deleteSubmissionFiles($submission);
+            DB::transaction(function () use ($test) {
+                // Delete any test-related files
+                $this->deleteTestFiles($test);
+
+                // Check if any WritingTasks reference this test
+                $referencingTasks = WritingTask::where('test_template_id', $test->id)->count();
+
+                if ($referencingTasks > 0) {
+                    // Don't delete if tasks are using this template
+                    throw new \Exception('Cannot delete test template that is being used by active tasks');
                 }
 
-                // Delete reviews (cascade should handle this, but explicit for safety)
-                WritingReview::whereIn('submission_id', $submissions->pluck('id'))->delete();
-
-                // Delete submissions
-                WritingSubmission::where('writing_task_id', $task->id)->delete();
-
-                // Delete assignments
-                WritingTaskAssignment::where('writing_task_id', $task->id)->delete();
-
-                // Delete task files
-                $this->deleteTaskFiles($task);
-
-                // Delete the task
-                $task->delete();
+                // Delete the test
+                $test->delete();
             });
 
-            return ['message' => 'Writing task deleted successfully', 'status' => 200];
+            return ['message' => 'Writing test deleted successfully', 'status' => 200];
         } catch (\Exception $e) {
-            return ['error' => 'Failed to delete task: ' . $e->getMessage(), 'status' => 500];
+            return ['error' => 'Failed to delete test: ' . $e->getMessage(), 'status' => 500];
         }
     }
 
     /**
-     * Delete a specific submission.
+     * Check if user can delete the test.
      */
-    public function deleteSubmission(string $submissionId): array
-    {
-        $submission = WritingSubmission::find($submissionId);
-
-        if (!$submission) {
-            return ['error' => 'Submission not found', 'status' => 404];
-        }
-
-        if (!$this->canDeleteSubmission($submission)) {
-            return ['error' => 'Unauthorized', 'status' => 403];
-        }
-
-        try {
-            DB::transaction(function () use ($submission) {
-                // Delete associated files
-                $this->deleteSubmissionFiles($submission);
-
-                // Delete review if exists
-                if ($submission->review) {
-                    $submission->review->delete();
-                }
-
-                // Delete the submission
-                $submission->delete();
-            });
-
-            return ['message' => 'Submission deleted successfully', 'status' => 200];
-        } catch (\Exception $e) {
-            return ['error' => 'Failed to delete submission: ' . $e->getMessage(), 'status' => 500];
-        }
-    }
-
-    /**
-     * Delete assignment (remove task from classroom).
-     */
-    public function deleteAssignment(string $assignmentId): array
-    {
-        $assignment = WritingTaskAssignment::find($assignmentId);
-
-        if (!$assignment) {
-            return ['error' => 'Assignment not found', 'status' => 404];
-        }
-
-        if (!$this->canDeleteAssignment($assignment)) {
-            return ['error' => 'Unauthorized', 'status' => 403];
-        }
-
-        try {
-            $assignment->delete();
-            return ['message' => 'Task removed from classroom successfully', 'status' => 200];
-        } catch (\Exception $e) {
-            return ['error' => 'Failed to remove assignment: ' . $e->getMessage(), 'status' => 500];
-        }
-    }
-
-    /**
-     * Check if user can delete the task.
-     */
-    protected function canDeleteTask(WritingTask $task): bool
+    protected function canDeleteTest(Test $test): bool
     {
         $user = Auth::user();
 
@@ -126,109 +58,69 @@ class WritingTestDeleteService
             return true;
         }
 
-        return $task->creator_id === $user->id;
+        return $test->creator_id === $user->id;
     }
 
     /**
-     * Check if user can delete the submission.
+     * Delete files associated with the test.
      */
-    protected function canDeleteSubmission(WritingSubmission $submission): bool
+    protected function deleteTestFiles(Test $test): void
     {
-        $user = Auth::user();
-
-        if ($user->role === 'admin') {
-            return true;
+        // Delete test cover image if exists
+        if (isset($test->settings['cover_image']) && $test->settings['cover_image']) {
+            $this->deleteFile($test->settings['cover_image']);
         }
 
-        // Teacher can delete submissions for their tasks
-        if ($user->role === 'teacher' && $submission->writingTask->creator_id === $user->id) {
-            return true;
-        }
-
-        // Student can delete their own submissions (only if not yet reviewed)
-        return $submission->student_id === $user->id && $submission->status === 'to_do';
-    }
-
-    /**
-     * Check if user can delete the assignment.
-     */
-    protected function canDeleteAssignment(WritingTaskAssignment $assignment): bool
-    {
-        $user = Auth::user();
-
-        if ($user->role === 'admin') {
-            return true;
-        }
-
-        return $assignment->writingTask->creator_id === $user->id;
-    }
-
-    /**
-     * Delete files associated with a submission.
-     */
-    protected function deleteSubmissionFiles(WritingSubmission $submission): void
-    {
-        if ($submission->files) {
-            $files = is_array($submission->files) ? $submission->files : json_decode($submission->files, true);
-
-            if (is_array($files)) {
-                foreach ($files as $file) {
-                    $filePath = is_array($file) ? $file['path'] : $file;
-                    if (Storage::disk('public')->exists($filePath)) {
-                        Storage::disk('public')->delete($filePath);
-                    }
+        // Delete any test-level attachments
+        if (isset($test->settings['attachments']) && is_array($test->settings['attachments'])) {
+            foreach ($test->settings['attachments'] as $attachment) {
+                if (isset($attachment['path'])) {
+                    $this->deleteFile($attachment['path']);
                 }
             }
         }
     }
 
     /**
-     * Delete files associated with a task.
+     * Delete a single file from storage.
      */
-    protected function deleteTaskFiles(WritingTask $task): void
+    protected function deleteFile(string $path): void
     {
-        // Delete any task-level attachments or sample files
-        // This depends on your task structure - add any file fields here
+        try {
+            if (Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+        } catch (\Exception $e) {
+            // Log error but don't fail the deletion
+            \Log::error('Error deleting file: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Bulk delete submissions by status.
+     * Archive a test instead of deleting.
      */
-    public function bulkDeleteSubmissions(string $taskId, array $statuses = []): array
+    public function archiveTest(string $testId): array
     {
-        $task = WritingTask::find($taskId);
+        $test = Test::find($testId);
 
-        if (!$task) {
-            return ['error' => 'Task not found', 'status' => 404];
+        if (!$test) {
+            return ['error' => 'Test not found', 'status' => 404];
         }
 
-        if (!$this->canDeleteTask($task)) {
+        if (!$this->canDeleteTest($test)) {
             return ['error' => 'Unauthorized', 'status' => 403];
         }
 
         try {
-            $query = WritingSubmission::where('writing_task_id', $taskId);
+            $test->update([
+                'is_published' => false,
+                'is_archived' => true,
+                'archived_at' => now(),
+            ]);
 
-            if (!empty($statuses)) {
-                $query->whereIn('status', $statuses);
-            }
-
-            $submissions = $query->get();
-            $count = $submissions->count();
-
-            DB::transaction(function () use ($submissions) {
-                foreach ($submissions as $submission) {
-                    $this->deleteSubmissionFiles($submission);
-                    if ($submission->review) {
-                        $submission->review->delete();
-                    }
-                    $submission->delete();
-                }
-            });
-
-            return ['message' => "Deleted {$count} submissions successfully", 'status' => 200];
+            return ['message' => 'Test archived successfully', 'status' => 200];
         } catch (\Exception $e) {
-            return ['error' => 'Failed to delete submissions: ' . $e->getMessage(), 'status' => 500];
+            return ['error' => 'Failed to archive test: ' . $e->getMessage(), 'status' => 500];
         }
     }
 }
