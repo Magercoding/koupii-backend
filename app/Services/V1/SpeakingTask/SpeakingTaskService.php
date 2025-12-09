@@ -289,7 +289,6 @@ class SpeakingTaskService
             throw new Exception('All sections must have at least one topic');
         }
 
-        // Check if all topics have questions
         $topicsWithoutQuestions = SpeakingTopic::whereHas('section', function ($query) use ($test) {
             $query->where('test_id', $test->id);
         })->doesntHave('questions')->exists();
@@ -298,7 +297,7 @@ class SpeakingTaskService
             throw new Exception('All topics must have at least one question');
         }
 
-        // Check if task has assignments
+ 
         if (!$test->speakingTaskAssignments()->exists()) {
             throw new Exception('Cannot publish speaking task without class assignments');
         }

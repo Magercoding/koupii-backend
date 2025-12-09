@@ -9,9 +9,11 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Auth;
 
+
+
 class WritingDashboardController extends Controller implements HasMiddleware
 {
-    public static function middleware(): array
+        public static function middleware(): array
     {
         return [
             new Middleware('auth:sanctum'),

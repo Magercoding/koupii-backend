@@ -2532,6 +2532,384 @@
                 ]
             }
         },
+        "/api/v1/speaking-dashboard/student": {
+            "get": {
+                "tags": [
+                    "Speaking Dashboard"
+                ],
+                "summary": "Get student speaking dashboard",
+                "description": "Retrieve speaking dashboard data for students including assigned speaking tasks and submission status",
+                "operationId": "b6cd66c3a96cd294e1aad122189f68f9",
+                "responses": {
+                    "200": {
+                        "description": "Student speaking dashboard retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Student speaking dashboard retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "task_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "difficulty": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "beginner",
+                                                            "intermediate",
+                                                            "advanced"
+                                                        ]
+                                                    },
+                                                    "due_date": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "to_do",
+                                                            "in_progress",
+                                                            "submitted",
+                                                            "reviewed",
+                                                            "done"
+                                                        ]
+                                                    },
+                                                    "score": {
+                                                        "type": "integer",
+                                                        "nullable": true
+                                                    },
+                                                    "attempt_number": {
+                                                        "type": "integer"
+                                                    },
+                                                    "can_retake": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "max_attempts": {
+                                                        "type": "integer"
+                                                    },
+                                                    "is_overdue": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "time_limit_seconds": {
+                                                        "type": "integer",
+                                                        "nullable": true
+                                                    },
+                                                    "timer_type": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "countdown",
+                                                            "countup",
+                                                            "none"
+                                                        ]
+                                                    },
+                                                    "total_questions": {
+                                                        "type": "integer"
+                                                    },
+                                                    "completed_recordings": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Student only"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/speaking-dashboard/teacher": {
+            "get": {
+                "tags": [
+                    "Speaking Dashboard"
+                ],
+                "summary": "Get teacher speaking dashboard",
+                "description": "Retrieve speaking dashboard data for teachers including created tasks and student submissions",
+                "operationId": "fbddd5391f1bcb86b4b5e445819bba2a",
+                "responses": {
+                    "200": {
+                        "description": "Teacher speaking dashboard retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Teacher speaking dashboard retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "task_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "difficulty": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "beginner",
+                                                            "intermediate",
+                                                            "advanced"
+                                                        ]
+                                                    },
+                                                    "is_published": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "total_submissions": {
+                                                        "type": "integer"
+                                                    },
+                                                    "pending_reviews": {
+                                                        "type": "integer"
+                                                    },
+                                                    "reviewed_submissions": {
+                                                        "type": "integer"
+                                                    },
+                                                    "in_progress_submissions": {
+                                                        "type": "integer"
+                                                    },
+                                                    "average_score": {
+                                                        "type": "number",
+                                                        "format": "float",
+                                                        "nullable": true
+                                                    },
+                                                    "assigned_classes": {
+                                                        "type": "integer"
+                                                    },
+                                                    "total_questions": {
+                                                        "type": "integer"
+                                                    },
+                                                    "total_recordings": {
+                                                        "type": "integer"
+                                                    },
+                                                    "completion_rate": {
+                                                        "type": "number",
+                                                        "format": "float"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Teacher/Admin only"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/speaking-dashboard/admin": {
+            "get": {
+                "tags": [
+                    "Speaking Dashboard"
+                ],
+                "summary": "Get admin speaking dashboard",
+                "description": "Retrieve comprehensive speaking dashboard data for admins with system-wide statistics",
+                "operationId": "ac3d14fa4766b39c08a9e9c60dde7504",
+                "responses": {
+                    "200": {
+                        "description": "Admin speaking dashboard retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Admin speaking dashboard retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "statistics": {
+                                                    "properties": {
+                                                        "total_tasks": {
+                                                            "type": "integer"
+                                                        },
+                                                        "published_tasks": {
+                                                            "type": "integer"
+                                                        },
+                                                        "draft_tasks": {
+                                                            "type": "integer"
+                                                        },
+                                                        "total_submissions": {
+                                                            "type": "integer"
+                                                        },
+                                                        "pending_reviews": {
+                                                            "type": "integer"
+                                                        },
+                                                        "completed_reviews": {
+                                                            "type": "integer"
+                                                        },
+                                                        "total_recordings": {
+                                                            "type": "integer"
+                                                        },
+                                                        "average_score": {
+                                                            "type": "number",
+                                                            "format": "float",
+                                                            "nullable": true
+                                                        },
+                                                        "total_teachers": {
+                                                            "type": "integer"
+                                                        },
+                                                        "total_students": {
+                                                            "type": "integer"
+                                                        },
+                                                        "system_completion_rate": {
+                                                            "type": "number",
+                                                            "format": "float"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "recent_tasks": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "title": {
+                                                                "type": "string"
+                                                            },
+                                                            "creator_name": {
+                                                                "type": "string"
+                                                            },
+                                                            "difficulty": {
+                                                                "type": "string"
+                                                            },
+                                                            "is_published": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "created_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "top_teachers": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "teacher_id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "teacher_name": {
+                                                                "type": "string"
+                                                            },
+                                                            "tasks_created": {
+                                                                "type": "integer"
+                                                            },
+                                                            "reviews_completed": {
+                                                                "type": "integer"
+                                                            },
+                                                            "average_student_score": {
+                                                                "type": "number",
+                                                                "format": "float"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "difficulty_distribution": {
+                                                    "properties": {
+                                                        "beginner": {
+                                                            "type": "integer"
+                                                        },
+                                                        "intermediate": {
+                                                            "type": "integer"
+                                                        },
+                                                        "advanced": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "submission_trends": {
+                                                    "properties": {
+                                                        "this_week": {
+                                                            "type": "integer"
+                                                        },
+                                                        "last_week": {
+                                                            "type": "integer"
+                                                        },
+                                                        "this_month": {
+                                                            "type": "integer"
+                                                        },
+                                                        "growth_rate": {
+                                                            "type": "number",
+                                                            "format": "float"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin only"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/user/password/change-password": {
             "patch": {
                 "tags": [
@@ -4271,14 +4649,14 @@
                 ]
             }
         },
-        "/api/v1/writing/tests": {
+        "/api/v1/writing-dashboard/student": {
             "get": {
                 "tags": [
-                    "Writing Tests"
+                    "Writing Dashboard"
                 ],
-                "summary": "Get all writing tests",
-                "description": "Retrieve writing tests based on user role. Admin sees all tests, students see only published tests, teachers see only their own tests.",
-                "operationId": "5d9a02f3371f268edab188d491b90026",
+                "summary": "Get student dashboard",
+                "description": "Retrieve dashboard data for students",
+                "operationId": "b37137eb0e4602ce9dfd613862935baf",
                 "parameters": [
                     {
                         "name": "Authorization",
@@ -4292,14 +4670,462 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Writing tests retrieved successfully",
+                        "description": "Student dashboard retrieved successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Writing tests retrieved successfully"
+                                            "example": "Student dashboard retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "task_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "due_date": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "to_do",
+                                                            "submitted",
+                                                            "reviewed",
+                                                            "done"
+                                                        ]
+                                                    },
+                                                    "score": {
+                                                        "type": "integer",
+                                                        "nullable": true
+                                                    },
+                                                    "attempt_number": {
+                                                        "type": "integer"
+                                                    },
+                                                    "can_retake": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "is_overdue": {
+                                                        "type": "boolean"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Student only"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-dashboard/teacher": {
+            "get": {
+                "tags": [
+                    "Writing Dashboard"
+                ],
+                "summary": "Get teacher dashboard",
+                "description": "Retrieve dashboard data for teachers",
+                "operationId": "61513f0b5114d48f201fb1d5f253dac6",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Teacher dashboard retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Teacher dashboard retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "task_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "total_submissions": {
+                                                        "type": "integer"
+                                                    },
+                                                    "pending_reviews": {
+                                                        "type": "integer"
+                                                    },
+                                                    "reviewed_submissions": {
+                                                        "type": "integer"
+                                                    },
+                                                    "average_score": {
+                                                        "type": "number",
+                                                        "format": "float"
+                                                    },
+                                                    "assigned_classes": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Teacher/Admin only"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-dashboard/admin": {
+            "get": {
+                "tags": [
+                    "Writing Dashboard"
+                ],
+                "summary": "Get admin dashboard",
+                "description": "Retrieve dashboard data for admins",
+                "operationId": "ce82726e608b090955ffc4fefbd7778f",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Admin dashboard retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Admin dashboard retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "statistics": {
+                                                    "properties": {
+                                                        "total_tasks": {
+                                                            "type": "integer"
+                                                        },
+                                                        "published_tasks": {
+                                                            "type": "integer"
+                                                        },
+                                                        "total_submissions": {
+                                                            "type": "integer"
+                                                        },
+                                                        "pending_reviews": {
+                                                            "type": "integer"
+                                                        },
+                                                        "average_score": {
+                                                            "type": "number",
+                                                            "format": "float"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "recent_tasks": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "top_teachers": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin only"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-tasks/{taskId}/submissions/{submissionId}/review": {
+            "post": {
+                "tags": [
+                    "Writing Reviews"
+                ],
+                "summary": "Review a student submission",
+                "description": "Provide feedback and score for a student's writing submission",
+                "operationId": "46eb6016faa48f63b92673eb660428be",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "description": "Writing task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "submissionId",
+                        "in": "path",
+                        "description": "Writing submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "score": {
+                                        "type": "integer",
+                                        "maximum": 100,
+                                        "minimum": 0,
+                                        "example": 85
+                                    },
+                                    "comments": {
+                                        "type": "string",
+                                        "example": "Good structure but needs improvement in grammar"
+                                    },
+                                    "detailed_feedback": {
+                                        "properties": {
+                                            "grammar": {
+                                                "type": "integer",
+                                                "maximum": 100,
+                                                "minimum": 0,
+                                                "example": 75
+                                            },
+                                            "vocabulary": {
+                                                "type": "integer",
+                                                "maximum": 100,
+                                                "minimum": 0,
+                                                "example": 90
+                                            },
+                                            "structure": {
+                                                "type": "integer",
+                                                "maximum": 100,
+                                                "minimum": 0,
+                                                "example": 85
+                                            },
+                                            "content": {
+                                                "type": "integer",
+                                                "maximum": 100,
+                                                "minimum": 0,
+                                                "example": 80
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "corrections": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "original": {
+                                                    "type": "string",
+                                                    "example": "They was happy"
+                                                },
+                                                "corrected": {
+                                                    "type": "string",
+                                                    "example": "They were happy"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "example": "grammar"
+                                                },
+                                                "explanation": {
+                                                    "type": "string",
+                                                    "example": "Subject-verb agreement error"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "suggestions": {
+                                        "type": "string",
+                                        "example": "Try to vary your sentence structure more"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Submission reviewed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Submission reviewed successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "submission": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string",
+                                                            "format": "uuid"
+                                                        },
+                                                        "status": {
+                                                            "type": "string",
+                                                            "example": "reviewed"
+                                                        },
+                                                        "score": {
+                                                            "type": "integer",
+                                                            "example": 85
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "review": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string",
+                                                            "format": "uuid"
+                                                        },
+                                                        "score": {
+                                                            "type": "integer",
+                                                            "example": 85
+                                                        },
+                                                        "comments": {
+                                                            "type": "string"
+                                                        },
+                                                        "reviewed_at": {
+                                                            "type": "string",
+                                                            "format": "date-time"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Submission not found"
+                    },
+                    "500": {
+                        "description": "Failed to review submission"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-reviews/pending": {
+            "get": {
+                "tags": [
+                    "Writing Reviews"
+                ],
+                "summary": "Get pending reviews",
+                "description": "Retrieve submissions that need to be reviewed by the teacher",
+                "operationId": "058286397630eddd98c81a1eeee16ddc",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pending reviews retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Pending reviews retrieved successfully"
                                         },
                                         "data": {
                                             "type": "array",
@@ -4307,80 +5133,56 @@
                                                 "properties": {
                                                     "id": {
                                                         "type": "string",
-                                                        "format": "uuid",
-                                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                                        "format": "uuid"
                                                     },
-                                                    "creator_id": {
+                                                    "writing_task_id": {
                                                         "type": "string",
-                                                        "format": "uuid",
-                                                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                                                        "format": "uuid"
                                                     },
-                                                    "creator_name": {
+                                                    "student_id": {
                                                         "type": "string",
-                                                        "example": "Teacher Name"
+                                                        "format": "uuid"
                                                     },
-                                                    "test_type": {
+                                                    "status": {
                                                         "type": "string",
-                                                        "example": "academic"
+                                                        "example": "submitted"
                                                     },
-                                                    "type": {
+                                                    "submitted_at": {
                                                         "type": "string",
-                                                        "example": "writing"
+                                                        "format": "date-time"
                                                     },
-                                                    "difficulty": {
-                                                        "type": "string",
-                                                        "example": "intermediate"
+                                                    "time_taken_seconds": {
+                                                        "type": "integer"
                                                     },
-                                                    "title": {
-                                                        "type": "string",
-                                                        "example": "Essay Writing Test"
-                                                    },
-                                                    "description": {
-                                                        "type": "string",
-                                                        "example": "Test for academic essay writing skills"
-                                                    },
-                                                    "timer_mode": {
-                                                        "type": "string",
-                                                        "example": "test"
-                                                    },
-                                                    "timer_settings": {
-                                                        "type": "object",
-                                                        "example": {
-                                                            "test_time": 90
-                                                        }
-                                                    },
-                                                    "allow_repetition": {
-                                                        "type": "boolean",
-                                                        "example": false
-                                                    },
-                                                    "max_repetition_count": {
-                                                        "type": "integer",
-                                                        "example": 1
-                                                    },
-                                                    "is_public": {
-                                                        "type": "boolean",
-                                                        "example": false
-                                                    },
-                                                    "is_published": {
-                                                        "type": "boolean",
-                                                        "example": true
-                                                    },
-                                                    "settings": {
+                                                    "student": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "email": {
+                                                                "type": "string"
+                                                            }
+                                                        },
                                                         "type": "object"
                                                     },
-                                                    "created_at": {
-                                                        "type": "string",
-                                                        "format": "date-time"
-                                                    },
-                                                    "updated_at": {
-                                                        "type": "string",
-                                                        "format": "date-time"
-                                                    },
-                                                    "writing_prompts": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "object"
-                                                        }
+                                                    "writingTask": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "title": {
+                                                                "type": "string"
+                                                            },
+                                                            "difficulty": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     }
                                                 },
                                                 "type": "object"
@@ -4394,21 +5196,26 @@
                     },
                     "401": {
                         "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Server error"
                     }
                 },
                 "security": [
                     {
-                        "bearerAuth": []
+                        "sanctum": []
                     }
                 ]
-            },
+            }
+        },
+        "/api/v1/writing-reviews/bulk": {
             "post": {
                 "tags": [
-                    "Writing Tests"
+                    "Writing Reviews"
                 ],
-                "summary": "Create a new writing test",
-                "description": "Create a new writing test with prompts and evaluation criteria. Only admins and teachers can create tests.",
-                "operationId": "376893501ef9bcf3247725bf5801c5ee",
+                "summary": "Bulk review submissions",
+                "description": "Review multiple submissions at once",
+                "operationId": "7cbbcceff938396b9ef751a4a77c05de",
                 "parameters": [
                     {
                         "name": "Authorization",
@@ -4425,141 +5232,25 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "required": [
-                                    "title",
-                                    "description",
-                                    "test_type",
-                                    "difficulty",
-                                    "writing_prompts"
-                                ],
                                 "properties": {
-                                    "title": {
-                                        "type": "string",
-                                        "example": "Academic Essay Writing Test"
-                                    },
-                                    "description": {
-                                        "type": "string",
-                                        "example": "A comprehensive test for academic essay writing skills"
-                                    },
-                                    "test_type": {
-                                        "type": "string",
-                                        "enum": [
-                                            "academic",
-                                            "general"
-                                        ],
-                                        "example": "academic"
-                                    },
-                                    "difficulty": {
-                                        "type": "string",
-                                        "enum": [
-                                            "beginner",
-                                            "intermediate",
-                                            "advanced"
-                                        ],
-                                        "example": "intermediate"
-                                    },
-                                    "timer_mode": {
-                                        "type": "string",
-                                        "enum": [
-                                            "test",
-                                            "prompt"
-                                        ],
-                                        "example": "test"
-                                    },
-                                    "timer_settings": {
-                                        "type": "object",
-                                        "example": {
-                                            "test_time": 90
-                                        }
-                                    },
-                                    "allow_repetition": {
-                                        "type": "boolean",
-                                        "example": false
-                                    },
-                                    "max_repetition_count": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "is_public": {
-                                        "type": "boolean",
-                                        "example": false
-                                    },
-                                    "is_published": {
-                                        "type": "boolean",
-                                        "example": true
-                                    },
-                                    "settings": {
-                                        "type": "object",
-                                        "example": []
-                                    },
-                                    "writing_prompts": {
+                                    "reviews": {
                                         "type": "array",
                                         "items": {
                                             "properties": {
-                                                "title": {
+                                                "submission_id": {
                                                     "type": "string",
-                                                    "example": "Opinion Essay"
+                                                    "format": "uuid",
+                                                    "example": "123e4567-e89b-12d3-a456-426614174000"
                                                 },
-                                                "prompt_text": {
-                                                    "type": "string",
-                                                    "example": "Some people believe that technology has made our lives easier. Others think it has made life more complicated. Discuss both views and give your opinion."
-                                                },
-                                                "prompt_type": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "essay",
-                                                        "letter",
-                                                        "report",
-                                                        "review",
-                                                        "article",
-                                                        "proposal"
-                                                    ],
-                                                    "example": "essay"
-                                                },
-                                                "word_limit": {
+                                                "score": {
                                                     "type": "integer",
-                                                    "example": 250
+                                                    "maximum": 100,
+                                                    "minimum": 0,
+                                                    "example": 85
                                                 },
-                                                "time_limit": {
-                                                    "type": "integer",
-                                                    "example": 40
-                                                },
-                                                "instructions": {
+                                                "comments": {
                                                     "type": "string",
-                                                    "example": "Write a clear, well-structured essay with introduction, body paragraphs, and conclusion."
-                                                },
-                                                "sample_answer": {
-                                                    "type": "string",
-                                                    "example": "Sample essay response..."
-                                                },
-                                                "criteria": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "properties": {
-                                                            "name": {
-                                                                "type": "string",
-                                                                "example": "Content & Ideas"
-                                                            },
-                                                            "description": {
-                                                                "type": "string",
-                                                                "example": "Relevance, development, and support of ideas"
-                                                            },
-                                                            "max_score": {
-                                                                "type": "integer",
-                                                                "example": 9
-                                                            },
-                                                            "weight": {
-                                                                "type": "number",
-                                                                "format": "float",
-                                                                "example": 0.25
-                                                            },
-                                                            "rubric": {
-                                                                "type": "object",
-                                                                "example": []
-                                                            }
-                                                        },
-                                                        "type": "object"
-                                                    }
+                                                    "example": "Good work overall"
                                                 }
                                             },
                                             "type": "object"
@@ -4572,20 +5263,50 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Writing test created successfully",
+                    "200": {
+                        "description": "Bulk review completed successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Writing test created successfully"
+                                            "example": "Bulk review completed successfully"
                                         },
-                                        "test_id": {
-                                            "type": "string",
-                                            "format": "uuid",
-                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                        "data": {
+                                            "properties": {
+                                                "successful_reviews": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "failed_reviews": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "submission_id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "success",
+                                                                    "failed"
+                                                                ]
+                                                            },
+                                                            "message": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"
@@ -4596,39 +5317,916 @@
                     "422": {
                         "description": "Validation error"
                     },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "403": {
-                        "description": "Forbidden - Only admins and teachers can create tests"
+                    "500": {
+                        "description": "Failed to complete bulk review"
                     }
                 },
                 "security": [
                     {
-                        "bearerAuth": []
+                        "sanctum": []
                     }
                 ]
             }
         },
-        "/api/v1/writing/tests/{id}": {
+        "/api/v1/writing-tasks/{taskId}/submissions": {
             "get": {
                 "tags": [
-                    "Writing Tests"
+                    "Writing Submissions"
                 ],
-                "summary": "Get a specific writing test",
-                "description": "Retrieve a specific writing test with all its prompts and criteria.",
-                "operationId": "7d05f6fbc1ccdcd1b78deab61fd74ce1",
+                "summary": "Get submissions for a task",
+                "description": "Retrieve all submissions for a specific writing task (Teacher view)",
+                "operationId": "6b9ef7077a2c17da27ff080b8ed74f18",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "taskId",
                         "in": "path",
-                        "description": "Test ID (UUID)",
+                        "description": "Task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Submissions retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Submissions retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "test_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "student_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "student_name": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "to_do",
+                                                            "in_progress",
+                                                            "submitted",
+                                                            "reviewed"
+                                                        ]
+                                                    },
+                                                    "score": {
+                                                        "type": "integer",
+                                                        "nullable": true
+                                                    },
+                                                    "attempt_number": {
+                                                        "type": "integer"
+                                                    },
+                                                    "submitted_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "nullable": true
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Writing Submissions"
+                ],
+                "summary": "Submit student writing",
+                "description": "Submit a writing assignment (Student only)",
+                "operationId": "2121e32ebff6941c0e29007a96d2c45e",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "Bearer your-token-here"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "description": "Task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "content"
+                                ],
+                                "properties": {
+                                    "content": {
+                                        "type": "string",
+                                        "example": "My essay content goes here..."
+                                    },
+                                    "files": {
+                                        "description": "Maximum 5 files, each up to 10MB",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
+                                        }
+                                    },
+                                    "time_taken_seconds": {
+                                        "type": "integer",
+                                        "example": 1800
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Writing submitted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Writing submitted successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "test_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "student_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "to_do",
+                                                        "in_progress",
+                                                        "submitted",
+                                                        "reviewed"
+                                                    ]
+                                                },
+                                                "attempt_number": {
+                                                    "type": "integer"
+                                                },
+                                                "submitted_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "404": {
+                        "description": "Task not found or unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-tasks/{taskId}/submissions/draft": {
+            "post": {
+                "tags": [
+                    "Writing Submissions"
+                ],
+                "summary": "Save draft",
+                "description": "Auto-save draft functionality (Student only)",
+                "operationId": "d9080412b08d0540f74882a53650db5f",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "Bearer your-token-here"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "description": "Task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "content"
+                                ],
+                                "properties": {
+                                    "content": {
+                                        "type": "string",
+                                        "example": "Draft content..."
+                                    },
+                                    "files": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "time_taken_seconds": {
+                                        "type": "integer",
+                                        "example": 900
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Draft saved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Draft saved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "test_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "student_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "to_do",
+                                                        "in_progress",
+                                                        "submitted",
+                                                        "reviewed"
+                                                    ]
+                                                },
+                                                "content": {
+                                                    "type": "string"
+                                                },
+                                                "attempt_number": {
+                                                    "type": "integer"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-tasks/{taskId}/submissions/retake": {
+            "post": {
+                "tags": [
+                    "Writing Submissions"
+                ],
+                "summary": "Create retake submission",
+                "description": "Create a retake submission with specified retake option",
+                "operationId": "4a73c181ca84e3f154fba3f850daf51a",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "Bearer your-token-here"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "description": "Task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "retake_option"
+                                ],
+                                "properties": {
+                                    "retake_option": {
+                                        "type": "string",
+                                        "enum": [
+                                            "rewrite_all",
+                                            "group_similar",
+                                            "choose_any"
+                                        ],
+                                        "example": "rewrite_all"
+                                    },
+                                    "chosen_mistakes": {
+                                        "description": "Required when retake_option is 'choose_any'",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Retake created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Retake created successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "test_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "student_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "to_do",
+                                                        "in_progress",
+                                                        "submitted",
+                                                        "reviewed"
+                                                    ]
+                                                },
+                                                "attempt_number": {
+                                                    "type": "integer"
+                                                },
+                                                "retake_option": {
+                                                    "type": "string"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-tasks/{taskId}/submissions/{submissionId}/done": {
+            "patch": {
+                "tags": [
+                    "Writing Submissions"
+                ],
+                "summary": "Mark submission as done",
+                "description": "Student acknowledges review and marks submission as done",
+                "operationId": "5fc3e538cb1addd4e67f1c9c233415ac",
+                "parameters": [
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "description": "Task ID",
                         "required": true,
                         "schema": {
                             "type": "string",
                             "format": "uuid"
                         }
                     },
+                    {
+                        "name": "submissionId",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Submission marked as done successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Submission marked as done successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "test_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "student_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "to_do",
+                                                        "in_progress",
+                                                        "submitted",
+                                                        "reviewed",
+                                                        "done"
+                                                    ]
+                                                },
+                                                "attempt_number": {
+                                                    "type": "integer"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "400": {
+                        "description": "Submission must be reviewed first"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-tasks/{taskId}/submissions/{submissionId}": {
+            "get": {
+                "tags": [
+                    "Writing Submissions"
+                ],
+                "summary": "Get specific submission",
+                "description": "Retrieve details of a specific submission",
+                "operationId": "1ac0da6ac5e1cd07801497bd3878e460",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "Bearer your-token-here"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "description": "Task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "submissionId",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Submission retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Submission retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "test_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "student_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "content": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "to_do",
+                                                        "in_progress",
+                                                        "submitted",
+                                                        "reviewed"
+                                                    ]
+                                                },
+                                                "score": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "attempt_number": {
+                                                    "type": "integer"
+                                                },
+                                                "submitted_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Submission not found"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-tasks/{id}/assignments": {
+            "get": {
+                "tags": [
+                    "Writing Task Assignments"
+                ],
+                "summary": "Get task assignments",
+                "description": "Retrieve all classroom assignments for a specific task",
+                "operationId": "7c8eb23e70491a6b03822b21b70e093c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task assignments retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Task assignments retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Writing Task Assignments"
+                ],
+                "summary": "Assign task to classrooms",
+                "description": "Assign a writing task to multiple classrooms (Teacher/Admin only)",
+                "operationId": "411befb7bfd068ecf43c7600651a238b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "classroom_ids"
+                                ],
+                                "properties": {
+                                    "classroom_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "example": [
+                                            "uuid1",
+                                            "uuid2",
+                                            "uuid3"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Task sent to classrooms successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Task sent to classrooms successfully"
+                                        },
+                                        "assignments_count": {
+                                            "type": "integer",
+                                            "example": 3
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-tasks/{id}/assignments/{classroomId}": {
+            "delete": {
+                "tags": [
+                    "Writing Task Assignments"
+                ],
+                "summary": "Remove task from classroom",
+                "description": "Remove a writing task assignment from a specific classroom",
+                "operationId": "d0f18ae56ad9272a894a195910deb3e6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "classroomId",
+                        "in": "path",
+                        "description": "Classroom ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task removed from classroom successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Task removed from classroom successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Task or classroom not found"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/writing-tasks": {
+            "get": {
+                "tags": [
+                    "Writing Tasks"
+                ],
+                "summary": "Get list of writing tasks",
+                "description": "Retrieve writing tasks based on user role - Admin sees all, Teacher sees own tasks, Student sees assigned published tasks",
+                "operationId": "8815b3095f09aaccc6e2ec826a83ffcc",
+                "parameters": [
                     {
                         "name": "Authorization",
                         "in": "header",
@@ -4641,45 +6239,16 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Test retrieved successfully",
+                        "description": "Writing tasks retrieved successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "id": {
+                                        "message": {
                                             "type": "string",
-                                            "format": "uuid",
-                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                            "example": "Writing tasks retrieved successfully"
                                         },
-                                        "creator_id": {
-                                            "type": "string",
-                                            "format": "uuid"
-                                        },
-                                        "creator_name": {
-                                            "type": "string",
-                                            "example": "Teacher Name"
-                                        },
-                                        "title": {
-                                            "type": "string",
-                                            "example": "Academic Essay Writing Test"
-                                        },
-                                        "description": {
-                                            "type": "string",
-                                            "example": "Test description"
-                                        },
-                                        "test_type": {
-                                            "type": "string",
-                                            "example": "academic"
-                                        },
-                                        "difficulty": {
-                                            "type": "string",
-                                            "example": "intermediate"
-                                        },
-                                        "is_published": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "writing_prompts": {
+                                        "data": {
                                             "type": "array",
                                             "items": {
                                                 "properties": {
@@ -4688,34 +6257,46 @@
                                                         "format": "uuid"
                                                     },
                                                     "title": {
-                                                        "type": "string",
-                                                        "example": "Opinion Essay"
+                                                        "type": "string"
                                                     },
-                                                    "prompt_text": {
-                                                        "type": "string",
-                                                        "example": "Prompt text..."
+                                                    "description": {
+                                                        "type": "string"
                                                     },
-                                                    "prompt_type": {
-                                                        "type": "string",
-                                                        "example": "essay"
+                                                    "is_published": {
+                                                        "type": "boolean"
                                                     },
-                                                    "word_limit": {
+                                                    "difficulty": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "beginner",
+                                                            "intermediate",
+                                                            "advanced"
+                                                        ]
+                                                    },
+                                                    "time_limit_seconds": {
                                                         "type": "integer",
-                                                        "example": 250
+                                                        "nullable": true
                                                     },
-                                                    "time_limit": {
-                                                        "type": "integer",
-                                                        "example": 40
-                                                    },
-                                                    "instructions": {
+                                                    "created_at": {
                                                         "type": "string",
-                                                        "example": "Instructions..."
+                                                        "format": "date-time"
                                                     },
-                                                    "sample_answer": {
-                                                        "type": "string",
-                                                        "example": "Sample answer (hidden from students)"
+                                                    "creator": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "email": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
                                                     },
-                                                    "criteria": {
+                                                    "assignments": {
                                                         "type": "array",
                                                         "items": {
                                                             "properties": {
@@ -4723,25 +6304,14 @@
                                                                     "type": "string",
                                                                     "format": "uuid"
                                                                 },
-                                                                "name": {
+                                                                "classroom_id": {
                                                                     "type": "string",
-                                                                    "example": "Content & Ideas"
+                                                                    "format": "uuid"
                                                                 },
-                                                                "description": {
+                                                                "due_date": {
                                                                     "type": "string",
-                                                                    "example": "Description..."
-                                                                },
-                                                                "max_score": {
-                                                                    "type": "integer",
-                                                                    "example": 9
-                                                                },
-                                                                "weight": {
-                                                                    "type": "number",
-                                                                    "format": "float",
-                                                                    "example": 0.25
-                                                                },
-                                                                "rubric": {
-                                                                    "type": "object"
+                                                                    "format": "date-time",
+                                                                    "nullable": true
                                                                 }
                                                             },
                                                             "type": "object"
@@ -4757,98 +6327,27 @@
                             }
                         }
                     },
-                    "404": {
-                        "description": "Test not found or unauthorized access"
-                    },
                     "401": {
                         "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Server error"
                     }
                 },
                 "security": [
                     {
-                        "bearerAuth": []
+                        "sanctum": []
                     }
                 ]
             },
-            "delete": {
+            "post": {
                 "tags": [
-                    "Writing Tests"
+                    "Writing Tasks"
                 ],
-                "summary": "Delete a writing test",
-                "description": "Delete an entire writing test including all prompts and criteria. Only the creator or admin can delete.",
-                "operationId": "b0232781052a27664a9d1fe9b1fc89c7",
+                "summary": "Create a new writing task",
+                "description": "Create a new writing task with questions and assignments",
+                "operationId": "5cbdb53cce957fec8703878733c79e61",
                 "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Test ID (UUID)",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    },
-                    {
-                        "name": "Authorization",
-                        "in": "header",
-                        "description": "Bearer token. Example: Bearer {access_token}",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Test deleted successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Writing test deleted successfully"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Test not found"
-                    },
-                    "403": {
-                        "description": "Unauthorized"
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            },
-            "patch": {
-                "tags": [
-                    "Writing Tests"
-                ],
-                "summary": "Update a writing test",
-                "description": "Update an existing writing test. Only the creator or admin can update.",
-                "operationId": "cd671804e2ae9181429fac72847f708d",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Test ID (UUID)",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    },
                     {
                         "name": "Authorization",
                         "in": "header",
@@ -4867,19 +6366,15 @@
                                 "properties": {
                                     "title": {
                                         "type": "string",
-                                        "example": "Updated Essay Writing Test"
+                                        "example": "Essay Writing Task"
                                     },
                                     "description": {
                                         "type": "string",
-                                        "example": "Updated description"
+                                        "example": "Write a 500-word essay about climate change"
                                     },
-                                    "test_type": {
+                                    "instructions": {
                                         "type": "string",
-                                        "enum": [
-                                            "academic",
-                                            "general"
-                                        ],
-                                        "example": "academic"
+                                        "example": "Follow the essay structure: introduction, body, conclusion"
                                     },
                                     "difficulty": {
                                         "type": "string",
@@ -4887,83 +6382,44 @@
                                             "beginner",
                                             "intermediate",
                                             "advanced"
-                                        ],
-                                        "example": "advanced"
+                                        ]
                                     },
-                                    "timer_mode": {
-                                        "type": "string",
-                                        "enum": [
-                                            "test",
-                                            "prompt"
-                                        ],
-                                        "example": "prompt"
-                                    },
-                                    "timer_settings": {
-                                        "type": "object"
-                                    },
-                                    "allow_repetition": {
-                                        "type": "boolean",
-                                        "example": true
-                                    },
-                                    "max_repetition_count": {
+                                    "time_limit_seconds": {
                                         "type": "integer",
-                                        "example": 2
+                                        "example": 3600,
+                                        "nullable": true
                                     },
-                                    "is_public": {
+                                    "allow_file_upload": {
                                         "type": "boolean",
                                         "example": true
                                     },
-                                    "is_published": {
-                                        "type": "boolean",
-                                        "example": false
+                                    "max_file_size_mb": {
+                                        "type": "integer",
+                                        "example": 10
                                     },
-                                    "settings": {
-                                        "type": "object"
+                                    "allowed_file_types": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "example": [
+                                            "pdf",
+                                            "doc",
+                                            "docx"
+                                        ]
                                     },
-                                    "writing_prompts": {
+                                    "classroom_assignments": {
                                         "type": "array",
                                         "items": {
                                             "properties": {
-                                                "id": {
-                                                    "description": "Optional - include for existing prompts",
+                                                "classroom_id": {
                                                     "type": "string",
                                                     "format": "uuid"
                                                 },
-                                                "title": {
+                                                "due_date": {
                                                     "type": "string",
-                                                    "example": "Updated Prompt Title"
-                                                },
-                                                "prompt_text": {
-                                                    "type": "string",
-                                                    "example": "Updated prompt text..."
-                                                },
-                                                "prompt_type": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "essay",
-                                                        "letter",
-                                                        "report",
-                                                        "review",
-                                                        "article",
-                                                        "proposal"
-                                                    ],
-                                                    "example": "letter"
-                                                },
-                                                "word_limit": {
-                                                    "type": "integer",
-                                                    "example": 300
-                                                },
-                                                "time_limit": {
-                                                    "type": "integer",
-                                                    "example": 30
-                                                },
-                                                "instructions": {
-                                                    "type": "string",
-                                                    "example": "Updated instructions..."
-                                                },
-                                                "sample_answer": {
-                                                    "type": "string",
-                                                    "example": "Updated sample answer..."
+                                                    "format": "date-time",
+                                                    "nullable": true
                                                 }
                                             },
                                             "type": "object"
@@ -4976,20 +6432,37 @@
                     }
                 },
                 "responses": {
-                    "200": {
-                        "description": "Test updated successfully",
+                    "201": {
+                        "description": "Writing task created successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Writing test updated successfully"
+                                            "example": "Writing task created successfully"
                                         },
-                                        "test_id": {
-                                            "type": "string",
-                                            "format": "uuid",
-                                            "example": "550e8400-e29b-41d4-a716-446655440000"
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "title": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": "string"
+                                                },
+                                                "is_published": {
+                                                    "type": "boolean"
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"
@@ -4997,45 +6470,29 @@
                             }
                         }
                     },
-                    "404": {
-                        "description": "Test not found"
-                    },
-                    "403": {
-                        "description": "Unauthorized"
-                    },
                     "422": {
                         "description": "Validation error"
                     },
                     "500": {
-                        "description": "Update failed"
+                        "description": "Server error"
                     }
                 },
                 "security": [
                     {
-                        "bearerAuth": []
+                        "sanctum": []
                     }
                 ]
             }
         },
-        "/api/v1/writing/prompts/{id}": {
-            "delete": {
+        "/api/v1/writing-tasks/{id}": {
+            "get": {
                 "tags": [
-                    "Writing Tests"
+                    "Writing Tasks"
                 ],
-                "summary": "Delete a writing prompt",
-                "description": "Delete a specific writing prompt from a test. Only the test creator or admin can delete.",
-                "operationId": "cd4c7ac7a385c1e035c30ffb71446e30",
+                "summary": "Get specific writing task details",
+                "description": "Retrieve details of a specific writing task with submissions and assignments",
+                "operationId": "ad39a7353495e08dac663efa7bc6c70e",
                 "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Prompt ID (UUID)",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    },
                     {
                         "name": "Authorization",
                         "in": "header",
@@ -5044,18 +6501,84 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Writing task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Prompt deleted successfully",
+                        "description": "Writing task retrieved successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Writing prompt deleted successfully"
+                                            "example": "Writing task retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "title": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": "string"
+                                                },
+                                                "instructions": {
+                                                    "type": "string"
+                                                },
+                                                "difficulty": {
+                                                    "type": "string"
+                                                },
+                                                "time_limit_seconds": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "is_published": {
+                                                    "type": "boolean"
+                                                },
+                                                "submissions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "student_id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "status": {
+                                                                "type": "string"
+                                                            },
+                                                            "score": {
+                                                                "type": "integer",
+                                                                "nullable": true
+                                                            },
+                                                            "submitted_at": {
+                                                                "type": "string",
+                                                                "format": "date-time",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     },
                                     "type": "object"
@@ -5064,10 +6587,7 @@
                         }
                     },
                     "404": {
-                        "description": "Prompt not found"
-                    },
-                    "403": {
-                        "description": "Unauthorized"
+                        "description": "Task not found or unauthorized access"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -5075,7 +6595,181 @@
                 },
                 "security": [
                     {
-                        "bearerAuth": []
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Writing Tasks"
+                ],
+                "summary": "Update writing task",
+                "description": "Update an existing writing task details",
+                "operationId": "cb493fc8bee1f51d705d3220722cb0df",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Writing task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "instructions": {
+                                        "type": "string"
+                                    },
+                                    "difficulty": {
+                                        "type": "string",
+                                        "enum": [
+                                            "beginner",
+                                            "intermediate",
+                                            "advanced"
+                                        ]
+                                    },
+                                    "time_limit_seconds": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "is_published": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Writing task updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Writing task updated successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "title": {
+                                                    "type": "string"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Task not found"
+                    },
+                    "500": {
+                        "description": "Update failed"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Writing Tasks"
+                ],
+                "summary": "Delete writing task",
+                "description": "Delete a writing task and all associated data",
+                "operationId": "7086044e73f299d4eafbd5a04242eba5",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Writing task ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Writing task deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Writing task deleted successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Task not found"
+                    },
+                    "500": {
+                        "description": "Failed to delete task"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
                     }
                 ]
             }
@@ -5107,6 +6801,10 @@
             "description": "Reading Tests"
         },
         {
+            "name": "Speaking Dashboard",
+            "description": "Speaking Dashboard"
+        },
+        {
             "name": "Password",
             "description": "Password"
         },
@@ -5127,8 +6825,24 @@
             "description": "Vocabulary"
         },
         {
-            "name": "Writing Tests",
-            "description": "Writing Tests"
+            "name": "Writing Dashboard",
+            "description": "Writing Dashboard"
+        },
+        {
+            "name": "Writing Reviews",
+            "description": "Writing Reviews"
+        },
+        {
+            "name": "Writing Submissions",
+            "description": "Writing Submissions"
+        },
+        {
+            "name": "Writing Task Assignments",
+            "description": "Writing Task Assignments"
+        },
+        {
+            "name": "Writing Tasks",
+            "description": "Writing Tasks"
         }
     ]
 }

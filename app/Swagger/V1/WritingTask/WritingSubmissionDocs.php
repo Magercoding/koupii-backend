@@ -14,6 +14,13 @@ class WritingSubmissionDocs
      *     description="Retrieve all submissions for a specific writing task (Teacher view)",
      *     security={{"sanctum":{}}},
      *     @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
      *         required=true,
@@ -28,7 +35,18 @@ class WritingSubmissionDocs
      *             @OA\Property(
      *                 property="data",
      *                 type="array",
-     *                 @OA\Items(ref="#/components/schemas/WritingSubmissionResource")
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="id", type="string", format="uuid"),
+     *                     @OA\Property(property="test_id", type="string", format="uuid"),
+     *                     @OA\Property(property="student_id", type="string", format="uuid"),
+     *                     @OA\Property(property="student_name", type="string"),
+     *                     @OA\Property(property="status", type="string", enum={"to_do", "in_progress", "submitted", "reviewed"}),
+     *                     @OA\Property(property="score", type="integer", nullable=true),
+     *                     @OA\Property(property="attempt_number", type="integer"),
+     *                     @OA\Property(property="submitted_at", type="string", format="date-time", nullable=true),
+     *                     @OA\Property(property="created_at", type="string", format="date-time")
+     *                 )
      *             )
      *         )
      *     ),
@@ -46,6 +64,13 @@ class WritingSubmissionDocs
      *     summary="Submit student writing",
      *     description="Submit a writing assignment (Student only)",
      *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string", example="Bearer your-token-here")
+     *     ),
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -75,7 +100,17 @@ class WritingSubmissionDocs
      *         description="Writing submitted successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="message", type="string", example="Writing submitted successfully"),
-     *             @OA\Property(property="data", ref="#/components/schemas/WritingSubmissionResource")
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid"),
+     *                 @OA\Property(property="test_id", type="string", format="uuid"),
+     *                 @OA\Property(property="student_id", type="string", format="uuid"),
+     *                 @OA\Property(property="status", type="string", enum={"to_do", "in_progress", "submitted", "reviewed"}),
+     *                 @OA\Property(property="attempt_number", type="integer"),
+     *                 @OA\Property(property="submitted_at", type="string", format="date-time", nullable=true),
+     *                 @OA\Property(property="created_at", type="string", format="date-time")
+     *             )
      *         )
      *     ),
      *     @OA\Response(response=422, description="Validation error"),
@@ -93,6 +128,13 @@ class WritingSubmissionDocs
      *     summary="Save draft",
      *     description="Auto-save draft functionality (Student only)",
      *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string", example="Bearer your-token-here")
+     *     ),
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -114,7 +156,17 @@ class WritingSubmissionDocs
      *         description="Draft saved successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="message", type="string", example="Draft saved successfully"),
-     *             @OA\Property(property="data", ref="#/components/schemas/WritingSubmissionResource")
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid"),
+     *                 @OA\Property(property="test_id", type="string", format="uuid"),
+     *                 @OA\Property(property="student_id", type="string", format="uuid"),
+     *                 @OA\Property(property="status", type="string", enum={"to_do", "in_progress", "submitted", "reviewed"}),
+     *                 @OA\Property(property="content", type="string"),
+     *                 @OA\Property(property="attempt_number", type="integer"),
+     *                 @OA\Property(property="created_at", type="string", format="date-time")
+     *             )
      *         )
      *     )
      * )
@@ -130,6 +182,13 @@ class WritingSubmissionDocs
      *     summary="Create retake submission",
      *     description="Create a retake submission with specified retake option",
      *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string", example="Bearer your-token-here")
+     *     ),
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -155,7 +214,17 @@ class WritingSubmissionDocs
      *         description="Retake created successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="message", type="string", example="Retake created successfully"),
-     *             @OA\Property(property="data", ref="#/components/schemas/WritingSubmissionResource")
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid"),
+     *                 @OA\Property(property="test_id", type="string", format="uuid"),
+     *                 @OA\Property(property="student_id", type="string", format="uuid"),
+     *                 @OA\Property(property="status", type="string", enum={"to_do", "in_progress", "submitted", "reviewed"}),
+     *                 @OA\Property(property="attempt_number", type="integer"),
+     *                 @OA\Property(property="retake_option", type="string"),
+     *                 @OA\Property(property="created_at", type="string", format="date-time")
+     *             )
      *         )
      *     )
      * )
@@ -190,7 +259,16 @@ class WritingSubmissionDocs
      *         description="Submission marked as done successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="message", type="string", example="Submission marked as done successfully"),
-     *             @OA\Property(property="data", ref="#/components/schemas/WritingSubmissionResource")
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid"),
+     *                 @OA\Property(property="test_id", type="string", format="uuid"),
+     *                 @OA\Property(property="student_id", type="string", format="uuid"),
+     *                 @OA\Property(property="status", type="string", enum={"to_do", "in_progress", "submitted", "reviewed", "done"}),
+     *                 @OA\Property(property="attempt_number", type="integer"),
+     *                 @OA\Property(property="created_at", type="string", format="date-time")
+     *             )
      *         )
      *     ),
      *     @OA\Response(response=403, description="Forbidden"),
@@ -208,6 +286,13 @@ class WritingSubmissionDocs
      *     summary="Get specific submission",
      *     description="Retrieve details of a specific submission",
      *     security={{"sanctum":{}}},
+     *     @OA\Parameter(
+     *         name="Authorization",
+     *         in="header",
+     *         required=true,
+     *         description="Bearer token. Example: Bearer {access_token}",
+     *         @OA\Schema(type="string", example="Bearer your-token-here")
+     *     ),
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -227,7 +312,19 @@ class WritingSubmissionDocs
      *         description="Submission retrieved successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="message", type="string", example="Submission retrieved successfully"),
-     *             @OA\Property(property="data", ref="#/components/schemas/WritingSubmissionResource")
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid"),
+     *                 @OA\Property(property="test_id", type="string", format="uuid"),
+     *                 @OA\Property(property="student_id", type="string", format="uuid"),
+     *                 @OA\Property(property="content", type="string"),
+     *                 @OA\Property(property="status", type="string", enum={"to_do", "in_progress", "submitted", "reviewed"}),
+     *                 @OA\Property(property="score", type="integer", nullable=true),
+     *                 @OA\Property(property="attempt_number", type="integer"),
+     *                 @OA\Property(property="submitted_at", type="string", format="date-time", nullable=true),
+     *                 @OA\Property(property="created_at", type="string", format="date-time")
+     *             )
      *         )
      *     ),
      *     @OA\Response(response=404, description="Submission not found"),
