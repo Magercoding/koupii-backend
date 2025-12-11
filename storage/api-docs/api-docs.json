@@ -1801,6 +1801,1682 @@
                 ]
             }
         },
+        "/api/v1/listening/submissions/{submission}/answers": {
+            "get": {
+                "tags": [
+                    "Listening Answers"
+                ],
+                "summary": "Get all answers for a listening submission",
+                "operationId": "4bc3d6e86ce0259c4ed68cb33927b731",
+                "parameters": [
+                    {
+                        "name": "submission",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Answers retrieved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ListeningQuestionAnswerResource"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Listening Answers"
+                ],
+                "summary": "Save answer for a listening question",
+                "operationId": "5cc9728a00a92693398218e351425ea9",
+                "parameters": [
+                    {
+                        "name": "submission",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "question_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "selected_option_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "text_answer": {
+                                        "type": "string"
+                                    },
+                                    "answer_data": {
+                                        "properties": {
+                                            "selected_options": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                }
+                                            },
+                                            "gaps": {
+                                                "type": "object"
+                                            },
+                                            "matches": {
+                                                "type": "object"
+                                            },
+                                            "cells": {
+                                                "type": "object"
+                                            },
+                                            "sequence": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "coordinates": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "audio_timestamps": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object"
+                                                }
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "time_spent_seconds": {
+                                        "type": "integer"
+                                    },
+                                    "play_count": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Answer saved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Answer saved"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ListeningQuestionAnswerResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/answers/{answer}": {
+            "get": {
+                "tags": [
+                    "Listening Answers"
+                ],
+                "summary": "Get specific listening answer",
+                "operationId": "bf67549feaa0b27ffebbc40cb5f5b4e8",
+                "parameters": [
+                    {
+                        "name": "answer",
+                        "in": "path",
+                        "description": "Answer ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Answer retrieved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ListeningQuestionAnswerResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Listening Answers"
+                ],
+                "summary": "Update a listening answer",
+                "operationId": "042f34c375e7964e2813d4579805b28a",
+                "parameters": [
+                    {
+                        "name": "answer",
+                        "in": "path",
+                        "description": "Answer ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "selected_option_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "text_answer": {
+                                        "type": "string"
+                                    },
+                                    "answer_data": {
+                                        "type": "object"
+                                    },
+                                    "time_spent_seconds": {
+                                        "type": "integer"
+                                    },
+                                    "play_count": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Answer updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Answer updated"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ListeningQuestionAnswerResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/submissions/{submission}/audio/play": {
+            "post": {
+                "tags": [
+                    "Listening Audio"
+                ],
+                "summary": "Log audio play event",
+                "operationId": "48cc994dc291b264477989b6965cb2dd",
+                "parameters": [
+                    {
+                        "name": "submission",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "audio_segment_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "question_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "start_time": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "end_time": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "duration": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "play_position": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "user_action": {
+                                        "type": "string",
+                                        "enum": [
+                                            "play",
+                                            "pause",
+                                            "seek",
+                                            "replay",
+                                            "stop"
+                                        ]
+                                    },
+                                    "device_info": {
+                                        "properties": {
+                                            "volume": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "maximum": 1,
+                                                "minimum": 0
+                                            },
+                                            "playback_rate": {
+                                                "type": "number",
+                                                "format": "float",
+                                                "maximum": 2,
+                                                "minimum": 0.25
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Audio play logged successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Audio play logged"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ListeningAudioLogResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/submissions/{submission}/audio/logs": {
+            "get": {
+                "tags": [
+                    "Listening Audio"
+                ],
+                "summary": "Get audio play logs for submission",
+                "operationId": "a56bf1b3cacba0dd16cb40768727a83d",
+                "parameters": [
+                    {
+                        "name": "submission",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "audio_segment_id",
+                        "in": "query",
+                        "description": "Filter by audio segment",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Audio logs retrieved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ListeningAudioLogResource"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/audio/segments/{segment}": {
+            "get": {
+                "tags": [
+                    "Listening Audio"
+                ],
+                "summary": "Get audio segment details",
+                "operationId": "c04719df11ba9a64325a679446eabe85",
+                "parameters": [
+                    {
+                        "name": "segment",
+                        "in": "path",
+                        "description": "Audio segment ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Audio segment details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "passage_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "audio_url": {
+                                                    "type": "string"
+                                                },
+                                                "start_time": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "end_time": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "duration": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "transcript": {
+                                                    "type": "string"
+                                                },
+                                                "order": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/submissions/{submission}/audio/stats": {
+            "get": {
+                "tags": [
+                    "Listening Audio"
+                ],
+                "summary": "Get audio play statistics for submission",
+                "operationId": "766fcf5f2fe14f39feb3e0611e22ca18",
+                "parameters": [
+                    {
+                        "name": "submission",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Audio statistics",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/AudioPlayStatsResponse"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/tests/{test}/start": {
+            "post": {
+                "tags": [
+                    "Listening Tests"
+                ],
+                "summary": "Start a new listening test",
+                "operationId": "787346060499a946be8b24ddfe955566",
+                "parameters": [
+                    {
+                        "name": "test",
+                        "in": "path",
+                        "description": "Test ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "timezone": {
+                                        "type": "string",
+                                        "example": "America/New_York"
+                                    },
+                                    "user_agent": {
+                                        "type": "string",
+                                        "example": "Mozilla/5.0..."
+                                    },
+                                    "device_info": {
+                                        "properties": {
+                                            "platform": {
+                                                "type": "string",
+                                                "example": "Windows"
+                                            },
+                                            "browser": {
+                                                "type": "string",
+                                                "example": "Chrome"
+                                            },
+                                            "screen_resolution": {
+                                                "type": "string",
+                                                "example": "1920x1080"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Test started successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Listening test started"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ListeningSubmissionResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Test not found"
+                    },
+                    "400": {
+                        "description": "Test not available or attempt limit reached"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/tests/{test}": {
+            "get": {
+                "tags": [
+                    "Listening Tests"
+                ],
+                "summary": "Get listening test details",
+                "operationId": "755b94eec500d6e8a9bd203619c75671",
+                "parameters": [
+                    {
+                        "name": "test",
+                        "in": "path",
+                        "description": "Test ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Test details retrieved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ListeningTestDetailsResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/submissions/{submission}/submit": {
+            "post": {
+                "tags": [
+                    "Listening Tests"
+                ],
+                "summary": "Submit listening test",
+                "operationId": "bd779b30849a406d3b7b63d96aa26b90",
+                "parameters": [
+                    {
+                        "name": "submission",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "force_submit": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "time_spent": {
+                                        "type": "integer",
+                                        "example": 1800
+                                    },
+                                    "completion_notes": {
+                                        "type": "string",
+                                        "example": "Test completed"
+                                    },
+                                    "final_review": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Test submitted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test submitted successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ListeningResultResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/submissions/{submission}": {
+            "get": {
+                "tags": [
+                    "Listening Tests"
+                ],
+                "summary": "Get listening submission details",
+                "operationId": "b868984ce6e0de7e804821058fd281b0",
+                "parameters": [
+                    {
+                        "name": "submission",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Submission details retrieved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ListeningSubmissionResource"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/listening/submissions": {
+            "get": {
+                "tags": [
+                    "Listening Tests"
+                ],
+                "summary": "Get user's listening submissions",
+                "operationId": "1c2a4236647779888290671356fe331a",
+                "parameters": [
+                    {
+                        "name": "test_id",
+                        "in": "query",
+                        "description": "Filter by test ID",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "in_progress",
+                                "completed"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Submissions retrieved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ListeningSubmissionResource"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/submissions/{submissionId}/answers": {
+            "post": {
+                "tags": [
+                    "Reading Answers"
+                ],
+                "summary": "Submit answer for a question",
+                "description": "Submit student's answer for a specific question in the reading test",
+                "operationId": "a029d14b3ebacfe729cbe3cec08308f4",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "submissionId",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "question_id": {
+                                        "description": "Question ID",
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "answer": {
+                                        "description": "Student's answer (format depends on question type)",
+                                        "oneOf": [
+                                            {
+                                                "description": "For single choice, text completion, true/false",
+                                                "type": "string"
+                                            },
+                                            {
+                                                "description": "For multiple choice, matching",
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            {
+                                                "description": "For complex matching questions",
+                                                "type": "object"
+                                            }
+                                        ]
+                                    },
+                                    "time_spent_seconds": {
+                                        "description": "Time spent on this question",
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Answer submitted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Answer submitted successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "question_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "student_answer": {
+                                                    "type": "string"
+                                                },
+                                                "is_correct": {
+                                                    "type": "boolean",
+                                                    "nullable": true
+                                                },
+                                                "points_earned": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "time_spent_seconds": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - Invalid answer format"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Not your submission"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/submissions/{submissionId}/submit": {
+            "post": {
+                "tags": [
+                    "Reading Answers"
+                ],
+                "summary": "Submit the entire test",
+                "description": "Submit all answers and complete the reading test",
+                "operationId": "8855a889fb112f8374f6ae269de5350e",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "submissionId",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "time_taken_seconds": {
+                                        "description": "Total time taken for the test",
+                                        "type": "integer"
+                                    },
+                                    "answers": {
+                                        "description": "Any remaining answers to submit",
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "question_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "answer": {
+                                                    "type": "string"
+                                                },
+                                                "time_spent_seconds": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Test submitted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test submitted successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "completed"
+                                                },
+                                                "total_score": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "percentage": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "grade": {
+                                                    "type": "string"
+                                                },
+                                                "total_correct": {
+                                                    "type": "integer"
+                                                },
+                                                "total_incorrect": {
+                                                    "type": "integer"
+                                                },
+                                                "total_unanswered": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - Test already submitted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Not your submission"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/submissions/{submissionId}/results": {
+            "get": {
+                "tags": [
+                    "Reading Answers"
+                ],
+                "summary": "Get test results with explanations",
+                "description": "Retrieve test results including highlights and explanations for completed tests",
+                "operationId": "9747628857a0b11a94b57c63e2ec4a40",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "submissionId",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Test results retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "submission_summary": {
+                                                    "properties": {
+                                                        "total_score": {
+                                                            "type": "number",
+                                                            "format": "float"
+                                                        },
+                                                        "percentage": {
+                                                            "type": "number",
+                                                            "format": "float"
+                                                        },
+                                                        "grade": {
+                                                            "type": "string"
+                                                        },
+                                                        "total_correct": {
+                                                            "type": "integer"
+                                                        },
+                                                        "total_incorrect": {
+                                                            "type": "integer"
+                                                        },
+                                                        "time_taken": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "question_results": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "question_id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "question_text": {
+                                                                "type": "string"
+                                                            },
+                                                            "question_type": {
+                                                                "type": "string"
+                                                            },
+                                                            "student_answer": {
+                                                                "type": "string"
+                                                            },
+                                                            "correct_answer": {
+                                                                "type": "string"
+                                                            },
+                                                            "is_correct": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "points_earned": {
+                                                                "type": "number",
+                                                                "format": "float"
+                                                            },
+                                                            "highlights": {
+                                                                "description": "Text highlights with explanations",
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "text": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "explanation": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "color": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "start_position": {
+                                                                            "type": "integer"
+                                                                        },
+                                                                        "end_position": {
+                                                                            "type": "integer"
+                                                                        }
+                                                                    },
+                                                                    "type": "object"
+                                                                }
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - Test not completed"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Not your submission"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/submissions": {
+            "get": {
+                "tags": [
+                    "Reading Submissions"
+                ],
+                "summary": "Get student's reading test submissions",
+                "description": "Retrieve all reading test submissions for the authenticated student",
+                "operationId": "319f98f46653d38484a02f2bdc992bd8",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by submission status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "in_progress",
+                                "submitted",
+                                "completed"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reading submissions retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Reading assignments retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "test_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "attempt_number": {
+                                                        "type": "integer"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "in_progress",
+                                                            "submitted",
+                                                            "completed"
+                                                        ]
+                                                    },
+                                                    "total_score": {
+                                                        "type": "number",
+                                                        "format": "float"
+                                                    },
+                                                    "percentage": {
+                                                        "type": "number",
+                                                        "format": "float"
+                                                    },
+                                                    "grade": {
+                                                        "type": "string"
+                                                    },
+                                                    "can_retake": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "started_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "submitted_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/tests/{testId}/start": {
+            "post": {
+                "tags": [
+                    "Reading Submissions"
+                ],
+                "summary": "Start a new reading test attempt",
+                "description": "Begin a new reading test attempt for the authenticated student",
+                "operationId": "62fdee6e19763c17289d1a6ee1a6e104",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "testId",
+                        "in": "path",
+                        "description": "Test ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "attempt_number": {
+                                        "description": "Attempt number",
+                                        "type": "integer",
+                                        "maximum": 10,
+                                        "minimum": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Reading test started successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Reading test started successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "test_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "in_progress"
+                                                },
+                                                "attempt_number": {
+                                                    "type": "integer"
+                                                },
+                                                "started_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - Test cannot be attempted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Test not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/submissions/{submissionId}": {
+            "get": {
+                "tags": [
+                    "Reading Submissions"
+                ],
+                "summary": "Get submission details",
+                "description": "Retrieve detailed information about a specific submission",
+                "operationId": "84ddfcdd32081f33ce016c6dd718cd1b",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "submissionId",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Submission details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "test_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "total_score": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "percentage": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "answers": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "question_id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "student_answer": {
+                                                                "type": "string"
+                                                            },
+                                                            "is_correct": {
+                                                                "type": "boolean",
+                                                                "nullable": true
+                                                            },
+                                                            "points_earned": {
+                                                                "type": "number",
+                                                                "format": "float"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Not your submission"
+                    },
+                    "404": {
+                        "description": "Submission not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/reading/tests": {
             "get": {
                 "tags": [
@@ -2528,6 +4204,432 @@
                 "security": [
                     {
                         "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/submissions/{submissionId}/vocabularies": {
+            "get": {
+                "tags": [
+                    "Reading Vocabulary"
+                ],
+                "summary": "Get discovered vocabularies",
+                "description": "Retrieve vocabularies discovered from a completed reading test",
+                "operationId": "e3852bd29c8a2857f03b9fdba8416b7e",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "submissionId",
+                        "in": "path",
+                        "description": "Submission ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Discovered vocabularies retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "vocabulary_id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "discovered_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "is_saved": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "vocabulary": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "word": {
+                                                                "type": "string"
+                                                            },
+                                                            "translation": {
+                                                                "type": "string"
+                                                            },
+                                                            "spelling": {
+                                                                "type": "string"
+                                                            },
+                                                            "explanation": {
+                                                                "type": "string"
+                                                            },
+                                                            "audio_url": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden - Not your submission"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/vocabulary/save": {
+            "post": {
+                "tags": [
+                    "Reading Vocabulary"
+                ],
+                "summary": "Save vocabulary to personal bank",
+                "description": "Save a discovered vocabulary word to the student's personal vocabulary bank",
+                "operationId": "6767e2c243a7dc9b6104221050396ff0",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "vocabulary_id": {
+                                        "description": "Vocabulary ID to save",
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "test_id": {
+                                        "description": "Test where vocabulary was discovered",
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Vocabulary saved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Vocabulary saved to your bank"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "vocabulary_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "is_mastered": {
+                                                    "type": "boolean"
+                                                },
+                                                "practice_count": {
+                                                    "type": "integer"
+                                                },
+                                                "mastery_level": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - Vocabulary not discovered or already saved"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/vocabulary/bank": {
+            "get": {
+                "tags": [
+                    "Reading Vocabulary"
+                ],
+                "summary": "Get student's vocabulary bank",
+                "description": "Retrieve the student's personal vocabulary bank with filtering options",
+                "operationId": "c2a9267efaa63a6d6f87ba252a824566",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "mastery_level",
+                        "in": "query",
+                        "description": "Filter by mastery level",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "new",
+                                "beginner",
+                                "advanced",
+                                "mastered"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search in word or translation",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "description": "Filter by category",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Vocabulary bank retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                },
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "vocabulary_id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "is_mastered": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "practice_count": {
+                                                                "type": "integer"
+                                                            },
+                                                            "mastery_level": {
+                                                                "type": "string"
+                                                            },
+                                                            "last_practiced_at": {
+                                                                "type": "string",
+                                                                "format": "date-time",
+                                                                "nullable": true
+                                                            },
+                                                            "vocabulary": {
+                                                                "properties": {
+                                                                    "word": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "translation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "explanation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "audio_url": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/reading/vocabulary/practice": {
+            "post": {
+                "tags": [
+                    "Reading Vocabulary"
+                ],
+                "summary": "Practice vocabulary",
+                "description": "Record a vocabulary practice session",
+                "operationId": "db10a442482c784ee069bdc555b898a8",
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "description": "Bearer token. Example: Bearer {access_token}",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "vocabulary_id": {
+                                        "description": "Vocabulary ID to practice",
+                                        "type": "string",
+                                        "format": "uuid"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Practice session recorded successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Practice session recorded"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - Vocabulary not in your bank"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
                     }
                 ]
             }
@@ -6239,99 +8341,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Writing tasks retrieved successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Writing tasks retrieved successfully"
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "string",
-                                                        "format": "uuid"
-                                                    },
-                                                    "title": {
-                                                        "type": "string"
-                                                    },
-                                                    "description": {
-                                                        "type": "string"
-                                                    },
-                                                    "is_published": {
-                                                        "type": "boolean"
-                                                    },
-                                                    "difficulty": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "beginner",
-                                                            "intermediate",
-                                                            "advanced"
-                                                        ]
-                                                    },
-                                                    "time_limit_seconds": {
-                                                        "type": "integer",
-                                                        "nullable": true
-                                                    },
-                                                    "created_at": {
-                                                        "type": "string",
-                                                        "format": "date-time"
-                                                    },
-                                                    "creator": {
-                                                        "properties": {
-                                                            "id": {
-                                                                "type": "string",
-                                                                "format": "uuid"
-                                                            },
-                                                            "name": {
-                                                                "type": "string"
-                                                            },
-                                                            "email": {
-                                                                "type": "string"
-                                                            }
-                                                        },
-                                                        "type": "object"
-                                                    },
-                                                    "assignments": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "properties": {
-                                                                "id": {
-                                                                    "type": "string",
-                                                                    "format": "uuid"
-                                                                },
-                                                                "classroom_id": {
-                                                                    "type": "string",
-                                                                    "format": "uuid"
-                                                                },
-                                                                "due_date": {
-                                                                    "type": "string",
-                                                                    "format": "date-time",
-                                                                    "nullable": true
-                                                                }
-                                                            },
-                                                            "type": "object"
-                                                        }
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Server error"
+                        "description": "Writing tasks retrieved successfully"
                     }
                 },
                 "security": [
@@ -6775,6 +8785,1039 @@
             }
         }
     },
+    "components": {
+        "schemas": {
+            "ListeningQuestionAnswerResource": {
+                "title": "Listening Question Answer Resource",
+                "description": "Listening question answer data",
+                "properties": {
+                    "id": {
+                        "description": "Answer ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "submission_id": {
+                        "description": "Submission ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "question_id": {
+                        "description": "Question ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "selected_option_id": {
+                        "description": "Selected option ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "text_answer": {
+                        "description": "Text answer",
+                        "type": "string"
+                    },
+                    "answer_data": {
+                        "description": "Structured answer data",
+                        "type": "object"
+                    },
+                    "is_correct": {
+                        "description": "Whether answer is correct",
+                        "type": "boolean"
+                    },
+                    "points_earned": {
+                        "description": "Points earned",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "time_spent_seconds": {
+                        "description": "Time spent on question",
+                        "type": "integer"
+                    },
+                    "play_count": {
+                        "description": "Number of audio plays",
+                        "type": "integer"
+                    },
+                    "answer_explanation": {
+                        "description": "Answer explanation",
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "description": "Creation timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Last update timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "time_spent_formatted": {
+                        "description": "Formatted time spent (MM:SS)",
+                        "type": "string"
+                    },
+                    "is_answered": {
+                        "description": "Whether question is answered",
+                        "type": "boolean"
+                    },
+                    "confidence_score": {
+                        "description": "Answer confidence score",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "answer_summary": {
+                        "description": "Answer summary for display",
+                        "type": "string"
+                    },
+                    "question": {
+                        "description": "Question information",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "question_text": {
+                                "type": "string"
+                            },
+                            "question_type": {
+                                "type": "string"
+                            },
+                            "question_order": {
+                                "type": "integer"
+                            },
+                            "points": {
+                                "type": "number",
+                                "format": "float"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "selected_option": {
+                        "description": "Selected option details",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "option_text": {
+                                "type": "string"
+                            },
+                            "is_correct": {
+                                "type": "boolean"
+                            },
+                            "explanation": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "performance": {
+                        "description": "Performance insights",
+                        "properties": {
+                            "difficulty_assessment": {
+                                "type": "string",
+                                "enum": [
+                                    "Easy",
+                                    "Moderate",
+                                    "Challenging",
+                                    "Very Difficult"
+                                ]
+                            },
+                            "listening_pattern": {
+                                "type": "string",
+                                "enum": [
+                                    "Single listen",
+                                    "Careful listener",
+                                    "Multiple replays",
+                                    "Extensive replaying"
+                                ]
+                            },
+                            "response_quality": {
+                                "type": "string",
+                                "enum": [
+                                    "Excellent",
+                                    "Good",
+                                    "Needs improvement"
+                                ]
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "ListeningAudioLogResource": {
+                "title": "Listening Audio Log Resource",
+                "description": "Audio play log data",
+                "properties": {
+                    "id": {
+                        "description": "Log ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "submission_id": {
+                        "description": "Submission ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "audio_segment_id": {
+                        "description": "Audio segment ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "question_id": {
+                        "description": "Related question ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "start_time": {
+                        "description": "Play start time in seconds",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "end_time": {
+                        "description": "Play end time in seconds",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "duration": {
+                        "description": "Play duration in seconds",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "played_at": {
+                        "description": "When audio was played",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "created_at": {
+                        "description": "Creation timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "duration_formatted": {
+                        "description": "Formatted duration (MM:SS)",
+                        "type": "string"
+                    },
+                    "time_range": {
+                        "description": "Time range as formatted string",
+                        "type": "string"
+                    },
+                    "play_percentage": {
+                        "description": "Percentage of segment played",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "audio_segment": {
+                        "description": "Audio segment information",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "passage_id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "audio_url": {
+                                "type": "string"
+                            },
+                            "start_time": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "end_time": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "duration": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "transcript": {
+                                "type": "string"
+                            },
+                            "order": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "question": {
+                        "description": "Related question information",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "question_text": {
+                                "type": "string"
+                            },
+                            "question_type": {
+                                "type": "string"
+                            },
+                            "question_order": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "AudioPlayStatsResponse": {
+                "title": "Audio Play Statistics",
+                "description": "Audio engagement statistics",
+                "properties": {
+                    "total_plays": {
+                        "description": "Total number of audio plays",
+                        "type": "integer"
+                    },
+                    "total_listen_time": {
+                        "description": "Total listening time in seconds",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "unique_segments_played": {
+                        "description": "Number of unique segments played",
+                        "type": "integer"
+                    },
+                    "play_counts_by_segment": {
+                        "description": "Play count for each segment",
+                        "type": "object"
+                    },
+                    "average_plays_per_segment": {
+                        "description": "Average plays per segment",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "most_played_segment": {
+                        "description": "Most replayed segment",
+                        "properties": {
+                            "segment_id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "play_count": {
+                                "type": "integer"
+                            },
+                            "audio_url": {
+                                "type": "string"
+                            },
+                            "duration": {
+                                "type": "number",
+                                "format": "float"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "least_played_segment": {
+                        "description": "Least replayed segment",
+                        "properties": {
+                            "segment_id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "play_count": {
+                                "type": "integer"
+                            },
+                            "audio_url": {
+                                "type": "string"
+                            },
+                            "duration": {
+                                "type": "number",
+                                "format": "float"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "play_distribution": {
+                        "description": "Play distribution by hour",
+                        "type": "object"
+                    },
+                    "listen_time_by_segment": {
+                        "description": "Total listen time per segment",
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "ListeningSubmissionResource": {
+                "title": "Listening Submission Resource",
+                "description": "Listening test submission data",
+                "properties": {
+                    "id": {
+                        "description": "Submission ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "test_id": {
+                        "description": "Test ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "student_id": {
+                        "description": "Student ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "attempt_number": {
+                        "description": "Attempt number",
+                        "type": "integer"
+                    },
+                    "status": {
+                        "description": "Submission status",
+                        "type": "string",
+                        "enum": [
+                            "in_progress",
+                            "completed"
+                        ]
+                    },
+                    "score": {
+                        "description": "Total score",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "percentage": {
+                        "description": "Score percentage",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "total_questions": {
+                        "description": "Total number of questions",
+                        "type": "integer"
+                    },
+                    "answered_questions": {
+                        "description": "Number of answered questions",
+                        "type": "integer"
+                    },
+                    "correct_answers": {
+                        "description": "Number of correct answers",
+                        "type": "integer"
+                    },
+                    "time_spent_minutes": {
+                        "description": "Time spent in minutes",
+                        "type": "integer"
+                    },
+                    "audio_play_counts": {
+                        "description": "Audio play counts by segment",
+                        "type": "object"
+                    },
+                    "started_at": {
+                        "description": "Start timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "submitted_at": {
+                        "description": "Submission timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "created_at": {
+                        "description": "Creation timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Last update timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "test": {
+                        "description": "Test information",
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "title": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "duration_minutes": {
+                                "type": "integer"
+                            },
+                            "total_questions": {
+                                "type": "integer"
+                            },
+                            "total_points": {
+                                "type": "number",
+                                "format": "float"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "progress": {
+                        "description": "Progress indicators",
+                        "properties": {
+                            "completion_percentage": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "questions_answered": {
+                                "type": "integer"
+                            },
+                            "total_questions": {
+                                "type": "integer"
+                            },
+                            "time_remaining_minutes": {
+                                "type": "integer"
+                            },
+                            "audio_segments_played": {
+                                "type": "integer"
+                            },
+                            "total_audio_plays": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "performance": {
+                        "description": "Performance metrics (completed submissions only)",
+                        "properties": {
+                            "accuracy_percentage": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "average_time_per_question": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "listening_efficiency": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "strengths": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "areas_for_improvement": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "metadata": {
+                        "description": "Submission metadata",
+                        "properties": {
+                            "can_submit": {
+                                "type": "boolean"
+                            },
+                            "can_edit": {
+                                "type": "boolean"
+                            },
+                            "is_expired": {
+                                "type": "boolean"
+                            },
+                            "submission_deadline": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "total_audio_duration": {
+                                "type": "number",
+                                "format": "float"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "ListeningTestDetailsResource": {
+                "title": "Listening Test Details Resource",
+                "description": "Detailed listening test information",
+                "properties": {
+                    "id": {
+                        "description": "Test ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "title": {
+                        "description": "Test title",
+                        "type": "string"
+                    },
+                    "description": {
+                        "description": "Test description",
+                        "type": "string"
+                    },
+                    "instructions": {
+                        "description": "Test instructions",
+                        "type": "string"
+                    },
+                    "duration_minutes": {
+                        "description": "Test duration in minutes",
+                        "type": "integer"
+                    },
+                    "total_questions": {
+                        "description": "Total number of questions",
+                        "type": "integer"
+                    },
+                    "total_points": {
+                        "description": "Total possible points",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "difficulty_level": {
+                        "description": "Test difficulty level",
+                        "type": "string"
+                    },
+                    "test_type": {
+                        "description": "Test type",
+                        "type": "string"
+                    },
+                    "allow_repetition": {
+                        "description": "Whether test can be retaken",
+                        "type": "boolean"
+                    },
+                    "max_repetition_count": {
+                        "description": "Maximum retake attempts",
+                        "type": "integer"
+                    },
+                    "is_published": {
+                        "description": "Whether test is published",
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "description": "Creation timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Last update timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "passages": {
+                        "description": "Test passages with audio",
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "content": {
+                                    "type": "string"
+                                },
+                                "passage_type": {
+                                    "type": "string"
+                                },
+                                "difficulty_level": {
+                                    "type": "string"
+                                },
+                                "word_count": {
+                                    "type": "integer"
+                                },
+                                "reading_time_minutes": {
+                                    "type": "integer"
+                                },
+                                "order": {
+                                    "type": "integer"
+                                },
+                                "audio_segments": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "string",
+                                                "format": "uuid"
+                                            },
+                                            "audio_url": {
+                                                "type": "string"
+                                            },
+                                            "start_time": {
+                                                "type": "number",
+                                                "format": "float"
+                                            },
+                                            "end_time": {
+                                                "type": "number",
+                                                "format": "float"
+                                            },
+                                            "duration": {
+                                                "type": "number",
+                                                "format": "float"
+                                            },
+                                            "transcript": {
+                                                "type": "string"
+                                            },
+                                            "order": {
+                                                "type": "integer"
+                                            },
+                                            "has_transcript": {
+                                                "type": "boolean"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "questions": {
+                        "description": "Test questions",
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "question_text": {
+                                    "type": "string"
+                                },
+                                "question_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "multiple_choice",
+                                        "multiple_select",
+                                        "true_false",
+                                        "fill_blank",
+                                        "gap_fill_dropdown",
+                                        "match_headings",
+                                        "summary_completion",
+                                        "note_completion",
+                                        "table_completion",
+                                        "sentence_completion"
+                                    ]
+                                },
+                                "question_order": {
+                                    "type": "integer"
+                                },
+                                "points": {
+                                    "type": "number",
+                                    "format": "float"
+                                },
+                                "passage_id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "question_data": {
+                                    "type": "object"
+                                },
+                                "options": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "string",
+                                                "format": "uuid"
+                                            },
+                                            "option_text": {
+                                                "type": "string"
+                                            },
+                                            "order": {
+                                                "type": "integer"
+                                            },
+                                            "option_data": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "metadata": {
+                        "description": "Test metadata",
+                        "properties": {
+                            "estimated_completion_time": {
+                                "type": "integer"
+                            },
+                            "question_types_summary": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            },
+                            "audio_duration_total": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "difficulty_distribution": {
+                                "type": "object"
+                            },
+                            "skill_areas_covered": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "configuration": {
+                        "description": "Test configuration",
+                        "properties": {
+                            "can_pause": {
+                                "type": "boolean"
+                            },
+                            "can_replay_audio": {
+                                "type": "boolean"
+                            },
+                            "max_audio_replays": {
+                                "type": "integer"
+                            },
+                            "show_transcript": {
+                                "type": "boolean"
+                            },
+                            "show_timer": {
+                                "type": "boolean"
+                            },
+                            "auto_submit": {
+                                "type": "boolean"
+                            },
+                            "randomize_questions": {
+                                "type": "boolean"
+                            },
+                            "randomize_options": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "ListeningResultResource": {
+                "title": "Listening Result Resource",
+                "description": "Detailed listening test result with analytics",
+                "properties": {
+                    "id": {
+                        "description": "Submission ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "test_id": {
+                        "description": "Test ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "student_id": {
+                        "description": "Student ID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "attempt_number": {
+                        "description": "Attempt number",
+                        "type": "integer"
+                    },
+                    "status": {
+                        "description": "Submission status",
+                        "type": "string"
+                    },
+                    "score": {
+                        "description": "Total score",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "percentage": {
+                        "description": "Score percentage",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "grade": {
+                        "description": "Letter grade",
+                        "type": "string"
+                    },
+                    "total_questions": {
+                        "description": "Total questions",
+                        "type": "integer"
+                    },
+                    "correct_answers": {
+                        "description": "Correct answers count",
+                        "type": "integer"
+                    },
+                    "incorrect_answers": {
+                        "description": "Incorrect answers count",
+                        "type": "integer"
+                    },
+                    "unanswered_questions": {
+                        "description": "Unanswered questions count",
+                        "type": "integer"
+                    },
+                    "time_spent_minutes": {
+                        "description": "Time spent in minutes",
+                        "type": "integer"
+                    },
+                    "started_at": {
+                        "description": "Start timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "submitted_at": {
+                        "description": "Submission timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "test": {
+                        "description": "Test information",
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "duration_minutes": {
+                                "type": "integer"
+                            },
+                            "total_points": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "passing_score": {
+                                "type": "number",
+                                "format": "float"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "performance": {
+                        "description": "Performance metrics",
+                        "properties": {
+                            "accuracy_percentage": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "time_efficiency": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "listening_efficiency": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "comprehension_score": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "response_consistency": {
+                                "type": "number",
+                                "format": "float"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "audio_engagement": {
+                        "description": "Audio engagement metrics",
+                        "properties": {
+                            "total_audio_plays": {
+                                "type": "integer"
+                            },
+                            "unique_segments_played": {
+                                "type": "integer"
+                            },
+                            "average_plays_per_segment": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "most_replayed_segments": {
+                                "type": "object"
+                            },
+                            "listening_patterns": {
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "question_analysis": {
+                        "description": "Question type breakdown",
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "question_type": {
+                                    "type": "string"
+                                },
+                                "total_questions": {
+                                    "type": "integer"
+                                },
+                                "correct_answers": {
+                                    "type": "integer"
+                                },
+                                "accuracy_percentage": {
+                                    "type": "number",
+                                    "format": "float"
+                                },
+                                "average_time": {
+                                    "type": "number",
+                                    "format": "float"
+                                },
+                                "average_plays": {
+                                    "type": "number",
+                                    "format": "float"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "recommendations": {
+                        "description": "Personalized recommendations",
+                        "properties": {
+                            "strengths": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "areas_for_improvement": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "study_suggestions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "next_steps": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "benchmarks": {
+                        "description": "Comparative metrics",
+                        "properties": {
+                            "class_average": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "percentile_ranking": {
+                                "type": "number",
+                                "format": "float"
+                            },
+                            "improvement_from_last_attempt": {
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "responses": {
+            "401": {
+                "description": "Unauthorized"
+            },
+            "500": {
+                "description": "Server error"
+            }
+        }
+    },
     "tags": [
         {
             "name": "Auth",
@@ -6797,8 +9840,32 @@
             "description": "Invitations"
         },
         {
+            "name": "Listening Answers",
+            "description": "Listening Answers"
+        },
+        {
+            "name": "Listening Audio",
+            "description": "Listening Audio"
+        },
+        {
+            "name": "Listening Tests",
+            "description": "Listening Tests"
+        },
+        {
+            "name": "Reading Answers",
+            "description": "Reading Answers"
+        },
+        {
+            "name": "Reading Submissions",
+            "description": "Reading Submissions"
+        },
+        {
             "name": "Reading Tests",
             "description": "Reading Tests"
+        },
+        {
+            "name": "Reading Vocabulary",
+            "description": "Reading Vocabulary"
         },
         {
             "name": "Speaking Dashboard",

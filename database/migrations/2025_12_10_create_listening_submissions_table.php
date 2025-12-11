@@ -79,7 +79,7 @@ return new class extends Migration
             $table->foreign('student_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('test_id')->references('id')->on('tests')->onDelete('cascade');
             $table->foreign('vocabulary_id')->references('id')->on('vocabularies')->onDelete('cascade');
-            $table->unique(['student_id', 'test_id', 'vocabulary_id']);
+            $table->unique(['student_id', 'test_id', 'vocabulary_id'], 'listening_vocab_discovery_unique');
         });
 
         // Audio playback logs for analytics

@@ -50,8 +50,8 @@ return new class extends Migration
             $table->unique(['submission_id', 'question_id']);
         });
 
-        // Highlight segments for show explanation feature
-        Schema::create('highlight_segments', function (Blueprint $table) {
+        // Reading highlight segments for show explanation feature
+        Schema::create('reading_highlight_segments', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('question_id');
             $table->text('highlighted_text'); // The text that should be highlighted
@@ -105,7 +105,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('student_vocabulary_bank');
         Schema::dropIfExists('student_vocabulary_discoveries');
-        Schema::dropIfExists('highlight_segments');
+        Schema::dropIfExists('reading_highlight_segments');
         Schema::dropIfExists('reading_question_answers');
         Schema::dropIfExists('reading_submissions');
     }
