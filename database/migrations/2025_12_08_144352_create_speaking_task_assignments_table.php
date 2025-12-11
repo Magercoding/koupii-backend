@@ -17,7 +17,7 @@ return new class extends Migration
             $table->uuid('class_id');
             $table->uuid('assigned_by'); // teacher who assigned
             $table->timestamp('due_date')->nullable();
-            $table->timestamp('assigned_at');
+            $table->timestamp('assigned_at')->useCurrent();
             $table->boolean('allow_retake')->default(true);
             $table->integer('max_attempts')->default(3);
             $table->timestamps();
