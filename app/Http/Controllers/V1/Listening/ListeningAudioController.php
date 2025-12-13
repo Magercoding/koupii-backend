@@ -330,7 +330,8 @@ class ListeningAudioController extends Controller
     public function getAudioMetadata(ListeningTask $listeningTask): JsonResponse
     {
         try {
-            $metadata = $this->audioService->getAudioMetadata($listeningTask);
+            $metadata = $this->audioService->
+            getAudioMetadata($listeningTask);
 
             return response()->json([
                 'status' => 'success',
