@@ -68,20 +68,23 @@ class ListeningAnswerService
             case 'multiple_choice':
                 $this->evaluateMultipleChoice($answer);
                 break;
-            case 'multiple_select':
-                $this->evaluateMultipleSelect($answer);
+            case 'multiple_answer':
+                $this->evaluateMultipleAnswer($answer);
                 break;
-            case 'true_false':
-                $this->evaluateTrueFalse($answer);
+            case 'true_false_not_given':
+                $this->evaluateTrueFalseNotGiven($answer);
                 break;
-            case 'fill_blank':
-                $this->evaluateFillBlank($answer);
+            case 'short_answer':
+                $this->evaluateShortAnswer($answer);
                 break;
-            case 'gap_fill_dropdown':
-                $this->evaluateGapFillDropdown($answer);
+            case 'audio_dictation':
+                $this->evaluateAudioDictation($answer);
                 break;
-            case 'match_headings':
-                $this->evaluateMatchHeadings($answer);
+            case 'sentence_completion':
+                $this->evaluateSentenceCompletion($answer);
+                break;
+            case 'gap_fill_listening':
+                $this->evaluateGapFillListening($answer);
                 break;
             case 'summary_completion':
                 $this->evaluateSummaryCompletion($answer);
@@ -92,8 +95,20 @@ class ListeningAnswerService
             case 'table_completion':
                 $this->evaluateTableCompletion($answer);
                 break;
-            case 'sentence_completion':
-                $this->evaluateSentenceCompletion($answer);
+            case 'form_completion':
+                $this->evaluateFormCompletion($answer);
+                break;
+            case 'flowchart_completion':
+                $this->evaluateFlowchartCompletion($answer);
+                break;
+            case 'matching_labeling':
+                $this->evaluateMatchingLabeling($answer);
+                break;
+            case 'classification':
+                $this->evaluateClassification($answer);
+                break;
+            case 'diagram_labeling':
+                $this->evaluateDiagramLabeling($answer);
                 break;
             default:
                 // For question types without automatic evaluation
@@ -128,6 +143,14 @@ class ListeningAnswerService
      */
     private function evaluateMultipleSelect(ListeningQuestionAnswer $answer): void
     {
+        $this->evaluateMultipleAnswer($answer);
+    }
+
+    /**
+     * Evaluate multiple answer question (QT2)
+     */
+    private function evaluateMultipleAnswer(ListeningQuestionAnswer $answer): void
+    {
         $question = $answer->question;
         $correctOptions = $question->options()->where('is_correct', true)->pluck('id')->toArray();
         $selectedOptions = $answer->answer_data['selected_options'] ?? [];
@@ -140,6 +163,257 @@ class ListeningAnswerService
         $answer->update([
             'is_correct' => $isCorrect,
             'points_earned' => $points
+        ]);
+    }
+
+    /**
+     * Evaluate true/false/not given question (QT13)
+     */
+    private function evaluateTrueFalseNotGiven(ListeningQuestionAnswer $answer): void
+    {
+        $question = $answer->question;
+        $correctOption = $question->options()->where('is_correct', true)->first();
+        
+        $isCorrect = $answer->selected_option_id === $correctOption?->id;
+        $points = $isCorrect ? ($question->points ?? 1) : 0;
+
+        $answer->update([
+            'is_correct' => $isCorrect,
+            'points_earned' => $points,
+            'answer_explanation' => $correctOption?->explanation
+        ]);
+    }
+
+    /**
+     * Evaluate short answer question (QT6)
+     */
+    private function evaluateShortAnswer(ListeningQuestionAnswer $answer): void
+    {
+        $question = $answer->question;
+        $correctAnswers = $question->correct_answers ?? [];
+        $userAnswer = trim(strtolower($answer->text_answer ?? ''));
+
+        $isCorrect = false;
+        foreach ($correctAnswers as $correctAnswer) {
+            if (strtolower(trim($correctAnswer)) === $userAnswer) {
+                $isCorrect = true;
+                break;
+            }
+        }
+
+        $points = $isCorrect ? ($question->points ?? 1) : 0;
+
+        $answer->update([
+            'is_correct' => $isCorrect,
+            'points_earned' => $points
+        ]);
+    }
+
+    /**
+     * Evaluate audio dictation question (QT15)
+     */
+    private function evaluateAudioDictation(ListeningQuestionAnswer $answer): void
+    {
+        $question = $answer->question;
+        $correctText = $question->question_data['correct_text'] ?? '';
+        $userAnswer = trim($answer->text_answer ?? '');
+
+        // Use similarity for dictation (allowing minor mistakes)
+        $similarity = 0;
+        similar_text(strtolower($correctText), strtolower($userAnswer), $similarity);
+        
+        // Consider correct if 85% or higher similarity
+        $isCorrect = $similarity >= 85;
+        $points = $isCorrect ? ($question->points ?? 1) : ($similarity / 100) * ($question->points ?? 1);
+
+        $answer->update([
+            'is_correct' => $isCorrect,
+            'points_earned' => round($points, 2)
+        ]);
+    }
+
+    /**
+     * Evaluate gap fill listening question (QT14)
+     */
+    private function evaluateGapFillListening(ListeningQuestionAnswer $answer): void
+    {
+        $question = $answer->question;
+        $gaps = $answer->answer_data['gaps'] ?? [];
+        $correctGaps = $question->question_data['gaps'] ?? [];
+
+        $totalGaps = count($correctGaps);
+        $correctCount = 0;
+
+        foreach ($gaps as $gapIndex => $userAnswer) {
+            if (isset($correctGaps[$gapIndex])) {
+                $correctAnswer = strtolower(trim($correctGaps[$gapIndex]['correct_answer'] ?? ''));
+                $userAnswer = strtolower(trim($userAnswer));
+                
+                if ($correctAnswer === $userAnswer) {
+                    $correctCount++;
+                }
+            }
+        }
+
+        $isCorrect = $totalGaps > 0 && $correctCount === $totalGaps;
+        $points = $totalGaps > 0 ? ($correctCount / $totalGaps) * ($question->points ?? 1) : 0;
+
+        $answer->update([
+            'is_correct' => $isCorrect,
+            'points_earned' => round($points, 2)
+        ]);
+    }
+
+    /**
+     * Evaluate form completion question (QT7)
+     */
+    private function evaluateFormCompletion(ListeningQuestionAnswer $answer): void
+    {
+        $question = $answer->question;
+        $fields = $answer->answer_data['fields'] ?? [];
+        $correctFields = $question->question_data['fields'] ?? [];
+
+        $totalFields = count($correctFields);
+        $correctCount = 0;
+
+        foreach ($fields as $fieldName => $userAnswer) {
+            if (isset($correctFields[$fieldName])) {
+                $correctAnswers = is_array($correctFields[$fieldName]['correct_answers']) 
+                    ? $correctFields[$fieldName]['correct_answers'] 
+                    : [$correctFields[$fieldName]['correct_answer']];
+
+                $userAnswer = strtolower(trim($userAnswer));
+                foreach ($correctAnswers as $correctAnswer) {
+                    if (strtolower(trim($correctAnswer)) === $userAnswer) {
+                        $correctCount++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        $isCorrect = $totalFields > 0 && $correctCount === $totalFields;
+        $points = $totalFields > 0 ? ($correctCount / $totalFields) * ($question->points ?? 1) : 0;
+
+        $answer->update([
+            'is_correct' => $isCorrect,
+            'points_earned' => round($points, 2)
+        ]);
+    }
+
+    /**
+     * Evaluate flowchart completion question (QT9)
+     */
+    private function evaluateFlowchartCompletion(ListeningQuestionAnswer $answer): void
+    {
+        $question = $answer->question;
+        $nodes = $answer->answer_data['nodes'] ?? [];
+        $correctNodes = $question->question_data['nodes'] ?? [];
+
+        $totalNodes = count($correctNodes);
+        $correctCount = 0;
+
+        foreach ($nodes as $nodeId => $userAnswer) {
+            if (isset($correctNodes[$nodeId])) {
+                $correctAnswer = strtolower(trim($correctNodes[$nodeId]['correct_answer'] ?? ''));
+                $userAnswer = strtolower(trim($userAnswer));
+                
+                if ($correctAnswer === $userAnswer) {
+                    $correctCount++;
+                }
+            }
+        }
+
+        $isCorrect = $totalNodes > 0 && $correctCount === $totalNodes;
+        $points = $totalNodes > 0 ? ($correctCount / $totalNodes) * ($question->points ?? 1) : 0;
+
+        $answer->update([
+            'is_correct' => $isCorrect,
+            'points_earned' => round($points, 2)
+        ]);
+    }
+
+    /**
+     * Evaluate matching/labeling question (QT3)
+     */
+    private function evaluateMatchingLabeling(ListeningQuestionAnswer $answer): void
+    {
+        $question = $answer->question;
+        $matches = $answer->answer_data['matches'] ?? [];
+        $correctMatches = $question->question_data['correct_matches'] ?? [];
+
+        $isCorrect = $this->compareMatches($matches, $correctMatches);
+        $points = $isCorrect ? ($question->points ?? 1) : 0;
+
+        $answer->update([
+            'is_correct' => $isCorrect,
+            'points_earned' => $points
+        ]);
+    }
+
+    /**
+     * Evaluate classification question (QT12)
+     */
+    private function evaluateClassification(ListeningQuestionAnswer $answer): void
+    {
+        $question = $answer->question;
+        $classifications = $answer->answer_data['classifications'] ?? [];
+        $correctClassifications = $question->question_data['correct_classifications'] ?? [];
+
+        $totalItems = count($correctClassifications);
+        $correctCount = 0;
+
+        foreach ($classifications as $itemId => $category) {
+            if (isset($correctClassifications[$itemId])) {
+                if (strtolower(trim($category)) === strtolower(trim($correctClassifications[$itemId]))) {
+                    $correctCount++;
+                }
+            }
+        }
+
+        $isCorrect = $totalItems > 0 && $correctCount === $totalItems;
+        $points = $totalItems > 0 ? ($correctCount / $totalItems) * ($question->points ?? 1) : 0;
+
+        $answer->update([
+            'is_correct' => $isCorrect,
+            'points_earned' => round($points, 2)
+        ]);
+    }
+
+    /**
+     * Evaluate diagram labeling question (QT11)
+     */
+    private function evaluateDiagramLabeling(ListeningQuestionAnswer $answer): void
+    {
+        $question = $answer->question;
+        $labels = $answer->answer_data['labels'] ?? [];
+        $correctLabels = $question->question_data['labels'] ?? [];
+
+        $totalLabels = count($correctLabels);
+        $correctCount = 0;
+
+        foreach ($labels as $labelId => $userLabel) {
+            if (isset($correctLabels[$labelId])) {
+                $correctAnswers = is_array($correctLabels[$labelId]['correct_answers']) 
+                    ? $correctLabels[$labelId]['correct_answers'] 
+                    : [$correctLabels[$labelId]['correct_answer']];
+
+                $userLabel = strtolower(trim($userLabel));
+                foreach ($correctAnswers as $correctAnswer) {
+                    if (strtolower(trim($correctAnswer)) === $userLabel) {
+                        $correctCount++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        $isCorrect = $totalLabels > 0 && $correctCount === $totalLabels;
+        $points = $totalLabels > 0 ? ($correctCount / $totalLabels) * ($question->points ?? 1) : 0;
+
+        $answer->update([
+            'is_correct' => $isCorrect,
+            'points_earned' => round($points, 2)
         ]);
     }
 
