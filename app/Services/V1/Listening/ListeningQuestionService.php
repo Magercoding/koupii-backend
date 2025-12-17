@@ -148,13 +148,16 @@ class ListeningQuestionService
     /**
      * Reorder questions
      */
-    public function reorderQuestions(Test $test, array $questionOrders): bool
+    public function reorderQuestions($listeningTaskOrTest, array $questionOrders): bool
     {
-        return DB::transaction(function () use ($test, $questionOrders) {
-            foreach ($questionOrders as $questionId => $order) {
-                TestQuestion::where('id', $questionId)
-                    ->where('test_id', $test->id)
-                    ->update(['order' => $order]);
+        return DB::transaction(function () use ($listeningTaskOrTest, $questionOrders) {
+            // Handle both ListeningTask and Test objects
+            $test = $listeningTaskOrTest instanceof Test ? $listeningTaskOrTest : $listeningTaskOrTest->test;
+            
+            foreach ($questionOrders as $questionOrder) {
+                TestQuestion::where('test_id', $test->id)
+                    ->where('id', $questionOrder['question_id'])
+                    ->update(['order' => $questionOrder['order']]);
             }
             return true;
         });
@@ -192,6 +195,29 @@ class ListeningQuestionService
     }
 
     /**
+     * Get detailed information about a question
+     */
+    public function getQuestionDetails(TestQuestion $question): TestQuestion
+    {
+        return $question->load(['questionOptions', 'audioSegments', 'test']);
+    }
+
+    /**
+     * Get available question types for listening tasks
+     */
+    public function getAvailableQuestionTypes(): array
+    {
+        return collect(ListeningQuestionHelper::QUESTION_TYPES)->map(function ($typeInfo, $typeKey) {
+            return [
+                'type' => $typeKey,
+                'name' => $typeInfo['name'],
+                'description' => $typeInfo['description'] ?? '',
+                'template' => $typeInfo['template'] ?? []
+            ];
+        })->values()->toArray();
+    }
+
+    /**
      * Get supported question types
      */
     public function getSupportedQuestionTypes(): array
@@ -217,6 +243,20 @@ class ListeningQuestionService
     public function validateQuestionData(string $questionType, array $questionData): bool
     {
         return ListeningQuestionHelper::validateQuestionData($questionType, $questionData);
+    }
+
+    /**
+     * Get question preview for students
+     */
+    public function getQuestionPreview(TestQuestion $question): array
+    {
+        return [
+            'question' => $question->load(['questionOptions', 'audioSegments']),
+            'rendered_content' => $this->renderQuestionContent($question),
+            'type_info' => ListeningQuestionHelper::QUESTION_TYPES[$question->question_type] ?? null,
+            'instructions' => $this->formatInstructions($question),
+            'audio_info' => $this->getAudioInfo($question)
+        ];
     }
 
     /**

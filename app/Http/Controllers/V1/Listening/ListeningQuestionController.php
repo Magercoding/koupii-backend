@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Listening\CreateQuestionRequest;
 use App\Http\Requests\V1\Listening\UpdateQuestionRequest;
 use App\Http\Resources\V1\Listening\ListeningQuestionResource;
+use App\Helpers\Listening\ListeningQuestionControllerHelper;
 use App\Models\ListeningTask;
 use App\Models\TestQuestion;
 use App\Services\V1\Listening\ListeningQuestionService;
@@ -26,17 +27,9 @@ class ListeningQuestionController extends Controller
     {
         try {
             $questions = $this->listeningQuestionService->getTaskQuestions($listeningTask);
-
-            return response()->json([
-                'status' => 'success',
-                'data' => ListeningQuestionResource::collection($questions),
-                'message' => 'Listening questions retrieved successfully'
-            ]);
+            return ListeningQuestionControllerHelper::successResponse($questions, 'Listening questions retrieved successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to retrieve questions: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ListeningQuestionControllerHelper::errorResponse('Failed to retrieve questions', $e);
         }
     }
 
@@ -46,19 +39,10 @@ class ListeningQuestionController extends Controller
     public function store(CreateQuestionRequest $request, ListeningTask $listeningTask): JsonResponse
     {
         try {
-            $questionData = $request->validated();
-            $question = $this->listeningQuestionService->createQuestion($listeningTask, $questionData);
-
-            return response()->json([
-                'status' => 'success',
-                'data' => new ListeningQuestionResource($question),
-                'message' => 'Question created successfully'
-            ], Response::HTTP_CREATED);
+            $question = $this->listeningQuestionService->createQuestion($listeningTask, $request->validated());
+            return ListeningQuestionControllerHelper::successResponse($question, 'Question created successfully', Response::HTTP_CREATED);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to create question: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ListeningQuestionControllerHelper::errorResponse('Failed to create question', $e);
         }
     }
 
@@ -68,18 +52,14 @@ class ListeningQuestionController extends Controller
     public function show(ListeningTask $listeningTask, TestQuestion $question): JsonResponse
     {
         try {
-            $questionDetails = $this->listeningQuestionService->getQuestionDetails($question);
+            if (!ListeningQuestionControllerHelper::validateQuestionOwnership($question, $listeningTask)) {
+                return response()->json(['status' => 'error', 'message' => 'Question not found'], Response::HTTP_NOT_FOUND);
+            }
 
-            return response()->json([
-                'status' => 'success',
-                'data' => new ListeningQuestionResource($questionDetails),
-                'message' => 'Question retrieved successfully'
-            ]);
+            $questionDetails = $this->listeningQuestionService->getQuestionDetails($question);
+            return ListeningQuestionControllerHelper::successResponse($questionDetails, 'Question retrieved successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to retrieve question: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ListeningQuestionControllerHelper::errorResponse('Failed to retrieve question', $e);
         }
     }
 
@@ -89,19 +69,14 @@ class ListeningQuestionController extends Controller
     public function update(UpdateQuestionRequest $request, ListeningTask $listeningTask, TestQuestion $question): JsonResponse
     {
         try {
-            $questionData = $request->validated();
-            $updatedQuestion = $this->listeningQuestionService->updateQuestion($question, $questionData);
+            if (!ListeningQuestionControllerHelper::validateQuestionOwnership($question, $listeningTask)) {
+                return response()->json(['status' => 'error', 'message' => 'Question not found'], Response::HTTP_NOT_FOUND);
+            }
 
-            return response()->json([
-                'status' => 'success',
-                'data' => new ListeningQuestionResource($updatedQuestion),
-                'message' => 'Question updated successfully'
-            ]);
+            $updatedQuestion = $this->listeningQuestionService->updateQuestion($question, $request->validated());
+            return ListeningQuestionControllerHelper::successResponse($updatedQuestion, 'Question updated successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to update question: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ListeningQuestionControllerHelper::errorResponse('Failed to update question', $e);
         }
     }
 
@@ -111,17 +86,14 @@ class ListeningQuestionController extends Controller
     public function destroy(ListeningTask $listeningTask, TestQuestion $question): JsonResponse
     {
         try {
-            $this->listeningQuestionService->deleteQuestion($question);
+            if (!ListeningQuestionControllerHelper::validateQuestionOwnership($question, $listeningTask)) {
+                return response()->json(['status' => 'error', 'message' => 'Question not found'], Response::HTTP_NOT_FOUND);
+            }
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Question deleted successfully'
-            ]);
+            $this->listeningQuestionService->deleteQuestion($question);
+            return response()->json(['status' => 'success', 'message' => 'Question deleted successfully']);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to delete question: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ListeningQuestionControllerHelper::errorResponse('Failed to delete question', $e);
         }
     }
 
@@ -132,17 +104,15 @@ class ListeningQuestionController extends Controller
     {
         try {
             $questionTypes = $this->listeningQuestionService->getAvailableQuestionTypes();
-
+            $formattedTypes = ListeningQuestionControllerHelper::formatQuestionTypesResponse($questionTypes);
+            
             return response()->json([
                 'status' => 'success',
-                'data' => $questionTypes,
+                'data' => $formattedTypes,
                 'message' => 'Question types retrieved successfully'
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to retrieve question types: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ListeningQuestionControllerHelper::errorResponse('Failed to retrieve question types', $e);
         }
     }
 
@@ -152,30 +122,11 @@ class ListeningQuestionController extends Controller
     public function bulkCreate(Request $request, ListeningTask $listeningTask): JsonResponse
     {
         try {
-            $request->validate([
-                'questions' => 'required|array|min:1',
-                'questions.*.question_type' => 'required|string',
-                'questions.*.question_text' => 'required|string',
-                'questions.*.points' => 'nullable|numeric|min:0',
-                'questions.*.options' => 'nullable|array',
-                'questions.*.question_data' => 'nullable|array'
-            ]);
-
-            $questions = $this->listeningQuestionService->bulkCreateQuestions(
-                $listeningTask,
-                $request->questions
-            );
-
-            return response()->json([
-                'status' => 'success',
-                'data' => ListeningQuestionResource::collection($questions),
-                'message' => 'Questions created successfully'
-            ], Response::HTTP_CREATED);
+            $request->validate(ListeningQuestionControllerHelper::validateBulkCreateRequest($request->all()));
+            $results = $this->listeningQuestionService->bulkCreateQuestions($listeningTask, $request->questions);
+            return ListeningQuestionControllerHelper::bulkOperationResponse($results);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to create questions: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ListeningQuestionControllerHelper::errorResponse('Failed to create questions', $e);
         }
     }
 
@@ -185,23 +136,11 @@ class ListeningQuestionController extends Controller
     public function reorder(Request $request, ListeningTask $listeningTask): JsonResponse
     {
         try {
-            $request->validate([
-                'question_orders' => 'required|array',
-                'question_orders.*.question_id' => 'required|string|exists:test_questions,id',
-                'question_orders.*.order' => 'required|integer|min:1'
-            ]);
-
+            $request->validate(ListeningQuestionControllerHelper::validateReorderRequest());
             $this->listeningQuestionService->reorderQuestions($listeningTask, $request->question_orders);
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Questions reordered successfully'
-            ]);
+            return response()->json(['status' => 'success', 'message' => 'Questions reordered successfully']);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to reorder questions: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ListeningQuestionControllerHelper::errorResponse('Failed to reorder questions', $e);
         }
     }
 
@@ -211,18 +150,14 @@ class ListeningQuestionController extends Controller
     public function preview(ListeningTask $listeningTask, TestQuestion $question): JsonResponse
     {
         try {
-            $preview = $this->listeningQuestionService->getQuestionPreview($question);
+            if (!ListeningQuestionControllerHelper::validateQuestionOwnership($question, $listeningTask)) {
+                return response()->json(['status' => 'error', 'message' => 'Question not found'], Response::HTTP_NOT_FOUND);
+            }
 
-            return response()->json([
-                'status' => 'success',
-                'data' => $preview,
-                'message' => 'Question preview generated successfully'
-            ]);
+            $preview = ListeningQuestionControllerHelper::processQuestionPreview($question, $this->listeningQuestionService);
+            return response()->json(['status' => 'success', 'data' => $preview, 'message' => 'Question preview generated successfully']);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to generate preview: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ListeningQuestionControllerHelper::errorResponse('Failed to generate preview', $e);
         }
     }
 }
