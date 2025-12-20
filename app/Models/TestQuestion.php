@@ -53,6 +53,11 @@ class TestQuestion extends Model
         return $this->hasMany(QuestionOption::class, 'question_id');
     }
 
+    public function questionOptions()
+    {
+        return $this->hasMany(QuestionOption::class, 'question_id');
+    }
+
     public function studentAttempts()
     {
         return $this->hasMany(StudentQuestionAttempt::class, 'question_id');
@@ -61,5 +66,15 @@ class TestQuestion extends Model
     public function breakdowns()
     {
         return $this->hasMany(QuestionBreakdown::class, 'question_id');
+    }
+
+    public function highlightSegments()
+    {
+        return $this->hasMany(HighlightSegment::class, 'question_id');
+    }
+
+    public function readingAnswers()
+    {
+        return $this->hasMany(ReadingQuestionAnswer::class, 'question_id');
     }
 }

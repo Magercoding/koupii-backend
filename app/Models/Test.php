@@ -89,6 +89,19 @@ class Test extends Model
         return $this->hasMany(TestReport::class, 'test_id');
     }
 
+    public function readingSubmissions()
+    {
+        return $this->hasMany(ReadingSubmission::class, 'test_id');
+    }
+
+    public function testQuestions()
+    {
+        return $this->hasManyThrough(TestQuestion::class, QuestionGroup::class, 'passage_id', 'question_group_id', 'id', 'id')
+                    ->whereHas('questionGroup.passage', function($query) {
+                        $query->where('test_id', $this->id);
+                    });
+    }
+
     public function scopeVisibleTo($query, $user)
     {
         return match ($user->role) {

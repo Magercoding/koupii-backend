@@ -58,3 +58,17 @@ require __DIR__ . '/../v1/class.php';
  * Reading Test Question Management
  */
 require __DIR__ . '/../v1/reading_test_question.php';
+
+/**
+ * Writing Task Management
+ */
+require __DIR__ . '/../v1/writing_task.php';
+/**
+ * Writing Test Management
+ */
+require __DIR__ . '/../v1/writing_test.php';
+
+/**
+ * Listening Test Management
+ */
+require __DIR__ . '/../v1/listening.php';
