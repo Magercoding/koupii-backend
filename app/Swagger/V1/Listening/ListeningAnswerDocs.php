@@ -11,7 +11,7 @@ class ListeningAnswerDocs
      *     path="/api/v1/listening/submissions/{submission}/answers",
      *     summary="Save answer for a listening question",
      *     tags={"Listening Answers"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="submission",
      *         in="path",
@@ -56,7 +56,7 @@ class ListeningAnswerDocs
      *     path="/api/v1/listening/answers/{answer}",
      *     summary="Update a listening answer",
      *     tags={"Listening Answers"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="answer",
      *         in="path",
@@ -92,7 +92,7 @@ class ListeningAnswerDocs
      *     path="/api/v1/listening/submissions/{submission}/answers",
      *     summary="Get all answers for a listening submission",
      *     tags={"Listening Answers"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="submission",
      *         in="path",
@@ -117,7 +117,7 @@ class ListeningAnswerDocs
      *     path="/api/v1/listening/answers/{answer}",
      *     summary="Get specific listening answer",
      *     tags={"Listening Answers"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="answer",
      *         in="path",
@@ -191,3 +191,4 @@ class ListeningAnswerDocs
      */
     public function answerSchema() {}
 }
+

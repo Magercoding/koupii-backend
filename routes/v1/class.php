@@ -34,9 +34,17 @@ Route::middleware('auth:sanctum')
     ->prefix('invitations')
     ->group(function () {
         Route::get('/', [ClassInvitationController::class, 'index']);
-        Route::patch('/update/{id}', [ClassInvitationController::class, 'update'])->middleware('role:student');
-        Route::middleware(['role:admin,teacher'])->group(function () {
-            Route::post('/create', [ClassInvitationController::class, 'store'])->middleware('role:admin,teacher');
-            Route::delete('/delete/{id}', [ClassInvitationController::class, 'destroy'])->middleware('role:admin,teacher');
+        
+        // Student routes - accept/decline invitations
+        Route::middleware('role:student')->group(function () {
+            Route::patch('/accept/{id}', [ClassInvitationController::class, 'accept']);
+            Route::patch('/decline/{id}', [ClassInvitationController::class, 'decline']);
+        });
+        
+        // Teacher/Admin routes - create/update/delete invitations
+        Route::middleware('role:admin,teacher')->group(function () {
+            Route::post('/create', [ClassInvitationController::class, 'store']);
+            Route::patch('/update/{id}', [ClassInvitationController::class, 'update']);
+            Route::delete('/delete/{id}', [ClassInvitationController::class, 'destroy']);
         });
     });

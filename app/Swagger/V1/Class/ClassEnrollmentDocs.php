@@ -13,21 +13,7 @@ class ClassEnrollmentDocs
      *     tags={"Enrollments"},
      *     summary="Get all enrollments based on user role",
      *     description="Admin sees all enrollments, teacher sees only enrollments in their classes, student sees only their enrolled classes.",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Frontend URL for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="List of enrollments",
@@ -72,21 +58,7 @@ class ClassEnrollmentDocs
      *     tags={"Enrollments"},
      *     summary="Enroll student to class",
      *     description="Student enrolls to a class using class_id and class_code.",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Frontend URL for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
+     *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -120,22 +92,8 @@ class ClassEnrollmentDocs
      *     tags={"Enrollments"},
      *     summary="Get enrollment details",
      *     description="Show enrollment details including class and student info.",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Frontend URL for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Parameter(
+     *     security={{"bearerAuth":{}}},
+*     @OA\Parameter(
      *         name="id",
      *         in="path",
      *         required=true,
@@ -172,22 +130,8 @@ class ClassEnrollmentDocs
      *     tags={"Enrollments"},
      *     summary="Update enrollment status",
      *     description="Admin, teacher, or student can update enrollment (depends on role).",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Frontend URL for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Parameter(
+     *     security={{"bearerAuth":{}}},
+*     @OA\Parameter(
      *         name="id",
      *         in="path",
      *         required=true,
@@ -223,22 +167,8 @@ class ClassEnrollmentDocs
      *     tags={"Enrollments"},
      *     summary="Delete enrollment",
      *     description="Admin, teacher, or student can delete enrollment based on role authorization.",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Frontend URL for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Parameter(
+     *     security={{"bearerAuth":{}}},
+*     @OA\Parameter(
      *         name="id",
      *         in="path",
      *         required=true,
@@ -256,3 +186,4 @@ class ClassEnrollmentDocs
      */
     public function deleteEnrollment() {}
 }
+

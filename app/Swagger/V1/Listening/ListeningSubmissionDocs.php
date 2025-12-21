@@ -11,7 +11,7 @@ class ListeningSubmissionDocs
      *     path="/api/v1/listening/tests/{test}/start",
      *     summary="Start a new listening test",
      *     tags={"Listening Tests"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="test",
      *         in="path",
@@ -51,7 +51,7 @@ class ListeningSubmissionDocs
      *     path="/api/v1/listening/tests/{test}",
      *     summary="Get listening test details",
      *     tags={"Listening Tests"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="test",
      *         in="path",
@@ -76,7 +76,7 @@ class ListeningSubmissionDocs
      *     path="/api/v1/listening/submissions/{submission}/submit",
      *     summary="Submit listening test",
      *     tags={"Listening Tests"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="submission",
      *         in="path",
@@ -111,7 +111,7 @@ class ListeningSubmissionDocs
      *     path="/api/v1/listening/submissions/{submission}",
      *     summary="Get listening submission details",
      *     tags={"Listening Tests"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="submission",
      *         in="path",
@@ -136,7 +136,7 @@ class ListeningSubmissionDocs
      *     path="/api/v1/listening/submissions",
      *     summary="Get user's listening submissions",
      *     tags={"Listening Tests"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="test_id",
      *         in="query",
@@ -413,3 +413,4 @@ class ListeningSubmissionDocs
      */
     public function resultSchema() {}
 }
+

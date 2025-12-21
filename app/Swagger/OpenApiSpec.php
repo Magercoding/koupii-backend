@@ -23,10 +23,18 @@ use OpenApi\Annotations as OA;
  *     url="https://api-koupii.magercoding.com",
  *     description="Production server"
  * )
+ *
+ * @OA\SecurityScheme(
+ *     securityScheme="bearerAuth",
+ *     type="http",
+ *     scheme="bearer",
+ *     bearerFormat="JWT"
+ * )
  */
 class OpenApiSpec
 {
     // This class is intentionally empty. It only holds OpenAPI annotations.
 }
+
 
 

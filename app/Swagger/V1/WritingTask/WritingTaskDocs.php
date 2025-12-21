@@ -12,7 +12,7 @@ class WritingTaskDocs
      *     tags={"Writing Tasks"},
      *     summary="Get list of writing tasks",
      *     description="Retrieve writing tasks based on user role - Admin sees all, Teacher sees own tasks, Student sees assigned published tasks",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -71,7 +71,7 @@ class WritingTaskDocs
      *     tags={"Writing Tasks"},
      *     summary="Create a new writing task",
      *     description="Create a new writing task with questions and assignments",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -131,7 +131,7 @@ class WritingTaskDocs
      *     tags={"Writing Tasks"},
      *     summary="Get specific writing task details",
      *     description="Retrieve details of a specific writing task with submissions and assignments",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -190,7 +190,7 @@ class WritingTaskDocs
      *     tags={"Writing Tasks"},
      *     summary="Update writing task",
      *     description="Update an existing writing task details",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -245,7 +245,7 @@ class WritingTaskDocs
      *     tags={"Writing Tasks"},
      *     summary="Delete writing task",
      *     description="Delete a writing task and all associated data",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -276,3 +276,4 @@ class WritingTaskDocs
     {
     }
 }
+

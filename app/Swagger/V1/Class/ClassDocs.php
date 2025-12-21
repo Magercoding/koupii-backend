@@ -215,3 +215,4 @@ class ClassDocs
      */
     public function deleteClass() {}
 }
+

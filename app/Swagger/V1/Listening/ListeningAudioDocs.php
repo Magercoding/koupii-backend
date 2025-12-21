@@ -11,7 +11,7 @@ class ListeningAudioDocs
      *     path="/api/v1/listening/submissions/{submission}/audio/play",
      *     summary="Log audio play event",
      *     tags={"Listening Audio"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="submission",
      *         in="path",
@@ -53,7 +53,7 @@ class ListeningAudioDocs
      *     path="/api/v1/listening/submissions/{submission}/audio/logs",
      *     summary="Get audio play logs for submission",
      *     tags={"Listening Audio"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="submission",
      *         in="path",
@@ -84,7 +84,7 @@ class ListeningAudioDocs
      *     path="/api/v1/listening/audio/segments/{segment}",
      *     summary="Get audio segment details",
      *     tags={"Listening Audio"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="segment",
      *         in="path",
@@ -118,7 +118,7 @@ class ListeningAudioDocs
      *     path="/api/v1/listening/submissions/{submission}/audio/stats",
      *     summary="Get audio play statistics for submission",
      *     tags={"Listening Audio"},
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="submission",
      *         in="path",
@@ -217,3 +217,4 @@ class ListeningAudioDocs
      */
     public function audioStatsSchema() {}
 }
+

@@ -241,3 +241,4 @@ class UserDocs
      */
     public function changePassword() {}
 }
+

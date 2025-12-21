@@ -12,7 +12,7 @@ class WritingDashboardDocs
      *     tags={"Writing Dashboard"},
      *     summary="Get student dashboard",
      *     description="Retrieve dashboard data for students",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -55,7 +55,7 @@ class WritingDashboardDocs
      *     tags={"Writing Dashboard"},
      *     summary="Get teacher dashboard",
      *     description="Retrieve dashboard data for teachers",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -96,7 +96,7 @@ class WritingDashboardDocs
      *     tags={"Writing Dashboard"},
      *     summary="Get admin dashboard",
      *     description="Retrieve dashboard data for admins",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -133,3 +133,4 @@ class WritingDashboardDocs
     {
     }
 }
+

@@ -12,7 +12,7 @@ class ReadingAnswerDocs
      *     tags={"Reading Answers"},
      *     summary="Submit answer for a question",
      *     description="Submit student's answer for a specific question in the reading test",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -75,7 +75,7 @@ class ReadingAnswerDocs
      *     tags={"Reading Answers"},
      *     summary="Submit the entire test",
      *     description="Submit all answers and complete the reading test",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -141,7 +141,7 @@ class ReadingAnswerDocs
      *     tags={"Reading Answers"},
      *     summary="Get test results with explanations",
      *     description="Retrieve test results including highlights and explanations for completed tests",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -211,3 +211,4 @@ class ReadingAnswerDocs
     {
     }
 }
+

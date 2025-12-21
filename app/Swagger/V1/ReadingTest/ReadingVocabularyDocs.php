@@ -12,7 +12,7 @@ class ReadingVocabularyDocs
      *     tags={"Reading Vocabulary"},
      *     summary="Get discovered vocabularies",
      *     description="Retrieve vocabularies discovered from a completed reading test",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -68,7 +68,7 @@ class ReadingVocabularyDocs
      *     tags={"Reading Vocabulary"},
      *     summary="Save vocabulary to personal bank",
      *     description="Save a discovered vocabulary word to the student's personal vocabulary bank",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -114,7 +114,7 @@ class ReadingVocabularyDocs
      *     tags={"Reading Vocabulary"},
      *     summary="Get student's vocabulary bank",
      *     description="Retrieve the student's personal vocabulary bank with filtering options",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -193,7 +193,7 @@ class ReadingVocabularyDocs
      *     tags={"Reading Vocabulary"},
      *     summary="Practice vocabulary",
      *     description="Record a vocabulary practice session",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -223,3 +223,4 @@ class ReadingVocabularyDocs
     {
     }
 }
+

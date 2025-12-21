@@ -12,7 +12,7 @@ class WritingSubmissionDocs
      *     tags={"Writing Submissions"},
      *     summary="Get submissions for a task",
      *     description="Retrieve all submissions for a specific writing task (Teacher view)",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -63,7 +63,7 @@ class WritingSubmissionDocs
      *     tags={"Writing Submissions"},
      *     summary="Submit student writing",
      *     description="Submit a writing assignment (Student only)",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -127,7 +127,7 @@ class WritingSubmissionDocs
      *     tags={"Writing Submissions"},
      *     summary="Save draft",
      *     description="Auto-save draft functionality (Student only)",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -181,7 +181,7 @@ class WritingSubmissionDocs
      *     tags={"Writing Submissions"},
      *     summary="Create retake submission",
      *     description="Create a retake submission with specified retake option",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -239,7 +239,7 @@ class WritingSubmissionDocs
      *     tags={"Writing Submissions"},
      *     summary="Mark submission as done",
      *     description="Student acknowledges review and marks submission as done",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -285,7 +285,7 @@ class WritingSubmissionDocs
      *     tags={"Writing Submissions"},
      *     summary="Get specific submission",
      *     description="Retrieve details of a specific submission",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -335,3 +335,4 @@ class WritingSubmissionDocs
     {
     }
 }
+

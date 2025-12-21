@@ -12,7 +12,7 @@ class SpeakingDashboardDocs
      *     tags={"Speaking Dashboard"},
      *     summary="Get student speaking dashboard",
      *     description="Retrieve speaking dashboard data for students including assigned speaking tasks and submission status",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Student speaking dashboard retrieved successfully",
@@ -55,7 +55,7 @@ class SpeakingDashboardDocs
      *     tags={"Speaking Dashboard"},
      *     summary="Get teacher speaking dashboard",
      *     description="Retrieve speaking dashboard data for teachers including created tasks and student submissions",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Teacher speaking dashboard retrieved successfully",
@@ -96,7 +96,7 @@ class SpeakingDashboardDocs
      *     tags={"Speaking Dashboard"},
      *     summary="Get admin speaking dashboard",
      *     description="Retrieve comprehensive speaking dashboard data for admins with system-wide statistics",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Admin speaking dashboard retrieved successfully",
@@ -169,3 +169,4 @@ class SpeakingDashboardDocs
     {
     }
 }
+

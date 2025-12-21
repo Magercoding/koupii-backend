@@ -12,7 +12,7 @@ class ReadingSubmissionDocs
      *     tags={"Reading Submissions"},
      *     summary="Get student's reading test submissions",
      *     description="Retrieve all reading test submissions for the authenticated student",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -70,7 +70,7 @@ class ReadingSubmissionDocs
      *     tags={"Reading Submissions"},
      *     summary="Start a new reading test attempt",
      *     description="Begin a new reading test attempt for the authenticated student",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -123,7 +123,7 @@ class ReadingSubmissionDocs
      *     tags={"Reading Submissions"},
      *     summary="Get submission details",
      *     description="Retrieve detailed information about a specific submission",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -173,3 +173,4 @@ class ReadingSubmissionDocs
     {
     }
 }
+

@@ -12,7 +12,7 @@ class WritingReviewDocs
      *     tags={"Writing Reviews"},
      *     summary="Review a student submission",
      *     description="Provide feedback and score for a student's writing submission",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -102,7 +102,7 @@ class WritingReviewDocs
      *     tags={"Writing Reviews"},
      *     summary="Get pending reviews",
      *     description="Retrieve submissions that need to be reviewed by the teacher",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -158,7 +158,7 @@ class WritingReviewDocs
      *     tags={"Writing Reviews"},
      *     summary="Bulk review submissions",
      *     description="Review multiple submissions at once",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="Authorization",
      *         in="header",
@@ -212,3 +212,4 @@ class WritingReviewDocs
     {
     }
 }
+

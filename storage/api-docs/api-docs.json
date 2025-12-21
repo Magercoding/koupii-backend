@@ -811,27 +811,6 @@
                 "summary": "Get all enrollments based on user role",
                 "description": "Admin sees all enrollments, teacher sees only enrollments in their classes, student sees only their enrolled classes.",
                 "operationId": "9acda90d9a567aeb0cd8a370f962f307",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Frontend URL for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "List of enrollments",
@@ -935,7 +914,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -948,27 +927,6 @@
                 "summary": "Enroll student to class",
                 "description": "Student enrolls to a class using class_id and class_code.",
                 "operationId": "d98302a7f23c9d998c5ba38d3aeb92f6",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Frontend URL for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1040,7 +998,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -1054,25 +1012,6 @@
                 "description": "Show enrollment details including class and student info.",
                 "operationId": "a790a737b803bad083b0c89ef68d879d",
                 "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Frontend URL for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    },
                     {
                         "name": "id",
                         "in": "path",
@@ -1149,7 +1088,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -1163,25 +1102,6 @@
                 "description": "Admin, teacher, or student can update enrollment (depends on role).",
                 "operationId": "0a01558beee4e2f1d44d82a2c6fa0cc5",
                 "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Frontend URL for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    },
                     {
                         "name": "id",
                         "in": "path",
@@ -1253,7 +1173,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -1267,25 +1187,6 @@
                 "description": "Admin, teacher, or student can delete enrollment based on role authorization.",
                 "operationId": "ac8b66d056a0e9c0baad579afd326bf9",
                 "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Frontend URL for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    },
                     {
                         "name": "id",
                         "in": "path",
@@ -1319,7 +1220,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -1332,27 +1233,6 @@
                 "summary": "Get all invitations based on user role",
                 "description": "Admin sees all invitations, teacher sees only invitations in their classes, student sees only invitations sent to them.",
                 "operationId": "730ffa7940f3cf6898a9464f080d25bc",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Frontend URL for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "List of invitations",
@@ -1388,7 +1268,7 @@
                                             },
                                             "status": {
                                                 "type": "string",
-                                                "example": "accepted"
+                                                "example": "pending"
                                             },
                                             "expires_at": {
                                                 "type": "string",
@@ -1403,57 +1283,6 @@
                                                 "type": "string",
                                                 "format": "date-time",
                                                 "example": "2025-07-17T09:18:42.000000Z"
-                                            },
-                                            "class": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "string",
-                                                        "example": "3d565341-2760-4454-bb36-a89cb2ead1a9"
-                                                    },
-                                                    "name": {
-                                                        "type": "string",
-                                                        "example": "Biology Class"
-                                                    },
-                                                    "class_code": {
-                                                        "type": "string",
-                                                        "example": "zxdfrt"
-                                                    },
-                                                    "is_active": {
-                                                        "type": "boolean",
-                                                        "example": true
-                                                    }
-                                                },
-                                                "type": "object"
-                                            },
-                                            "student": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "string",
-                                                        "example": "d2fb93ec-6043-4384-814d-0e48f36aed50"
-                                                    },
-                                                    "name": {
-                                                        "type": "string",
-                                                        "example": "Student User 2"
-                                                    },
-                                                    "email": {
-                                                        "type": "string",
-                                                        "example": "student2@example.com"
-                                                    }
-                                                },
-                                                "type": "object"
-                                            },
-                                            "teacher": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "string",
-                                                        "example": "571bd78d-4879-44e0-9697-05b6e8bebc5d"
-                                                    },
-                                                    "name": {
-                                                        "type": "string",
-                                                        "example": "Teacher User 2"
-                                                    }
-                                                },
-                                                "type": "object"
                                             }
                                         },
                                         "type": "object"
@@ -1468,7 +1297,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -1481,27 +1310,6 @@
                 "summary": "Send invitation to student",
                 "description": "Teacher or admin sends an invitation to a student to join a class.",
                 "operationId": "36d1d1930115b8b9518e5dbf24919102",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Frontend URL for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1514,11 +1322,11 @@
                                 "properties": {
                                     "class_code": {
                                         "type": "string",
-                                        "example": "1234567"
+                                        "example": "ABCD12345"
                                     },
                                     "email": {
                                         "type": "string",
-                                        "example": "student2@example.com"
+                                        "example": "student@example.com"
                                     }
                                 },
                                 "type": "object"
@@ -1557,15 +1365,11 @@
                                                 },
                                                 "email": {
                                                     "type": "string",
-                                                    "example": "student2@example.com"
+                                                    "example": "student@example.com"
                                                 },
-                                                "invitation_token": {
+                                                "status": {
                                                     "type": "string",
-                                                    "example": "ee2df5caeee45080adf83682e6b4c159"
-                                                },
-                                                "expires_at": {
-                                                    "type": "string",
-                                                    "example": "2025-07-18T09:15:39.099827Z"
+                                                    "example": "pending"
                                                 }
                                             },
                                             "type": "object"
@@ -1588,7 +1392,135 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/invitations/accept/{id}": {
+            "patch": {
+                "tags": [
+                    "Invitations"
+                ],
+                "summary": "Accept invitation",
+                "description": "Student accepts the invitation to join a class.",
+                "operationId": "27ed4f788e5fd4dfe1720d9260da1aee",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Invitation ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Invitation accepted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invitation accepted successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "example": "caccde25-0463-4acf-979e-46fca9b2315a"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "accepted"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized - You can only accept your own invitations"
+                    },
+                    "404": {
+                        "description": "Invitation not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/invitations/decline/{id}": {
+            "patch": {
+                "tags": [
+                    "Invitations"
+                ],
+                "summary": "Decline invitation",
+                "description": "Student declines the invitation to join a class.",
+                "operationId": "439b82b9ac8a9cd884d5f57ae2de7f9e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Invitation ID (UUID)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Invitation declined successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invitation declined successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "example": "caccde25-0463-4acf-979e-46fca9b2315a"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "declined"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized - You can only decline your own invitations"
+                    },
+                    "404": {
+                        "description": "Invitation not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -1598,29 +1530,10 @@
                 "tags": [
                     "Invitations"
                 ],
-                "summary": "Update invitation status",
-                "description": "Student accepts or declines the invitation.",
+                "summary": "Update invitation details",
+                "description": "Teacher or admin updates invitation details (e.g., change email if wrong person was invited).",
                 "operationId": "93e7f8496d0d2c4b7245315b8bc406ab",
                 "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Frontend URL for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    },
                     {
                         "name": "id",
                         "in": "path",
@@ -1638,16 +1551,17 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "status"
+                                    "class_code",
+                                    "email"
                                 ],
                                 "properties": {
-                                    "status": {
+                                    "class_code": {
                                         "type": "string",
-                                        "enum": [
-                                            "accepted",
-                                            "declined"
-                                        ],
-                                        "example": "accepted"
+                                        "example": "ABCD12345"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "example": "newemail@example.com"
                                     }
                                 },
                                 "type": "object"
@@ -1657,14 +1571,14 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Invitation status updated",
+                        "description": "Invitation updated successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Invitation status updated"
+                                            "example": "Invitation updated successfully"
                                         },
                                         "data": {
                                             "properties": {
@@ -1672,44 +1586,13 @@
                                                     "type": "string",
                                                     "example": "caccde25-0463-4acf-979e-46fca9b2315a"
                                                 },
-                                                "class_id": {
-                                                    "type": "string",
-                                                    "example": "3d565341-2760-4454-bb36-a89cb2ead1a9"
-                                                },
-                                                "student_id": {
-                                                    "type": "string",
-                                                    "example": "3d565341-2760-4454-bb36-a89cb2ead1a9"
-                                                },
-                                                "teacher_id": {
-                                                    "type": "string",
-                                                    "example": "3d565341-2760-4454-bb36-a89cb2ead1a9"
-                                                },
                                                 "email": {
                                                     "type": "string",
-                                                    "example": "3d565341-2760-4454-bb36-a89cb2ead1a9"
-                                                },
-                                                "invitation_token": {
-                                                    "type": "string",
-                                                    "example": "3d565341-2760-4454-bb36-a89cb2ead1a9"
+                                                    "example": "newemail@example.com"
                                                 },
                                                 "status": {
                                                     "type": "string",
-                                                    "example": "accepted"
-                                                },
-                                                "expires_at": {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "example": "2025-07-17T09:18:42.000000Z"
-                                                },
-                                                "created_at": {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "example": "2025-07-17T09:18:42.000000Z"
-                                                },
-                                                "updated_at": {
-                                                    "type": "string",
-                                                    "format": "date-time",
-                                                    "example": "2025-07-17T09:18:42.000000Z"
+                                                    "example": "pending"
                                                 }
                                             },
                                             "type": "object"
@@ -1720,16 +1603,19 @@
                             }
                         }
                     },
-                    "422": {
-                        "description": "Invalid status"
-                    },
                     "403": {
-                        "description": "Unauthorized"
+                        "description": "Unauthorized - You can only update invitations for your own classes"
+                    },
+                    "404": {
+                        "description": "Invitation not found"
+                    },
+                    "409": {
+                        "description": "Student already enrolled or invitation already sent"
                     }
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -1743,25 +1629,6 @@
                 "description": "Teacher or admin deletes the invitation before it is accepted or declined.",
                 "operationId": "11db00174b6d8d67542429fb29546e3e",
                 "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Frontend URL for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    },
                     {
                         "name": "id",
                         "in": "path",
@@ -1792,11 +1659,14 @@
                     },
                     "403": {
                         "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Invitation not found"
                     }
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -1846,7 +1716,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             },
@@ -1963,7 +1833,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2010,7 +1880,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             },
@@ -2087,7 +1957,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2201,7 +2071,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2260,7 +2130,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2338,7 +2208,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2385,7 +2255,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2479,7 +2349,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2526,7 +2396,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2605,7 +2475,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2652,7 +2522,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2713,7 +2583,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2844,7 +2714,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -2979,7 +2849,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -3127,7 +2997,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -3253,7 +3123,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -3362,7 +3232,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -3472,7 +3342,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -4311,7 +4181,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -4409,7 +4279,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -4558,7 +4428,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -4629,7 +4499,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -4742,7 +4612,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -4837,7 +4707,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -5007,7 +4877,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -5020,27 +4890,6 @@
                 "summary": "Change user password",
                 "description": "Change the authenticated user's password. Requires the current password and a new one. CSRF protection via XSRF-TOKEN and Referer header.",
                 "operationId": "changeUserPassword",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -5135,7 +4984,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -5595,27 +5444,6 @@
                 "summary": "Get all vocabulary categories",
                 "description": "Returns a list of all vocabulary categories.",
                 "operationId": "37e66738792adbdf19177b4143aac2c5",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "List of vocabulary categories",
@@ -5655,7 +5483,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -5668,27 +5496,6 @@
                 "summary": "Create a new vocabulary category",
                 "description": "Adds a new vocabulary category. Requires authentication.",
                 "operationId": "0c0155820350c7c04cc8e1dc8d585858",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -5763,7 +5570,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -5785,25 +5592,6 @@
                         "schema": {
                             "type": "string",
                             "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
                         }
                     }
                 ],
@@ -5846,7 +5634,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             },
@@ -5866,25 +5654,6 @@
                         "schema": {
                             "type": "string",
                             "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
                         }
                     }
                 ],
@@ -5911,7 +5680,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -5933,25 +5702,6 @@
                         "schema": {
                             "type": "string",
                             "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
                         }
                     }
                 ],
@@ -6032,7 +5782,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -6045,27 +5795,6 @@
                 "summary": "Get all vocabularies",
                 "description": "Returns a list of all vocabulary entries.",
                 "operationId": "c432b54cbc322a1ebb36c467c4cbf9e9",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "List of vocabulary entries",
@@ -6165,7 +5894,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -6178,27 +5907,6 @@
                 "summary": "Create a new vocabulary entry",
                 "description": "Adds a new vocabulary entry to the system.",
                 "operationId": "a29c99246c8122412f6ea3b7f32ca6a7",
-                "parameters": [
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
-                        }
-                    }
-                ],
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -6320,7 +6028,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -6342,25 +6050,6 @@
                         "schema": {
                             "type": "string",
                             "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
                         }
                     }
                 ],
@@ -6427,7 +6116,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -6449,25 +6138,6 @@
                         "schema": {
                             "type": "string",
                             "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
                         }
                     },
                     {
@@ -6599,7 +6269,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -6621,25 +6291,6 @@
                         "schema": {
                             "type": "string",
                             "example": "uuid-string"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
                         }
                     }
                 ],
@@ -6666,7 +6317,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -6688,25 +6339,6 @@
                         "schema": {
                             "type": "string",
                             "example": "123"
-                        }
-                    },
-                    {
-                        "name": "X-XSRF-TOKEN",
-                        "in": "header",
-                        "description": "CSRF token for session-based auth (Sanctum)",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "Referer",
-                        "in": "header",
-                        "description": "Referring URL Frontend for CSRF protection",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "example": "http://localhost:3000"
                         }
                     }
                 ],
@@ -6746,7 +6378,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -6837,7 +6469,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -6915,7 +6547,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -7000,7 +6632,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -7194,7 +6826,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -7305,7 +6937,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -7425,7 +7057,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -7530,7 +7162,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             },
@@ -7658,7 +7290,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -7778,7 +7410,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -7900,7 +7532,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -7995,7 +7627,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -8111,7 +7743,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -8168,7 +7800,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             },
@@ -8254,7 +7886,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -8315,7 +7947,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -8346,7 +7978,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             },
@@ -8489,7 +8121,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -8605,7 +8237,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             },
@@ -8718,7 +8350,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             },
@@ -8779,7 +8411,7 @@
                 },
                 "security": [
                     {
-                        "sanctum": []
+                        "bearerAuth": []
                     }
                 ]
             }
@@ -9815,6 +9447,13 @@
             },
             "500": {
                 "description": "Server error"
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
             }
         }
     },
