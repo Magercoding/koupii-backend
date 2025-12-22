@@ -72,3 +72,8 @@ require __DIR__ . '/../v1/writing_test.php';
  * Listening Test Management
  */
 require __DIR__ . '/../v1/listening.php';
+
+/**
+ * Speaking Task Management
+ */
+require __DIR__ . '/../v1/speaking.php';

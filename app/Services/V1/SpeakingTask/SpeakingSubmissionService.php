@@ -11,16 +11,25 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class SpeakingSubmissionService
 {
+    private SpeechToTextService $speechToTextService;
+
+    public function __construct(SpeechToTextService $speechToTextService)
+    {
+        $this->speechToTextService = $speechToTextService;
+    }
+
     public function getSubmissions(array $filters = []): LengthAwarePaginator
     {
         return SpeakingSubmission::with([
             'test:id,title,difficulty',
             'student:id,name,email',
-            'review.teacher:id,name'
+            'review.teacher:id,name',
+            'recordings'
         ])
             ->when($filters['test_id'] ?? null, fn($q, $testId) => $q->where('test_id', $testId))
             ->when($filters['student_id'] ?? null, fn($q, $studentId) => $q->where('student_id', $studentId))
@@ -29,6 +38,32 @@ class SpeakingSubmissionService
                 $q->whereHas('test', fn($query) => $query->where('creator_id', $teacherId));
             })
             ->latest()
+            ->paginate($filters['per_page'] ?? 15);
+    }
+
+    public function getStudentDashboard(string $studentId, array $filters = []): LengthAwarePaginator
+    {
+        return SpeakingSubmission::with([
+            'test:id,title,description,difficulty',
+            'review:id,score,feedback,reviewed_at'
+        ])
+            ->where('student_id', $studentId)
+            ->when($filters['status'] ?? null, fn($q, $status) => $q->where('status', $status))
+            ->latest()
+            ->paginate($filters['per_page'] ?? 15);
+    }
+
+    public function getTeacherReviewQueue(string $teacherId, array $filters = []): LengthAwarePaginator
+    {
+        return SpeakingSubmission::with([
+            'test:id,title,difficulty',
+            'student:id,name,email',
+            'recordings'
+        ])
+            ->whereHas('test', fn($q) => $q->where('creator_id', $teacherId))
+            ->where('status', 'submitted')
+            ->when($filters['test_id'] ?? null, fn($q, $testId) => $q->where('test_id', $testId))
+            ->latest('submitted_at')
             ->paginate($filters['per_page'] ?? 15);
     }
 
@@ -46,8 +81,10 @@ class SpeakingSubmissionService
         ]);
     }
 
-    public function uploadRecording(SpeakingSubmission $submission, array $data): SpeakingRecording
+    public function uploadRecording(array $data): SpeakingRecording
     {
+        $submission = SpeakingSubmission::findOrFail($data['submission_id']);
+        
         if ($submission->status !== 'in_progress') {
             throw new Exception('Cannot upload recording for submission that is not in progress');
         }
@@ -56,17 +93,45 @@ class SpeakingSubmissionService
             // Upload the audio file
             $audioFile = $data['audio_file'];
             $fileName = $this->generateFileName($submission, $data['question_id'], $audioFile);
-            $filePath = $audioFile->storeAs('speaking_recordings', $fileName, 'public');
+            $filePath = $audioFile->storeAs('speaking_recordings', $fileName, 'speaking_recordings');
 
-            // Create recording record
-            return SpeakingRecording::create([
+            // Get file info
+            $fileSize = $audioFile->getSize();
+            $duration = $data['duration_seconds'] ?? null;
+
+            // Create recording record first
+            $recording = SpeakingRecording::create([
                 'submission_id' => $submission->id,
                 'question_id' => $data['question_id'],
-                'audio_file_path' => $filePath,
-                'duration_seconds' => $data['duration_seconds'] ?? null,
-                'recording_started_at' => $data['recording_started_at'] ?? null,
-                'recording_ended_at' => $data['recording_ended_at'] ?? null,
+                'file_path' => $filePath,
+                'file_name' => $fileName,
+                'file_size' => $fileSize,
+                'duration_seconds' => $duration,
+                'speech_processed' => false,
             ]);
+
+            // Process speech-to-text asynchronously
+            try {
+                $speechData = $this->speechToTextService->processRecording($recording);
+                
+                $recording->update([
+                    'transcript' => $speechData['transcript'],
+                    'confidence_score' => $speechData['confidence_score'],
+                    'fluency_score' => $speechData['fluency_score'],
+                    'speaking_rate' => $speechData['speaking_rate'],
+                    'pause_analysis' => $speechData['pause_analysis'],
+                    'speech_processed' => true,
+                    'speech_processed_at' => now(),
+                ]);
+            } catch (Exception $e) {
+                Log::error('Speech processing failed for recording', [
+                    'recording_id' => $recording->id,
+                    'error' => $e->getMessage()
+                ]);
+                // Don't throw error, recording is still valid without speech processing
+            }
+
+            return $recording;
         });
     }
 
@@ -85,36 +150,56 @@ class SpeakingSubmissionService
         return $submission;
     }
 
-    public function reviewSubmission(SpeakingSubmission $submission, string $teacherId, array $data): SpeakingReview
+    public function reviewSubmission(SpeakingSubmission $submission, array $reviewData, string $teacherId): SpeakingReview
     {
         if ($submission->status !== 'submitted') {
-            throw new Exception('Cannot review submission that has not been submitted');
+            throw new Exception('Can only review submitted submissions');
         }
 
-        return DB::transaction(function () use ($submission, $teacherId, $data) {
+        return DB::transaction(function () use ($submission, $reviewData, $teacherId) {
             // Create or update review
             $review = SpeakingReview::updateOrCreate(
                 ['submission_id' => $submission->id],
                 [
                     'teacher_id' => $teacherId,
-                    'total_score' => $data['total_score'],
-                    'overall_feedback' => $data['overall_feedback'] ?? null,
-                    'question_scores' => $data['question_scores'] ?? null,
+                    'overall_score' => $reviewData['overall_score'],
+                    'pronunciation_score' => $reviewData['pronunciation_score'] ?? null,
+                    'fluency_score' => $reviewData['fluency_score'] ?? null,
+                    'grammar_score' => $reviewData['grammar_score'] ?? null,
+                    'vocabulary_score' => $reviewData['vocabulary_score'] ?? null,
+                    'content_score' => $reviewData['content_score'] ?? null,
+                    'feedback' => $reviewData['feedback'] ?? null,
+                    'detailed_comments' => $reviewData['detailed_comments'] ?? null,
+                    'strengths' => $reviewData['strengths'] ?? null,
+                    'areas_for_improvement' => $reviewData['areas_for_improvement'] ?? null,
                     'reviewed_at' => now(),
                 ]
             );
 
             // Update submission status
-            $submission->update(['status' => 'reviewed']);
+            $submission->update([
+                'status' => 'reviewed'
+            ]);
 
             return $review;
         });
     }
 
+    public function getSubmissionForReview(string $submissionId): SpeakingSubmission
+    {
+        return SpeakingSubmission::with([
+            'assignment.test',
+            'assignment.class',
+            'student:id,name,email',
+            'recordings.question',
+            'review'
+        ])->findOrFail($submissionId);
+    }
+
     public function getSubmissionWithDetails(string $submissionId): SpeakingSubmission
     {
         return SpeakingSubmission::with([
-            'test.speakingSections.topics.questions',
+            'assignment.test.sections.questions',
             'student:id,name,email',
             'recordings.question',
             'review.teacher:id,name'
@@ -125,8 +210,8 @@ class SpeakingSubmissionService
     {
         return DB::transaction(function () use ($recording) {
             // Delete file from storage
-            if ($recording->audio_file_path && Storage::disk('public')->exists($recording->audio_file_path)) {
-                Storage::disk('public')->delete($recording->audio_file_path);
+            if ($recording->file_path && Storage::disk('speaking_recordings')->exists($recording->file_path)) {
+                Storage::disk('speaking_recordings')->delete($recording->file_path);
             }
 
             return $recording->delete();
@@ -136,8 +221,8 @@ class SpeakingSubmissionService
     public function getStudentSubmissions(string $studentId, array $filters = []): Collection
     {
         return SpeakingSubmission::with([
-            'test:id,title,difficulty',
-            'review:id,submission_id,total_score'
+            'assignment.test:id,title,difficulty',
+            'review:id,submission_id,overall_score'
         ])
             ->where('student_id', $studentId)
             ->when($filters['status'] ?? null, fn($q, $status) => $q->where('status', $status))
