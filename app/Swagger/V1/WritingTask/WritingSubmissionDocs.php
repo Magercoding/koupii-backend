@@ -13,13 +13,7 @@ class WritingSubmissionDocs
      *     summary="Get submissions for a task",
      *     description="Retrieve all submissions for a specific writing task (Teacher view)",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+    
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -63,14 +57,7 @@ class WritingSubmissionDocs
      *     tags={"Writing Submissions"},
      *     summary="Submit student writing",
      *     description="Submit a writing assignment (Student only)",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string", example="Bearer your-token-here")
-     *     ),
+
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -128,13 +115,7 @@ class WritingSubmissionDocs
      *     summary="Save draft",
      *     description="Auto-save draft functionality (Student only)",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string", example="Bearer your-token-here")
-     *     ),
+
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -182,13 +163,7 @@ class WritingSubmissionDocs
      *     summary="Create retake submission",
      *     description="Create a retake submission with specified retake option",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string", example="Bearer your-token-here")
-     *     ),
+
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -286,13 +261,7 @@ class WritingSubmissionDocs
      *     summary="Get specific submission",
      *     description="Retrieve details of a specific submission",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string", example="Bearer your-token-here")
-     *     ),
+
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",

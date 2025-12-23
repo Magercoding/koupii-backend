@@ -6,6 +6,8 @@ use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvid
 use Illuminate\Support\Facades\Gate;
 use App\Models\ClassInvitation;
 use App\Policies\ClassInvitationPolicy;
+use App\Models\Test;
+use App\Policies\TestPolicy;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -16,6 +18,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected $policies = [
         ClassInvitation::class => ClassInvitationPolicy::class,
+        Test::class => TestPolicy::class,
     ];
 
     /**

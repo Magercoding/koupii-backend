@@ -11,16 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Listening test submissions by students
+        // Listening task submissions by students (following writing pattern)
         Schema::create('listening_submissions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('test_id');
+            $table->uuid('listening_task_id'); // Changed from test_id to listening_task_id
             $table->uuid('student_id');
+            $table->json('files')->nullable(); // Writing pattern: uploaded audio files or notes
+            $table->enum('status', ['to_do', 'submitted', 'reviewed', 'done'])->default('to_do'); // Writing pattern statuses
             $table->integer('attempt_number')->default(1);
-            $table->enum('status', ['in_progress', 'submitted', 'completed'])->default('in_progress');
-            $table->timestamp('started_at')->nullable();
-            $table->timestamp('submitted_at')->nullable();
             $table->integer('time_taken_seconds')->nullable();
+            $table->timestamp('submitted_at')->nullable();
+            $table->timestamp('started_at')->nullable();
             $table->decimal('total_score', 8, 2)->nullable();
             $table->decimal('percentage', 5, 2)->nullable();
             $table->integer('total_correct')->default(0);
@@ -29,28 +30,28 @@ return new class extends Migration
             $table->json('audio_play_counts')->nullable(); // Track how many times audio was played
             $table->timestamps();
 
-            $table->foreign('test_id')->references('id')->on('tests')->onDelete('cascade');
+            $table->foreign('listening_task_id')->references('id')->on('listening_tasks')->onDelete('cascade');
             $table->foreign('student_id')->references('id')->on('users')->onDelete('cascade');
-            $table->unique(['test_id', 'student_id', 'attempt_number']);
+            $table->unique(['listening_task_id', 'student_id', 'attempt_number'], 'listening_submission_unique');
         });
 
-        // Student answers for each listening question
+        // Student answers for each listening question (updated structure)
         Schema::create('listening_question_answers', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('submission_id');
-            $table->uuid('question_id');
-            $table->json('student_answer')->nullable(); // Store the actual answer
-            $table->json('correct_answer')->nullable(); // Store correct answer for comparison
-            $table->boolean('is_correct')->nullable();
-            $table->decimal('points_earned', 8, 2)->default(0);
+            $table->uuid('question_id'); // References listening_questions table
+            $table->json('answer'); // Student's answer(s) - simplified from student_answer
+            $table->boolean('is_correct')->default(false);
+            $table->integer('points_earned')->default(0);
             $table->integer('time_spent_seconds')->nullable();
             $table->integer('audio_play_count')->default(0); // How many times student played audio for this question
             $table->timestamps();
 
             $table->foreign('submission_id')->references('id')->on('listening_submissions')->onDelete('cascade');
-            $table->foreign('question_id')->references('id')->on('test_questions')->onDelete('cascade');
+            $table->foreign('question_id')->references('id')->on('listening_questions')->onDelete('cascade');
             $table->unique(['submission_id', 'question_id']);
         });
+           
 
         // Audio segments for listening explanations
         Schema::create('listening_audio_segments', function (Blueprint $table) {
@@ -63,7 +64,7 @@ return new class extends Migration
             $table->text('explanation')->nullable(); // Explanation for this audio segment
             $table->timestamps();
 
-            $table->foreign('question_id')->references('id')->on('test_questions')->onDelete('cascade');
+            $table->foreign('question_id')->references('id')->on('listening_questions')->onDelete('cascade');
         });
 
         // Student vocabulary discoveries from listening tests
@@ -77,7 +78,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('student_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('test_id')->references('id')->on('tests')->onDelete('cascade');
+            $table->foreign('test_id')->references('id')->on('listening_tasks')->onDelete('cascade');
             $table->foreign('vocabulary_id')->references('id')->on('vocabularies')->onDelete('cascade');
             $table->unique(['student_id', 'test_id', 'vocabulary_id'], 'listening_vocab_discovery_unique');
         });
@@ -95,8 +96,21 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('submission_id')->references('id')->on('listening_submissions')->onDelete('cascade');
-            $table->foreign('passage_id')->references('id')->on('passages')->nullOnDelete();
-            $table->foreign('question_id')->references('id')->on('test_questions')->nullOnDelete();
+        });
+
+        // Create listening reviews table (following writing pattern)
+        Schema::create('listening_reviews', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('submission_id');
+            $table->uuid('teacher_id')->nullable();
+            $table->integer('score')->nullable();
+            $table->text('comments')->nullable();
+            $table->json('feedback_json')->nullable(); // structured feedback for each question type
+            $table->timestamp('reviewed_at')->nullable();
+            $table->timestamps();
+
+            $table->foreign('submission_id')->references('id')->on('listening_submissions')->onDelete('cascade');
+            $table->foreign('teacher_id')->references('id')->on('users')->onDelete('set null');
         });
     }
 
@@ -105,9 +119,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('listening_audio_logs');
-        Schema::dropIfExists('listening_vocabulary_discoveries');
-        Schema::dropIfExists('listening_audio_segments');
+        Schema::dropIfExists('listening_reviews');
         Schema::dropIfExists('listening_question_answers');
         Schema::dropIfExists('listening_submissions');
     }

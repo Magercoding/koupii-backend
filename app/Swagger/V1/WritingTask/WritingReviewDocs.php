@@ -13,13 +13,7 @@ class WritingReviewDocs
      *     summary="Review a student submission",
      *     description="Provide feedback and score for a student's writing submission",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -103,13 +97,7 @@ class WritingReviewDocs
      *     summary="Get pending reviews",
      *     description="Retrieve submissions that need to be reviewed by the teacher",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+
      *     @OA\Response(
      *         response=200,
      *         description="Pending reviews retrieved successfully",
@@ -159,13 +147,7 @@ class WritingReviewDocs
      *     summary="Bulk review submissions",
      *     description="Review multiple submissions at once",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('speaking_recordings', function (Blueprint $table) {
             // Speech-to-text fields
-            $table->longText('transcript')->nullable()->after('file_size');
+            $table->longText('transcript')->nullable()->after('duration_seconds');
             $table->decimal('confidence_score', 5, 4)->nullable()->after('transcript');
             
             // Speech quality analysis

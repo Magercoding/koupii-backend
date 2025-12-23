@@ -13,13 +13,7 @@ class ReadingVocabularyDocs
      *     summary="Get discovered vocabularies",
      *     description="Retrieve vocabularies discovered from a completed reading test",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *  
      *     @OA\Parameter(
      *         name="submissionId",
      *         in="path",
@@ -69,13 +63,7 @@ class ReadingVocabularyDocs
      *     summary="Save vocabulary to personal bank",
      *     description="Save a discovered vocabulary word to the student's personal vocabulary bank",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *  
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -115,13 +103,7 @@ class ReadingVocabularyDocs
      *     summary="Get student's vocabulary bank",
      *     description="Retrieve the student's personal vocabulary bank with filtering options",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     * 
      *     @OA\Parameter(
      *         name="mastery_level",
      *         in="query",
@@ -194,13 +176,7 @@ class ReadingVocabularyDocs
      *     summary="Practice vocabulary",
      *     description="Record a vocabulary practice session",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     * 
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
