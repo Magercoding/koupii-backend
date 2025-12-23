@@ -17,6 +17,23 @@ class ClassRequest extends BaseRequest
         return true ; 
     }
 
+    protected function prepareForValidation()
+    {
+        // Convert string boolean values to actual boolean for proper validation
+        if ($this->has('is_active')) {
+            $isActive = $this->input('is_active');
+            
+            // Handle various boolean representations
+            if (is_string($isActive)) {
+                $isActive = filter_var($isActive, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            }
+            
+            $this->merge([
+                'is_active' => $isActive
+            ]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -34,7 +51,7 @@ class ClassRequest extends BaseRequest
 
             'cover_image' => 'nullable|file|mimetypes:image/jpeg,image/png,image/jpg|max:10240',
 
-            'is_active'   => 'boolean',
+            'is_active'   => 'nullable|boolean',
         ];
     }
     public function messages(): array
@@ -44,6 +61,7 @@ class ClassRequest extends BaseRequest
             'class_code.unique' => 'Class code already exists.',
             'cover_image.mimetypes' => 'Cover must be an image (jpg, png).',
             'cover_image.max' => 'Cover max size is 10MB.',
+            'is_active.boolean' => 'The is active field must be true or false.',
         ];
     }
 }

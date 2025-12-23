@@ -10,23 +10,9 @@ use OpenApi\Annotations as OA;
  *     summary="Change user password",
  *     description="Change the authenticated user's password. Requires the current password and a new one. CSRF protection via XSRF-TOKEN and Referer header.",
  *     operationId="changeUserPassword",
- *     security={{"sanctum":{}}},
+ *     security={{"bearerAuth":{}}},
  *
- *     @OA\Parameter(
- *         name="X-XSRF-TOKEN",
- *         in="header",
- *         required=false,
- *         description="CSRF token for session-based auth (Sanctum)",
- *         @OA\Schema(type="string")
- *     ),
- *     @OA\Parameter(
- *         name="Referer",
- *         in="header",
- *         required=false,
- *         description="Referring URL Frontend for CSRF protection",
- *         @OA\Schema(type="string", example="http://localhost:3000")
- *     ),
- *
+*
  *     @OA\RequestBody(
  *         required=true,
  *         @OA\JsonContent(
@@ -73,3 +59,4 @@ use OpenApi\Annotations as OA;
 class ChangePasswordDocs
 {
 }
+

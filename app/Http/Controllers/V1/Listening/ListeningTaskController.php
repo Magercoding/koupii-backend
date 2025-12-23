@@ -3,155 +3,180 @@
 namespace App\Http\Controllers\V1\Listening;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\V1\Listening\CreateListeningTaskRequest;
+use App\Http\Requests\V1\Listening\StoreListeningTaskRequest;
 use App\Http\Requests\V1\Listening\UpdateListeningTaskRequest;
 use App\Http\Resources\V1\Listening\ListeningTaskResource;
-use App\Http\Resources\V1\Listening\ListeningTaskCollectionResource;
 use App\Models\ListeningTask;
-use App\Models\Test;
 use App\Services\V1\Listening\ListeningTaskService;
-use Illuminate\Http\JsonResponse;
+use App\Services\V1\Listening\ListeningTaskDeleteService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
-class ListeningTaskController extends Controller
+class ListeningTaskController extends Controller implements HasMiddleware 
 {
-    public function __construct(
-        private ListeningTaskService $listeningTaskService
-    ) {}
-
-    /**
-     * Display a listing of listening tasks
-     */
-    public function index(Request $request): JsonResponse
+    public static function middleware(): array
     {
-        try {
-            $filters = [
-                'test_id' => $request->get('test_id'),
-                'task_type' => $request->get('task_type'),
-                'difficulty_level' => $request->get('difficulty_level'),
-                'search' => $request->get('search'),
-                'per_page' => $request->get('per_page', 10)
-            ];
-
-            $tasks = $this->listeningTaskService->getListeningTasks($filters);
-
-            return response()->json([
-                'status' => 'success',
-                'data' => new ListeningTaskCollectionResource($tasks),
-                'message' => 'Listening tasks retrieved successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to retrieve listening tasks: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return [
+            new Middleware('auth:sanctum'),
+        ];
     }
 
     /**
-     * Store a newly created listening task
+     * Display a listing of listening tasks.
      */
-    public function store(CreateListeningTaskRequest $request): JsonResponse
+    public function index(Request $request)
+    {
+        $user = $request->user();
+
+        $query = ListeningTask::with(['creator', 'assignments.classroom']);
+
+        // Role-based access control
+        if ($user->role === 'admin') {
+            // Admin sees all tasks
+        } elseif ($user->role === 'student') {
+            // Students see only published tasks assigned to their classrooms
+            $query->where('is_published', true)
+                ->whereHas('assignments.classroom.students', function ($q) use ($user) {
+                    $q->where('student_id', $user->id);
+                })
+                ->with([
+                    'submissions' => function ($q) use ($user) {
+                        $q->where('student_id', $user->id);
+                    }
+                ]);
+        } else {
+            // Teachers see only their own tasks
+            $query->where('creator_id', $user->id)
+                ->with(['submissions.review', 'assignments']);
+        }
+
+        $tasks = $query->orderBy('created_at', 'desc')->get();
+
+        return response()->json([
+            'message' => 'Listening tasks retrieved successfully',
+            'data' => ListeningTaskResource::collection($tasks),
+        ], 200);
+    }
+
+    /**
+     * Store a newly created listening task.
+     */
+    public function store(StoreListeningTaskRequest $request, ListeningTaskService $service)
     {
         try {
-            $taskData = $request->validated();
-            $task = $this->listeningTaskService->createListeningTask($taskData);
+            $task = $service->create($request->validated(), $request);
 
             return response()->json([
-                'status' => 'success',
+                'message' => 'Listening task created successfully',
                 'data' => new ListeningTaskResource($task),
-                'message' => 'Listening task created successfully'
-            ], Response::HTTP_CREATED);
+            ], 201);
         } catch (\Exception $e) {
             return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to create listening task: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+                'message' => 'Failed to create listening task',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 
     /**
-     * Display the specified listening task
+     * Display the specified listening task.
      */
-    public function show(ListeningTask $listeningTask): JsonResponse
+    public function show(Request $request, string $id)
     {
+        $user = $request->user();
+
+        $query = ListeningTask::with([
+            'creator',
+            'assignments.classroom',
+            'submissions.student',
+            'submissions.review'
+        ])->where('id', $id);
+
+        // Role-based access control
+        if ($user->role === 'student') {
+            $query->where('is_published', true)
+                ->whereHas('assignments.classroom.students', function ($q) use ($user) {
+                    $q->where('student_id', $user->id);
+                });
+        } elseif ($user->role !== 'admin') {
+            $query->where('creator_id', $user->id);
+        }
+
+        $task = $query->first();
+
+        if (!$task) {
+            return response()->json([
+                'message' => 'Task not found or unauthorized access',
+            ], 404);
+        }
+
+        return response()->json([
+            'message' => 'Listening task retrieved successfully',
+            'data' => new ListeningTaskResource($task),
+        ], 200);
+    }
+
+    /**
+     * Update the specified listening task.
+     */
+    public function update(UpdateListeningTaskRequest $request, string $id)
+    {
+        $task = ListeningTask::findOrFail($id);
+
+        // Check authorization
+        if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         try {
-            $task = $this->listeningTaskService->getListeningTaskDetails($listeningTask);
+            DB::beginTransaction();
+
+            $updatedTask = (new ListeningTaskService())->updateTask($task, $request->validated(), $request);
+
+            DB::commit();
 
             return response()->json([
-                'status' => 'success',
-                'data' => new ListeningTaskResource($task),
-                'message' => 'Listening task retrieved successfully'
-            ]);
+                'message' => 'Listening task updated successfully',
+                'data' => new ListeningTaskResource($updatedTask),
+            ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to retrieve listening task: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+                'message' => 'Update failed',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 
     /**
-     * Update the specified listening task
+     * Remove the specified listening task.
      */
-    public function update(UpdateListeningTaskRequest $request, ListeningTask $listeningTask): JsonResponse
+    public function destroy(string $id)
     {
-        try {
-            $taskData = $request->validated();
-            $task = $this->listeningTaskService->updateListeningTask($listeningTask, $taskData);
+        $task = ListeningTask::findOrFail($id);
 
-            return response()->json([
-                'status' => 'success',
-                'data' => new ListeningTaskResource($task),
-                'message' => 'Listening task updated successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to update listening task: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        // Check authorization
+        if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
         }
-    }
 
-    /**
-     * Remove the specified listening task
-     */
-    public function destroy(ListeningTask $listeningTask): JsonResponse
-    {
         try {
-            $this->listeningTaskService->deleteListeningTask($listeningTask);
+            $service = new ListeningTaskDeleteService();
+            $response = $service->deleteTask($id);
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Listening task deleted successfully'
-            ]);
+            return response()->json(
+                ['message' => $response['message'] ?? $response['error']],
+                $response['status']
+            );
         } catch (\Exception $e) {
             return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to delete listening task: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    /**
-     * Get listening tasks for a specific test
-     */
-    public function getByTest(Test $test): JsonResponse
-    {
-        try {
-            $tasks = $this->listeningTaskService->getTasksByTest($test);
-
-            return response()->json([
-                'status' => 'success',
-                'data' => ListeningTaskResource::collection($tasks),
-                'message' => 'Test listening tasks retrieved successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to retrieve test listening tasks: ' . $e->getMessage()
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+                'message' => 'Failed to delete task',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 }

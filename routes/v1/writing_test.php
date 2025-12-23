@@ -22,4 +22,5 @@ use Illuminate\Support\Facades\Route;
         Route::get('/{id}', [WritingTestController::class, 'show'])->name('show');
         Route::put('/{id}', [WritingTestController::class, 'update'])->name('update');
         Route::delete('/{id}', [WritingTestController::class, 'destroy'])->name('destroy');
+        Route::patch('/{id}/toggle-publish', [WritingTestController::class, 'togglePublish'])->name('toggle-publish');
     });

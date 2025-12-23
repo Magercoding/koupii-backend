@@ -12,19 +12,13 @@ class WritingDashboardDocs
      *     tags={"Writing Dashboard"},
      *     summary="Get student dashboard",
      *     description="Retrieve dashboard data for students",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+     *     
      *     @OA\Response(
-         response=200,
-         description="Student dashboard retrieved successfully",
-         @OA\JsonContent(
-             @OA\Property(property="message", type="string", example="Student dashboard retrieved successfully"),
+     * response=200,
+     * description="Student dashboard retrieved successfully",
+     *@OA\JsonContent(
+     *    @OA\Property(property="message", type="string", example="Student dashboard retrieved successfully"),
      *             @OA\Property(
      *                 property="data",
      *                 type="array",
@@ -55,14 +49,8 @@ class WritingDashboardDocs
      *     tags={"Writing Dashboard"},
      *     summary="Get teacher dashboard",
      *     description="Retrieve dashboard data for teachers",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+
      *     @OA\Response(
      *         response=200,
      *         description="Teacher dashboard retrieved successfully",
@@ -96,14 +84,8 @@ class WritingDashboardDocs
      *     tags={"Writing Dashboard"},
      *     summary="Get admin dashboard",
      *     description="Retrieve dashboard data for admins",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+
      *     @OA\Response(
      *         response=200,
      *         description="Admin dashboard retrieved successfully",
@@ -133,3 +115,4 @@ class WritingDashboardDocs
     {
     }
 }
+

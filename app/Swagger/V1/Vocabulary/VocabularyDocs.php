@@ -11,22 +11,8 @@ class VocabularyDocs
      *     tags={"Vocabulary"},
      *     summary="Get all vocabularies",
      *     description="Returns a list of all vocabulary entries.",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Response(
+     *     security={{"bearerAuth":{}}},
+*     @OA\Response(
      *         response=200,
      *         description="List of vocabulary entries",
      *         @OA\JsonContent(
@@ -73,22 +59,8 @@ class VocabularyDocs
      *     tags={"Vocabulary"},
      *     summary="Create a new vocabulary entry",
      *     description="Adds a new vocabulary entry to the system.",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\RequestBody(
+     *     security={{"bearerAuth":{}}},
+*     @OA\RequestBody(
      *         required=true,
      *         @OA\MediaType(
      *             mediaType="multipart/form-data",
@@ -138,7 +110,7 @@ class VocabularyDocs
      *     tags={"Vocabulary"},
      *     summary="Get a specific vocabulary entry",
      *     description="Retrieve details of a vocabulary entry by its ID.",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -146,21 +118,7 @@ class VocabularyDocs
      *         description="UUID of the vocabulary",
      *         @OA\Schema(type="string", example="uuid-string")
      *     ),
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Response(
+*     @OA\Response(
      *         response=200,
      *         description="Vocabulary retrieved successfully",
      *         @OA\JsonContent(
@@ -191,7 +149,7 @@ class VocabularyDocs
      *     tags={"Vocabulary"},
      *     summary="Update a vocabulary entry",
      *     description="Updates an existing vocabulary entry.",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -199,21 +157,7 @@ class VocabularyDocs
      *         description="UUID of the vocabulary",
      *         @OA\Schema(type="string", example="uuid-string")
      *     ),
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Parameter(
+*     @OA\Parameter(
      *         name="_method",
      *         in="query",
      *         required=true,
@@ -271,7 +215,7 @@ class VocabularyDocs
      *     tags={"Vocabulary"},
      *     summary="Delete a vocabulary entry",
      *     description="Deletes a vocabulary entry by its UUID.",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -279,21 +223,7 @@ class VocabularyDocs
      *         description="UUID of the vocabulary",
      *         @OA\Schema(type="string", example="uuid-string")
      *     ),
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Response(
+*     @OA\Response(
      *         response=200,
      *         description="Vocabulary deleted successfully",
      *         @OA\JsonContent(
@@ -314,7 +244,7 @@ class VocabularyDocs
      *     tags={"Vocabulary"},
      *     summary="Toggle vocabulary bookmark",
      *     description="Toggle the bookmark status of a vocabulary entry for the authenticated user.",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -322,21 +252,7 @@ class VocabularyDocs
      *         description="ID of the vocabulary",
      *         @OA\Schema(type="string", example="123")
      *     ),
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Response(
+*     @OA\Response(
      *         response=200,
      *         description="Bookmark toggled successfully",
      *         @OA\JsonContent(
@@ -357,3 +273,4 @@ class VocabularyDocs
       
     }
 }
+

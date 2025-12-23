@@ -73,6 +73,48 @@ class ClassInvitationService
     }
 
     /**
+     * Update invitation details (e.g., change email if wrong person was invited).
+     */
+    public function updateInvitation(ClassInvitation $invitation, array $data): ClassInvitation
+    {
+        // If email is being changed, find the new student
+        if (isset($data['email']) && $data['email'] !== $invitation->email) {
+            $student = User::where('email', $data['email'])
+                ->where('role', 'student')
+                ->firstOrFail();
+
+            // Check if student is already enrolled
+            if (
+                ClassEnrollment::where('class_id', $invitation->class_id)
+                    ->where('student_id', $student->id)
+                    ->exists()
+            ) {
+                throw new \Exception("Student already enrolled in this class", 409);
+            }
+
+            // Check if there's already an invitation for this student
+            if (
+                ClassInvitation::where('class_id', $invitation->class_id)
+                    ->where('student_id', $student->id)
+                    ->where('id', '!=', $invitation->id) // Exclude current invitation
+                    ->exists()
+            ) {
+                throw new \Exception("Invitation already sent to this student", 409);
+            }
+
+            $invitation->update([
+                'student_id' => $student->id,
+                'email' => $student->email,
+                'invitation_token' => Str::random(32), // Generate new token
+                'expires_at' => now()->addDay(), // Reset expiry
+                'status' => 'pending', // Reset status
+            ]);
+        }
+
+        return $invitation;
+    }
+
+    /**
      * Delete an invitation.
      */
     public function delete(ClassInvitation $invitation): bool

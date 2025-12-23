@@ -5,104 +5,230 @@ namespace App\Http\Controllers\V1\SpeakingTask;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\SpeakingTask\StoreSpeakingTaskRequest;
 use App\Http\Requests\V1\SpeakingTask\UpdateSpeakingTaskRequest;
-use App\Http\Requests\V1\SpeakingTask\AssignSpeakingTaskRequest;
 use App\Http\Resources\V1\SpeakingTask\SpeakingTaskResource;
 use App\Http\Resources\V1\SpeakingTask\SpeakingTaskCollection;
-use App\Services\V1\SpeakingTask\SpeakingTaskService;
 use App\Models\Test;
+use App\Services\V1\SpeakingTask\SpeakingTaskService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Http\Response;
 
 class SpeakingTaskController extends Controller
 {
     public function __construct(
         private SpeakingTaskService $speakingTaskService
-    ) {
-    }
+    ) {}
 
+    /**
+     * Display a listing of speaking tasks
+     */
     public function index(Request $request): JsonResponse
     {
-        $tests = $this->speakingTaskService->getTeacherSpeakingTasks(
-            auth()->id(),
-            $request->all()
-        );
+        try {
+            $filters = [
+                'difficulty' => $request->get('difficulty'),
+                'is_published' => $request->get('is_published'),
+                'search' => $request->get('search'),
+                'per_page' => $request->get('per_page', 15)
+            ];
 
-        return response()->json([
-            'success' => true,
-            'data' => new SpeakingTaskCollection($tests)
-        ]);
+            $tasks = $this->speakingTaskService->getSpeakingTasks($filters);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => new SpeakingTaskCollection($tasks),
+                'message' => 'Speaking tasks retrieved successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve speaking tasks: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
+    /**
+     * Store a newly created speaking task
+     */
     public function store(StoreSpeakingTaskRequest $request): JsonResponse
     {
-        $test = $this->speakingTaskService->createSpeakingTask($request->validated());
+        try {
+            $taskData = $request->validated();
+            $task = $this->speakingTaskService->createSpeakingTask($taskData);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Speaking task created successfully',
-            'data' => new SpeakingTaskResource($test)
-        ], 201);
+            return response()->json([
+                'status' => 'success',
+                'data' => new SpeakingTaskResource($task),
+                'message' => 'Speaking task created successfully'
+            ], Response::HTTP_CREATED);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to create speaking task: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function show(Test $test): JsonResponse
+    /**
+     * Display the specified speaking task
+     */
+    public function show(Test $speakingTask): JsonResponse
     {
-        Gate::authorize('view', $test);
+        try {
+            $task = $this->speakingTaskService->getSpeakingTaskDetails($speakingTask);
 
-        $test = $this->speakingTaskService->getSpeakingTaskWithDetails($test->id);
-
-        return response()->json([
-            'success' => true,
-            'data' => new SpeakingTaskResource($test)
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'data' => new SpeakingTaskResource($task),
+                'message' => 'Speaking task retrieved successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve speaking task: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function update(UpdateSpeakingTaskRequest $request, Test $test): JsonResponse
+    /**
+     * Update the specified speaking task
+     */
+    public function update(UpdateSpeakingTaskRequest $request, Test $speakingTask): JsonResponse
     {
-        Gate::authorize('update', $test);
+        try {
+            $taskData = $request->validated();
+            $task = $this->speakingTaskService->updateSpeakingTask($speakingTask, $taskData);
 
-        $test = $this->speakingTaskService->updateSpeakingTask($test, $request->validated());
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Speaking task updated successfully',
-            'data' => new SpeakingTaskResource($test)
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'data' => new SpeakingTaskResource($task),
+                'message' => 'Speaking task updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to update speaking task: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function destroy(Test $test): JsonResponse
+    /**
+     * Remove the specified speaking task
+     */
+    public function destroy(Test $speakingTask): JsonResponse
     {
-        Gate::authorize('delete', $test);
+        try {
+            $this->speakingTaskService->deleteSpeakingTask($speakingTask);
 
-        $this->speakingTaskService->deleteSpeakingTask($test);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Speaking task deleted successfully'
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Speaking task deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to delete speaking task: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function assign(AssignSpeakingTaskRequest $request, Test $test): JsonResponse
+    /**
+     * Duplicate a speaking task
+     */
+    public function duplicate(Request $request, Test $speakingTask): JsonResponse
     {
-        Gate::authorize('update', $test);
+        try {
+            $duplicateData = $request->validate([
+                'title' => 'nullable|string|max:255',
+                'description' => 'nullable|string|max:1000',
+            ]);
 
-        $this->speakingTaskService->assignToClasses($test, $request->validated());
+            $duplicatedTask = $this->speakingTaskService->duplicateSpeakingTask($speakingTask, $duplicateData);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Speaking task assigned successfully'
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'data' => new SpeakingTaskResource($duplicatedTask),
+                'message' => 'Speaking task duplicated successfully'
+            ], Response::HTTP_CREATED);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to duplicate speaking task: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public function sendOut(Test $test): JsonResponse
+    /**
+     * Publish a speaking task
+     */
+    public function publish(Test $speakingTask): JsonResponse
     {
-        Gate::authorize('update', $test);
+        try {
+            $publishedTask = $this->speakingTaskService->publishSpeakingTask($speakingTask);
 
-        $this->speakingTaskService->publishTask($test);
+            return response()->json([
+                'status' => 'success',
+                'data' => new SpeakingTaskResource($publishedTask),
+                'message' => 'Speaking task published successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to publish speaking task: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Speaking task sent out successfully'
-        ]);
+    /**
+     * Unpublish a speaking task
+     */
+    public function unpublish(Test $speakingTask): JsonResponse
+    {
+        try {
+            $unpublishedTask = $this->speakingTaskService->unpublishSpeakingTask($speakingTask);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => new SpeakingTaskResource($unpublishedTask),
+                'message' => 'Speaking task unpublished successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to unpublish speaking task: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Assign a speaking task to students/classes
+     */
+    public function assign(Request $request, Test $speakingTask): JsonResponse
+    {
+        try {
+            $assignmentData = $request->validate([
+                'assignment_type' => 'required|string|in:class,individual',
+                'class_ids' => 'nullable|array',
+                'class_ids.*' => 'uuid|exists:classes,id',
+                'student_ids' => 'nullable|array',
+                'student_ids.*' => 'uuid|exists:users,id',
+                'due_date' => 'nullable|date|after:now',
+                'allow_retake' => 'boolean',
+                'max_attempts' => 'nullable|integer|min:1|max:5',
+            ]);
+
+            $assignmentResult = $this->speakingTaskService->assignSpeakingTask($speakingTask, $assignmentData);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $assignmentResult,
+                'message' => 'Speaking task assigned successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to assign speaking task: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }

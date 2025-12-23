@@ -62,8 +62,6 @@ class ClassController extends Controller
             return response()->json(['message' => 'Class not found'], 404);
         }
 
-        Gate::authorize('view', $class);
-
         return new ClassResource($class);
     }
 

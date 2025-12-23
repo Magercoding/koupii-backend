@@ -12,14 +12,8 @@ class ReadingVocabularyDocs
      *     tags={"Reading Vocabulary"},
      *     summary="Get discovered vocabularies",
      *     description="Retrieve vocabularies discovered from a completed reading test",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+     *  
      *     @OA\Parameter(
      *         name="submissionId",
      *         in="path",
@@ -68,14 +62,8 @@ class ReadingVocabularyDocs
      *     tags={"Reading Vocabulary"},
      *     summary="Save vocabulary to personal bank",
      *     description="Save a discovered vocabulary word to the student's personal vocabulary bank",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+     *  
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -114,14 +102,8 @@ class ReadingVocabularyDocs
      *     tags={"Reading Vocabulary"},
      *     summary="Get student's vocabulary bank",
      *     description="Retrieve the student's personal vocabulary bank with filtering options",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+     * 
      *     @OA\Parameter(
      *         name="mastery_level",
      *         in="query",
@@ -193,14 +175,8 @@ class ReadingVocabularyDocs
      *     tags={"Reading Vocabulary"},
      *     summary="Practice vocabulary",
      *     description="Record a vocabulary practice session",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+     * 
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -223,3 +199,4 @@ class ReadingVocabularyDocs
     {
     }
 }
+

@@ -22,37 +22,100 @@ class ClassInvitationController extends Controller
         return ClassInvitationResource::collection($invitations);
     }
 
+    /**
+     * Teacher/Admin: Create a new invitation
+     */
     public function store(ClassInvitationRequest $request, ClassInvitationService $service)
     {
         Gate::authorize('create', ClassInvitation::class);
 
-
         $invitation = $service->create($request->validated(), auth()->user());
         
-        return response()->json(['message' => 'Invitation sent', 'data' => new ClassInvitationResource($invitation)], 201);
-
+        return response()->json([
+            'message' => 'Invitation sent successfully',
+            'data' => new ClassInvitationResource($invitation)
+        ], 201);
     }
 
-    public function update(ClassInvitationRequest $request, ClassInvitation $id, ClassInvitationService $service)
+    /**
+     * Student: Accept an invitation
+     */
+    public function accept($id, ClassInvitationService $service)
     {
-        Gate::authorize('update', $id);
+        $invitation = ClassInvitation::findOrFail($id);
+        Gate::authorize('update', $invitation);
+        
+        $user = auth()->user();
+        
+        // Only students can accept invitations and only their own
+        if ($user->role !== 'student' || $invitation->student_id !== $user->id) {
+            return response()->json(['message' => 'You can only accept your own invitations'], 403);
+        }
 
-        $updated = $service->updateStatus($id, $request->status);
+        $updated = $service->updateStatus($invitation, 'accepted');
 
         return response()->json([
-            'message' => 'Invitation updated',
+            'message' => 'Invitation accepted successfully',
             'data' => new ClassInvitationResource($updated)
         ]);
     }
 
-    public function destroy(ClassInvitation $id, ClassInvitationService $service)
+    /**
+     * Student: Decline an invitation
+     */
+    public function decline($id, ClassInvitationService $service)
     {
-        Gate::authorize('delete', $id);
+        $invitation = ClassInvitation::findOrFail($id);
+        Gate::authorize('update', $invitation);
+        
+        $user = auth()->user();
+        
+        // Only students can decline invitations and only their own
+        if ($user->role !== 'student' || $invitation->student_id !== $user->id) {
+            return response()->json(['message' => 'You can only decline your own invitations'], 403);
+        }
 
-        $service->delete($id);
+        $updated = $service->updateStatus($invitation, 'declined');
 
-        return response()->json(['message' => 'Invitation deleted'], 200);
+        return response()->json([
+            'message' => 'Invitation declined successfully',
+            'data' => new ClassInvitationResource($updated)
+        ]);
     }
 
+    /**
+     * Teacher/Admin: Update invitation (e.g., change email if wrong person was invited)
+     */
+    public function update(ClassInvitationRequest $request, $id, ClassInvitationService $service)
+    {
+        $invitation = ClassInvitation::findOrFail($id);
+        Gate::authorize('update', $invitation);
+        
+        $user = auth()->user();
+        
+        // Only admin or the teacher who owns the class can update invitation details
+        if (!($user->role === 'admin' || ($user->role === 'teacher' && $invitation->class->teacher_id === $user->id))) {
+            return response()->json(['message' => 'You can only update invitations for your own classes'], 403);
+        }
 
+        $updated = $service->updateInvitation($invitation, $request->validated());
+
+        return response()->json([
+            'message' => 'Invitation updated successfully',
+            'data' => new ClassInvitationResource($updated)
+        ]);
+    }
+
+    /**
+     * Teacher/Admin: Delete an invitation
+     */
+    public function destroy($id, ClassInvitationService $service)
+    {
+        $invitation = ClassInvitation::findOrFail($id);
+        Gate::authorize('delete', $invitation);
+
+        $service->delete($invitation);
+
+        return response()->json(['message' => 'Invitation deleted successfully'], 200);
+    }
 }

@@ -23,10 +23,8 @@ class ClassEnrollmentRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            [
-                'status' => 'sometimes|in:active,inactive,pending',
-                'enrolled_at' => 'nullable|date',
-            ],
+            'status' => 'sometimes|in:active,inactive,pending',
+            'enrolled_at' => 'nullable|date',
         ];
     }
 

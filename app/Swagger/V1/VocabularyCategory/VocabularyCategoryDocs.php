@@ -11,22 +11,8 @@ class VocabularyCategoryDocs
      *     tags={"Vocabulary Categories"},
      *     summary="Get all vocabulary categories",
      *     description="Returns a list of all vocabulary categories.",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Response(
+     *     security={{"bearerAuth":{}}},
+*     @OA\Response(
      *         response=200,
      *         description="List of vocabulary categories",
      *         @OA\JsonContent(
@@ -52,22 +38,8 @@ class VocabularyCategoryDocs
      *     tags={"Vocabulary Categories"},
      *     summary="Create a new vocabulary category",
      *     description="Adds a new vocabulary category. Requires authentication.",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\RequestBody(
+     *     security={{"bearerAuth":{}}},
+*     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
      *             required={"name"},
@@ -104,7 +76,7 @@ class VocabularyCategoryDocs
      *     tags={"Vocabulary Categories"},
      *     summary="Get a specific vocabulary category",
      *     description="Retrieve details of a specific category by its ID.",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -112,21 +84,7 @@ class VocabularyCategoryDocs
      *         description="UUID of the category",
      *         @OA\Schema(type="string", example="uuid-string")
      *     ),
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Response(
+*     @OA\Response(
      *         response=200,
      *         description="Category retrieved successfully",
      *         @OA\JsonContent(
@@ -151,7 +109,7 @@ class VocabularyCategoryDocs
      *     tags={"Vocabulary Categories"},
      *     summary="Update an existing vocabulary category",
      *     description="Update a vocabulary category's name or description.",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -159,21 +117,7 @@ class VocabularyCategoryDocs
      *         description="UUID of the category",
      *         @OA\Schema(type="string", example="uuid-string")
      *     ),
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\RequestBody(
+*     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
      *             required={"name"},
@@ -211,7 +155,7 @@ class VocabularyCategoryDocs
      *     tags={"Vocabulary Categories"},
      *     summary="Delete a vocabulary category",
      *     description="Delete a category by its UUID.",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -219,21 +163,7 @@ class VocabularyCategoryDocs
      *         description="UUID of the category",
      *         @OA\Schema(type="string", example="uuid-string")
      *     ),
-     *     @OA\Parameter(
-     *         name="X-XSRF-TOKEN",
-     *         in="header",
-     *         required=false,
-     *         description="CSRF token for session-based auth (Sanctum)",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="Referer",
-     *         in="header",
-     *         required=false,
-     *         description="Referring URL Frontend for CSRF protection",
-     *         @OA\Schema(type="string", example="http://localhost:3000")
-     *     ),
-     *     @OA\Response(
+*     @OA\Response(
      *         response=200,
      *         description="Category deleted successfully",
      *         @OA\JsonContent(
@@ -248,3 +178,4 @@ class VocabularyCategoryDocs
 
     }
 }
+

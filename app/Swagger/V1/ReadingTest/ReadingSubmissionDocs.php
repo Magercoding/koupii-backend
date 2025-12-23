@@ -8,131 +8,118 @@ class ReadingSubmissionDocs
 {
     /**
      * @OA\Get(
-     *     path="/api/v1/reading/submissions",
+     *     path="/api/v1/reading-tasks/{taskId}/submissions",
      *     tags={"Reading Submissions"},
-     *     summary="Get student's reading test submissions",
-     *     description="Retrieve all reading test submissions for the authenticated student",
-     *     security={{"sanctum":{}}},
+     *     summary="Get submissions for a reading task",
+     *     description="Retrieve all submissions for a specific reading task (Teacher view)",
+     *     security={{"bearerAuth":{}}},
+     *     
      *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
+     *         name="taskId",
+     *         in="path",
      *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="status",
-     *         in="query",
-     *         description="Filter by submission status",
-     *         @OA\Schema(type="string", enum={"in_progress", "submitted", "completed"})
-     *     ),
-     *     @OA\Parameter(
-     *         name="per_page",
-     *         in="query",
-     *         description="Number of items per page",
-     *         @OA\Schema(type="integer", default=15)
+     *         description="Task ID",
+     *         @OA\Schema(type="string", format="uuid")
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Reading submissions retrieved successfully",
+     *         description="Submissions retrieved successfully",
      *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Reading assignments retrieved successfully"),
+     *             @OA\Property(property="message", type="string", example="Reading submissions retrieved successfully"),
      *             @OA\Property(
      *                 property="data",
      *                 type="array",
      *                 @OA\Items(
+     *                     type="object",
      *                     @OA\Property(property="id", type="string", format="uuid"),
-     *                     @OA\Property(property="test_id", type="string", format="uuid"),
+     *                     @OA\Property(property="task_id", type="string", format="uuid"),
+     *                     @OA\Property(property="student_id", type="string", format="uuid"),
+     *                     @OA\Property(property="student_name", type="string"),
+     *                     @OA\Property(property="status", type="string", enum={"to_do", "in_progress", "submitted", "reviewed"}),
+     *                     @OA\Property(property="score", type="integer", nullable=true),
+     *                     @OA\Property(property="total_score", type="integer"),
+     *                     @OA\Property(property="percentage", type="number", format="float", nullable=true),
      *                     @OA\Property(property="attempt_number", type="integer"),
-     *                     @OA\Property(property="status", type="string", enum={"in_progress", "submitted", "completed"}),
-     *                     @OA\Property(property="total_score", type="number", format="float"),
-     *                     @OA\Property(property="percentage", type="number", format="float"),
-     *                     @OA\Property(property="grade", type="string"),
-     *                     @OA\Property(property="can_retake", type="boolean"),
-     *                     @OA\Property(property="started_at", type="string", format="date-time"),
-     *                     @OA\Property(property="submitted_at", type="string", format="date-time", nullable=true)
+     *                     @OA\Property(property="time_taken_seconds", type="integer", nullable=true),
+     *                     @OA\Property(property="submitted_at", type="string", format="date-time", nullable=true),
+     *                     @OA\Property(property="created_at", type="string", format="date-time")
      *                 )
      *             )
      *         )
      *     ),
-     *     @OA\Response(response=401, description="Unauthorized"),
-     *     @OA\Response(response=500, description="Server error")
+     *     @OA\Response(response=403, description="Forbidden")
      * )
      */
-    public function index()
-    {
-    }
+    public function index() {}
 
     /**
      * @OA\Post(
-     *     path="/api/v1/reading/tests/{testId}/start",
+     *     path="/api/v1/reading-tasks/{taskId}/submissions",
      *     tags={"Reading Submissions"},
-     *     summary="Start a new reading test attempt",
-     *     description="Begin a new reading test attempt for the authenticated student",
-     *     security={{"sanctum":{}}},
+     *     summary="Submit reading test answers",
+     *     description="Submit answers for a reading test (Student only) - Supports all 15 Question Types",
+     *     security={{"bearerAuth":{}}},
+     *    
      *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="testId",
+     *         name="taskId",
      *         in="path",
      *         required=true,
-     *         description="Test ID",
+     *         description="Reading Task ID",
      *         @OA\Schema(type="string", format="uuid")
      *     ),
      *     @OA\RequestBody(
-     *         required=false,
+     *         required=true,
+     *         description="Reading test answers for 15 Question Types: QT1-Multiple Choice, QT2-Multiple Answer, QT3-True/False/Not Given, QT4-Matching Heading, QT5-Sentence Completion, QT6-Paragraph/Summary Completion, QT7-Yes/No/Not Given, QT8-Matching Information, QT9-Matching Features, QT10-Matching Sentence Ending, QT11-Note Completion, QT12-Table Completion, QT13-Flowchart Completion, QT14-Diagram Label Completion, QT15-Short Answer Question",
      *         @OA\JsonContent(
-     *             @OA\Property(property="attempt_number", type="integer", minimum=1, maximum=10, description="Attempt number")
+     *             @OA\Property(
+     *                 property="answers",
+     *                 type="array",
+     *                 description="Array of answers for each question",
+     *                 @OA\Items(
+     *                     type="object",
+     *                     @OA\Property(property="question_id", type="string", format="uuid"),
+     *                     @OA\Property(property="answer", type="string", description="Student's answer"),
+     *                     @OA\Property(property="question_type", type="string", enum={"QT1", "QT2", "QT3", "QT4", "QT5", "QT6", "QT7", "QT8", "QT9", "QT10", "QT11", "QT12", "QT13", "QT14", "QT15"})
+     *                 )
+     *             ),
+     *             @OA\Property(property="time_taken_seconds", type="integer", description="Total time taken to complete the test"),
+     *             @OA\Property(property="assignment_id", type="string", format="uuid", description="Assignment ID")
      *         )
      *     ),
      *     @OA\Response(
      *         response=201,
-     *         description="Reading test started successfully",
+     *         description="Reading submission created successfully",
      *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Reading test started successfully"),
+     *             @OA\Property(property="message", type="string", example="Reading test submitted successfully"),
      *             @OA\Property(
      *                 property="data",
      *                 type="object",
-     *                 @OA\Property(property="id", type="string", format="uuid"),
-     *                 @OA\Property(property="test_id", type="string", format="uuid"),
-     *                 @OA\Property(property="status", type="string", example="in_progress"),
-     *                 @OA\Property(property="attempt_number", type="integer"),
-     *                 @OA\Property(property="started_at", type="string", format="date-time")
+     *                 @OA\Property(property="submission_id", type="string", format="uuid"),
+     *                 @OA\Property(property="score", type="integer"),
+     *                 @OA\Property(property="total_score", type="integer"),
+     *                 @OA\Property(property="percentage", type="number", format="float"),
+     *                 @OA\Property(property="status", type="string"),
+     *                 @OA\Property(property="auto_graded", type="boolean", example=true),
+     *                 @OA\Property(property="can_retake", type="boolean"),
+     *                 @OA\Property(property="next_attempt_available_at", type="string", format="date-time", nullable=true)
      *             )
      *         )
      *     ),
-     *     @OA\Response(response=400, description="Bad request - Test cannot be attempted"),
-     *     @OA\Response(response=401, description="Unauthorized"),
-     *     @OA\Response(response=404, description="Test not found")
+     *     @OA\Response(response=422, description="Validation error"),
+     *     @OA\Response(response=403, description="Forbidden - Student only or assignment not available")
      * )
      */
-    public function start()
-    {
-    }
+    public function store() {}
 
     /**
      * @OA\Get(
-     *     path="/api/v1/reading/submissions/{submissionId}",
+     *     path="/api/v1/reading-submissions/{id}",
      *     tags={"Reading Submissions"},
      *     summary="Get submission details",
-     *     description="Retrieve detailed information about a specific submission",
-     *     security={{"sanctum":{}}},
+     *     description="Get detailed submission with answers and grading information",
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
-     *     @OA\Parameter(
-     *         name="submissionId",
+     *         name="id",
      *         in="path",
      *         required=true,
      *         description="Submission ID",
@@ -142,34 +129,82 @@ class ReadingSubmissionDocs
      *         response=200,
      *         description="Submission details retrieved successfully",
      *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Reading submission details retrieved successfully"),
      *             @OA\Property(
      *                 property="data",
      *                 type="object",
      *                 @OA\Property(property="id", type="string", format="uuid"),
-     *                 @OA\Property(property="test_id", type="string", format="uuid"),
+     *                 @OA\Property(property="task_id", type="string", format="uuid"),
+     *                 @OA\Property(property="student_id", type="string", format="uuid"),
      *                 @OA\Property(property="status", type="string"),
-     *                 @OA\Property(property="total_score", type="number", format="float"),
+     *                 @OA\Property(property="score", type="integer"),
+     *                 @OA\Property(property="total_score", type="integer"),
      *                 @OA\Property(property="percentage", type="number", format="float"),
+     *                 @OA\Property(property="attempt_number", type="integer"),
+     *                 @OA\Property(property="time_taken_seconds", type="integer"),
+     *                 @OA\Property(property="submitted_at", type="string", format="date-time"),
      *                 @OA\Property(
      *                     property="answers",
      *                     type="array",
      *                     @OA\Items(
+     *                         type="object",
      *                         @OA\Property(property="question_id", type="string", format="uuid"),
+     *                         @OA\Property(property="question_text", type="string"),
      *                         @OA\Property(property="student_answer", type="string"),
-     *                         @OA\Property(property="is_correct", type="boolean", nullable=true),
-     *                         @OA\Property(property="points_earned", type="number", format="float")
+     *                         @OA\Property(property="correct_answer", type="string"),
+     *                         @OA\Property(property="is_correct", type="boolean"),
+     *                         @OA\Property(property="points_earned", type="number"),
+     *                         @OA\Property(property="feedback", type="string", nullable=true)
      *                     )
+     *                 ),
+     *                 @OA\Property(
+     *                     property="task_info",
+     *                     type="object",
+     *                     @OA\Property(property="title", type="string"),
+     *                     @OA\Property(property="passage_text", type="string")
      *                 )
      *             )
      *         )
      *     ),
-     *     @OA\Response(response=401, description="Unauthorized"),
-     *     @OA\Response(response=403, description="Forbidden - Not your submission"),
+     *     @OA\Response(response=404, description="Submission not found"),
+     *     @OA\Response(response=403, description="Access denied")
+     * )
+     */
+    public function show() {}
+
+    /**
+     * @OA\Post(
+     *     path="/api/v1/reading-submissions/{id}/retake",
+     *     tags={"Reading Submissions"},
+     *     summary="Start retake attempt",
+     *     description="Start a new attempt for reading test retake",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Original Submission ID",
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Retake started successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Reading test retake started"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 @OA\Property(property="new_submission_id", type="string", format="uuid"),
+     *                 @OA\Property(property="attempt_number", type="integer"),
+     *                 @OA\Property(property="remaining_attempts", type="integer"),
+     *                 @OA\Property(property="started_at", type="string", format="date-time")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="Retake not allowed"),
      *     @OA\Response(response=404, description="Submission not found")
      * )
      */
-    public function getSubmission()
-    {
-    }
+    public function retake() {}
 }
+

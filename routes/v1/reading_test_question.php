@@ -1,6 +1,18 @@
 <?php
+
 use App\Http\Controllers\V1\ReadingTest\ReadingTestQuestionController;
 use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Reading Test Question API Routes
+|--------------------------------------------------------------------------
+|
+| Legacy routes for reading test questions. 
+| New routes should use reading_test.php for better organization.
+|
+*/
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('reading')
         ->group(function () {
