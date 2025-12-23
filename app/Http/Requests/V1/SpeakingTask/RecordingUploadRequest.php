@@ -6,11 +6,19 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class RecordingUploadRequest extends FormRequest
 {
+    /**
+     * Determine if the user is authorized to make this request.
+     */
     public function authorize(): bool
     {
-        return true;
+        // Check if user owns the speaking submission
+        $submission = $this->route('submission');
+        return $submission && auth()->id() === $submission->student_id;
     }
 
+    /**
+     * Get the validation rules that apply to the request.
+     */
     public function rules(): array
     {
         return [
@@ -32,13 +40,73 @@ class RecordingUploadRequest extends FormRequest
             ],
             'duration_seconds' => [
                 'sometimes',
-                'integer',
+                'numeric',
                 'min:1',
                 'max:1800' // 30 minutes max
             ],
+            'file_size_bytes' => [
+                'sometimes',
+                'integer',
+                'min:1',
+                'max:53687091200' // 50MB in bytes
+            ],
+            'recording_quality' => [
+                'sometimes',
+                'string',
+                'in:high,medium,low'
+            ],
+            'sample_rate' => [
+                'sometimes',
+                'integer',
+                'min:8000',
+                'max:48000'
+            ],
+            'bit_rate' => [
+                'sometimes',
+                'integer',
+                'min:32',
+                'max:320'
+            ],
+            'channels' => [
+                'sometimes',
+                'integer',
+                'in:1,2'
+            ],
+            'recording_device' => [
+                'sometimes',
+                'string',
+                'max:255'
+            ],
+            'is_final' => [
+                'sometimes',
+                'boolean'
+            ]
         ];
     }
 
+    /**
+     * Get custom attributes for validator errors.
+     */
+    public function attributes(): array
+    {
+        return [
+            'submission_id' => 'submission ID',
+            'question_id' => 'question ID',
+            'audio_file' => 'audio file',
+            'duration_seconds' => 'recording duration',
+            'file_size_bytes' => 'file size',
+            'recording_quality' => 'recording quality',
+            'sample_rate' => 'sample rate',
+            'bit_rate' => 'bit rate',
+            'channels' => 'audio channels',
+            'recording_device' => 'recording device',
+            'is_final' => 'final recording flag'
+        ];
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     */
     public function messages(): array
     {
         return [
@@ -55,9 +123,20 @@ class RecordingUploadRequest extends FormRequest
             'audio_file.mimes' => 'Audio file must be one of the following types: mp3, wav, m4a, aac, ogg, webm.',
             'audio_file.max' => 'Audio file must not be larger than 50MB.',
             
-            'duration_seconds.integer' => 'Duration must be an integer.',
-            'duration_seconds.min' => 'Duration must be at least 1 second.',
-            'duration_seconds.max' => 'Duration must not exceed 30 minutes.',
+            'duration_seconds.numeric' => 'Duration must be a number.',
+            'duration_seconds.min' => 'Recording duration must be at least 1 second.',
+            'duration_seconds.max' => 'Recording duration must not exceed 30 minutes.',
+            
+            'file_size_bytes.min' => 'File size must be at least 1 byte.',
+            'file_size_bytes.max' => 'File size must not exceed 50MB.',
+            
+            'recording_quality.in' => 'Recording quality must be high, medium, or low.',
+            'sample_rate.min' => 'Sample rate must be at least 8000 Hz.',
+            'sample_rate.max' => 'Sample rate must not exceed 48000 Hz.',
+            'bit_rate.min' => 'Bit rate must be at least 32 kbps.',
+            'bit_rate.max' => 'Bit rate must not exceed 320 kbps.',
+            'channels.in' => 'Audio channels must be 1 (mono) or 2 (stereo).',
+            'recording_device.max' => 'Recording device information cannot exceed 255 characters.',
         ];
     }
 }

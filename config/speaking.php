@@ -34,18 +34,18 @@ return [
         'profanity_filter' => env('GOOGLE_CLOUD_SPEECH_PROFANITY_FILTER', false),
     ],
 
-    // Speech quality analysis settings
+   
     'quality_analysis' => [
         'fluency' => [
-            'pause_threshold' => 0.5, // seconds
-            'long_pause_threshold' => 2.0, // seconds
-            'max_pause_penalty' => 20, // percentage points
+            'pause_threshold' => 0.5, 
+            'long_pause_threshold' => 2.0, 
+            'max_pause_penalty' => 20, 
         ],
         'speaking_rate' => [
-            'optimal_min' => 120, // words per minute
-            'optimal_max' => 180, // words per minute
-            'slow_threshold' => 90, // words per minute
-            'fast_threshold' => 200, // words per minute
+            'optimal_min' => 120, 
+            'optimal_max' => 180, 
+            'slow_threshold' => 90, 
+            'fast_threshold' => 200, 
         ],
         'confidence' => [
             'min_acceptable' => 0.6, // minimum confidence score
