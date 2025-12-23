@@ -58,6 +58,19 @@ require __DIR__ . '/../v1/class.php';
  * Reading Test Question Management
  */
 require __DIR__ . '/../v1/reading_test_question.php';
+/**
+ * Reading Test Management
+ */
+require __DIR__ . '/../v1/reading_test.php';
+/**
+ * Reading Task Management
+ */
+require __DIR__ . '/../v1/reading_task.php';
+
+/**
+ * Reading Dashboard, Reviews & Assignments
+ */
+require __DIR__ . '/../v1/reading_dashboard.php';
 
 /**
  * Writing Task Management
@@ -71,4 +84,19 @@ require __DIR__ . '/../v1/writing_test.php';
 /**
  * Listening Test Management
  */
+require __DIR__ . '/../v1/listening_test.php';
+
+/**
+ * Listening Tasks Management
+ */
 require __DIR__ . '/../v1/listening.php';
+
+/**
+ * Listening Task Reviews, Assignments & Dashboard
+ */
+require __DIR__ . '/../v1/listening_task.php';
+
+/**
+ * Speaking Task Management
+ */
+require __DIR__ . '/../v1/speaking.php';

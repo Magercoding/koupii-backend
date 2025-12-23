@@ -9,6 +9,12 @@ use App\Models\ClassInvitation;
 
 class ClassInvitationPolicy
 {
+    public function create(User $user)
+    {
+
+        return in_array($user->role, ['admin', 'teacher']);
+    }
+
     public function delete(User $user, ClassInvitation $invitation)
     {
         return $user->role === 'admin'
@@ -17,12 +23,12 @@ class ClassInvitationPolicy
 
     public function update(User $user, ClassInvitation $invitation)
     {
-        // only student can accept/decline their own invitation
+       
         if ($user->role === 'student') {
             return $invitation->student_id === $user->id;
         }
 
-        // admin or teacher who owns the class
+        
         return $user->role === 'admin'
             || ($user->role === 'teacher' && $invitation->class->teacher_id === $user->id);
     }

@@ -102,6 +102,35 @@ class Test extends Model
                     });
     }
 
+    // Listening test relationships
+    public function listeningAudioSegments()
+    {
+        return $this->hasMany(ListeningAudioSegment::class, 'test_id');
+    }
+
+    public function listeningQuestions()
+    {
+        return $this->hasManyThrough(ListeningQuestion::class, ListeningAudioSegment::class, 'test_id', 'audio_segment_id', 'id', 'id');
+    }
+
+
+
+    public function writingSubmissions()
+    {
+        return $this->hasMany(WritingSubmission::class, 'test_id');
+    }
+
+    // General submission relationship
+    public function submissions()
+    {
+        return match ($this->type) {
+            'reading' => $this->readingSubmissions(),
+            'writing' => $this->writingSubmissions(),
+            'listening' => $this->hasMany(ListeningSubmission::class, 'test_id'),
+            default => null,
+        };
+    }
+
     public function scopeVisibleTo($query, $user)
     {
         return match ($user->role) {
@@ -109,6 +138,21 @@ class Test extends Model
             'student' => $query->where('is_published', true),
             default => $query->where('creator_id', $user->id),
         };
+    }
+
+    public function scopeReading($query)
+    {
+        return $query->where('type', 'reading');
+    }
+
+    public function scopeWriting($query)
+    {
+        return $query->where('type', 'writing');
+    }
+
+    public function scopeListening($query)
+    {
+        return $query->where('type', 'listening');
     }
 
     public function scopeWithRelations($query)

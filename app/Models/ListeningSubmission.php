@@ -7,19 +7,53 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property string $id
+ * @property string $listening_task_id
+ * @property string $student_id
+ * @property array|null $files
+ * @property string $status
+ * @property int $attempt_number
+ * @property int|null $time_taken_seconds
+ * @property \Carbon\Carbon|null $submitted_at
+ * @property \Carbon\Carbon|null $started_at
+ * @property float|null $total_score
+ * @property float|null $percentage
+ * @property int $total_correct
+ * @property int $total_incorrect
+ * @property int $total_unanswered
+ * @property array|null $audio_play_counts
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ */
 class ListeningSubmission extends Model
 {
     use HasFactory, HasUuids;
 
+    // Status options following writing pattern
+    public const STATUS_TO_DO = 'to_do';
+    public const STATUS_SUBMITTED = 'submitted';
+    public const STATUS_REVIEWED = 'reviewed';
+    public const STATUS_DONE = 'done';
+
+    public const STATUSES = [
+        self::STATUS_TO_DO => 'To Do',
+        self::STATUS_SUBMITTED => 'Submitted',
+        self::STATUS_REVIEWED => 'Reviewed',
+        self::STATUS_DONE => 'Done'
+    ];
+
     protected $fillable = [
-        'test_id',
+        'listening_task_id',
         'student_id',
-        'attempt_number',
+        'files',
         'status',
-        'started_at',
-        'submitted_at',
+        'attempt_number',
         'time_taken_seconds',
+        'submitted_at',
+        'started_at',
         'total_score',
         'percentage',
         'total_correct',
@@ -29,6 +63,7 @@ class ListeningSubmission extends Model
     ];
 
     protected $casts = [
+        'files' => 'array',
         'started_at' => 'datetime',
         'submitted_at' => 'datetime',
         'total_score' => 'decimal:2',
@@ -36,95 +71,118 @@ class ListeningSubmission extends Model
         'audio_play_counts' => 'array'
     ];
 
-    public function test(): BelongsTo
+    /**
+     * Get the listening task for this submission
+     */
+    public function listeningTask(): BelongsTo
     {
-        return $this->belongsTo(Test::class);
+        return $this->belongsTo(ListeningTask::class, 'listening_task_id');
     }
 
+    /**
+     * Get the student who made this submission
+     */
     public function student(): BelongsTo
     {
         return $this->belongsTo(User::class, 'student_id');
     }
 
+    /**
+     * Get all answers for this submission
+     */
     public function answers(): HasMany
     {
         return $this->hasMany(ListeningQuestionAnswer::class, 'submission_id');
     }
 
-    public function audioLogs(): HasMany
+    /**
+     * Get the review for this submission
+     */
+    public function review(): HasOne
     {
-        return $this->hasMany(ListeningAudioLog::class, 'submission_id');
+        return $this->hasOne(ListeningReview::class, 'submission_id');
     }
 
-    public function vocabularyDiscoveries(): HasMany
+    /**
+     * Scope for submissions by status
+     */
+    public function scopeByStatus($query, $status)
     {
-        return $this->hasMany(ListeningVocabularyDiscovery::class, 'test_id', 'test_id')
-                    ->where('student_id', $this->student_id);
+        return $query->where('status', $status);
     }
 
-    // Calculate final score
-    public function calculateScore(): void
+    /**
+     * Scope for completed submissions
+     */
+    public function scopeCompleted($query)
     {
-        $totalQuestions = $this->answers()->count();
-        $correctAnswers = $this->answers()->where('is_correct', true)->count();
-        $incorrectAnswers = $this->answers()->where('is_correct', false)->count();
-        $unanswered = $totalQuestions - $correctAnswers - $incorrectAnswers;
+        return $query->whereNotNull('submitted_at');
+    }
 
-        $totalPoints = $this->answers()->sum('points_earned');
-        $maxPossiblePoints = $this->test->testQuestions()->sum('points_value');
-        
-        $percentage = $maxPossiblePoints > 0 ? ($totalPoints / $maxPossiblePoints) * 100 : 0;
+    /**
+     * Check if submission is submitted
+     */
+    public function isSubmitted(): bool
+    {
+        return in_array($this->status, [self::STATUS_SUBMITTED, self::STATUS_REVIEWED, self::STATUS_DONE]);
+    }
 
+    /**
+     * Check if submission is reviewed
+     */
+    public function isReviewed(): bool
+    {
+        return in_array($this->status, [self::STATUS_REVIEWED, self::STATUS_DONE]);
+    }
+
+    /**
+     * Submit the submission
+     */
+    public function submit(): void
+    {
         $this->update([
-            'total_score' => $totalPoints,
-            'percentage' => $percentage,
-            'total_correct' => $correctAnswers,
-            'total_incorrect' => $incorrectAnswers,
-            'total_unanswered' => $unanswered,
+            'status' => self::STATUS_SUBMITTED,
+            'submitted_at' => now()
         ]);
     }
 
-    // Check if submission is completed
-    public function isCompleted(): bool
+    /**
+     * Calculate and update scores
+     */
+    public function calculateScores(): void
     {
-        return $this->status === 'completed';
+        $answers = $this->answers()->with('question')->get();
+        
+        $totalCorrect = $answers->where('is_correct', true)->count();
+        $totalIncorrect = $answers->where('is_correct', false)->count();
+        $totalUnanswered = $this->listeningTask->questions()->count() - $answers->count();
+        
+        $totalPoints = $this->listeningTask->getTotalPoints();
+        $earnedPoints = $answers->sum('points_earned');
+        $percentage = $totalPoints > 0 ? ($earnedPoints / $totalPoints) * 100 : 0;
+
+        $this->update([
+            'total_correct' => $totalCorrect,
+            'total_incorrect' => $totalIncorrect,
+            'total_unanswered' => $totalUnanswered,
+            'total_score' => $earnedPoints,
+            'percentage' => $percentage
+        ]);
     }
 
-    // Get grade based on percentage
-    public function getGradeAttribute(): string
+    /**
+     * Get retake options if available
+     */
+    public function getRetakeOptions(): ?array
     {
-        if (is_null($this->percentage)) {
-            return 'N/A';
+        if (!$this->listeningTask->allowsRetakes()) {
+            return null;
         }
 
-        return match (true) {
-            $this->percentage >= 90 => 'A',
-            $this->percentage >= 80 => 'B', 
-            $this->percentage >= 70 => 'C',
-            $this->percentage >= 60 => 'D',
-            default => 'F'
-        };
-    }
+        if ($this->attempt_number >= $this->listeningTask->max_retake_attempts) {
+            return null;
+        }
 
-    // Check if student can retake
-    public function canRetake(): bool
-    {
-        return $this->test->allow_repetition && 
-               ($this->test->max_repetition_count === null || 
-                $this->attempt_number < $this->test->max_repetition_count);
-    }
-
-    // Record audio play count
-    public function recordAudioPlay(string $passageId): void
-    {
-        $playCounts = $this->audio_play_counts ?? [];
-        $playCounts[$passageId] = ($playCounts[$passageId] ?? 0) + 1;
-        $this->update(['audio_play_counts' => $playCounts]);
-    }
-
-    // Get total audio plays
-    public function getTotalAudioPlaysAttribute(): int
-    {
-        return array_sum($this->audio_play_counts ?? []);
+        return $this->listeningTask->retake_options;
     }
 }

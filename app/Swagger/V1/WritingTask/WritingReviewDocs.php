@@ -12,14 +12,8 @@ class WritingReviewDocs
      *     tags={"Writing Reviews"},
      *     summary="Review a student submission",
      *     description="Provide feedback and score for a student's writing submission",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+
      *     @OA\Parameter(
      *         name="taskId",
      *         in="path",
@@ -102,14 +96,8 @@ class WritingReviewDocs
      *     tags={"Writing Reviews"},
      *     summary="Get pending reviews",
      *     description="Retrieve submissions that need to be reviewed by the teacher",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+
      *     @OA\Response(
      *         response=200,
      *         description="Pending reviews retrieved successfully",
@@ -158,14 +146,8 @@ class WritingReviewDocs
      *     tags={"Writing Reviews"},
      *     summary="Bulk review submissions",
      *     description="Review multiple submissions at once",
-     *     security={{"sanctum":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     security={{"bearerAuth":{}}},
+
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -212,3 +194,4 @@ class WritingReviewDocs
     {
     }
 }
+

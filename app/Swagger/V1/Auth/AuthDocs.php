@@ -56,3 +56,4 @@ class AuthDocs
      */
     public function logout() {}
 }
+

@@ -13,13 +13,7 @@ class ReadingTestDocs
      *     summary="Get all reading tests",
      *     description="Retrieve reading tests based on user role. Admin sees all tests, students see only published tests, teachers see only their own tests.",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Reading tests retrieved successfully",
@@ -63,13 +57,7 @@ class ReadingTestDocs
      *     summary="Create a new reading test",
      *     description="Create a new reading test with passages and questions.",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *   
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -124,13 +112,7 @@ class ReadingTestDocs
      *         description="Test ID (UUID)",
      *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     
      *     @OA\Response(
      *         response=200,
      *         description="Test retrieved successfully",
@@ -176,13 +158,7 @@ class ReadingTestDocs
      *         description="Test ID (UUID)",
      *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -231,13 +207,7 @@ class ReadingTestDocs
      *         description="Passage ID (UUID)",
      *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *     
      *     @OA\Response(
      *         response=200,
      *         description="Passage deleted successfully",
@@ -268,13 +238,7 @@ class ReadingTestDocs
      *         description="Question ID (UUID)",
      *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+     *  
      *     @OA\Response(
      *         response=200,
      *         description="Question deleted successfully",
@@ -306,13 +270,7 @@ class ReadingTestDocs
      *         description="Test ID (UUID)",
      *         @OA\Schema(type="string", format="uuid")
      *     ),
-     *     @OA\Parameter(
-     *         name="Authorization",
-     *         in="header",
-     *         required=true,
-     *         description="Bearer token. Example: Bearer {access_token}",
-     *         @OA\Schema(type="string")
-     *     ),
+  
      *     @OA\Response(
      *         response=200,
      *         description="Test deleted successfully",
@@ -329,3 +287,4 @@ class ReadingTestDocs
     {
     }
 }
+

@@ -81,3 +81,4 @@ class OauthDocs {
      */
     public function handleFacebookCallback() {}
 }
+

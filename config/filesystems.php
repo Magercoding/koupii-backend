@@ -60,6 +60,15 @@ return [
             'report' => false,
         ],
 
+        'speaking_recordings' => [
+            'driver' => 'local',
+            'root' => storage_path('app/speaking_recordings'),
+            'url' => env('APP_URL').'/storage/speaking_recordings',
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*

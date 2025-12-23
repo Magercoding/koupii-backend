@@ -3,8 +3,7 @@
 namespace App\Http\Requests\V1\Auth;
 
 use App\Http\Requests\BaseRequest;
-use Illuminate\Support\Facades\Hash;
-
+use Illuminate\Support\Facades\Log;
 class RegisterRequest extends BaseRequest
 {
     /**
@@ -29,18 +28,16 @@ class RegisterRequest extends BaseRequest
                 'required',
                 'string',
                 'min:8',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/'
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/'
             ],
             'role' => 'required|in:teacher,student,admin',
         ];
     }
-    public function prepareForValidation()
+
+    protected function prepareForValidation()
     {
-        if ($this->has('password')) {
-            $this->merge([
-                'password' => Hash::make($this->password),
-            ]);
-        }
+        // Debug: Log the password before validation
+        Log::info('Password before validation: ' . $this->password);
     }
     public function messages(): array
     {

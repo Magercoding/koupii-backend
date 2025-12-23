@@ -12,7 +12,7 @@ class WritingTaskAssignmentDocs
      *     tags={"Writing Task Assignments"},
      *     summary="Assign task to classrooms",
      *     description="Assign a writing task to multiple classrooms (Teacher/Admin only)",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -55,7 +55,7 @@ class WritingTaskAssignmentDocs
      *     tags={"Writing Task Assignments"},
      *     summary="Get task assignments",
      *     description="Retrieve all classroom assignments for a specific task",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -85,7 +85,7 @@ class WritingTaskAssignmentDocs
      *     tags={"Writing Task Assignments"},
      *     summary="Remove task from classroom",
      *     description="Remove a writing task assignment from a specific classroom",
-     *     security={{"sanctum":{}}},
+     *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -115,3 +115,4 @@ class WritingTaskAssignmentDocs
     {
     }
 }
+

@@ -19,12 +19,22 @@ class SpeakingRecording extends Model
         'audio_file_path',
         'duration_seconds',
         'recording_started_at',
-        'recording_ended_at'
+        'recording_ended_at',
+        'transcript',
+        'transcript_confidence',
+        'word_count',
+        'speaking_rate',
+        'fluency_score',
+        'pause_analysis'
     ];
 
     protected $casts = [
         'recording_started_at' => 'datetime',
-        'recording_ended_at' => 'datetime'
+        'recording_ended_at' => 'datetime',
+        'transcript_confidence' => 'float',
+        'speaking_rate' => 'float',
+        'fluency_score' => 'float',
+        'pause_analysis' => 'array'
     ];
 
     public function submission(): BelongsTo
