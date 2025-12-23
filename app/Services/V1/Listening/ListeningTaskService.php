@@ -8,6 +8,7 @@ use App\Helpers\Listening\ListeningTestHelper;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class ListeningTaskService
@@ -67,6 +68,18 @@ class ListeningTaskService
     }
 
     /**
+     * Create a new listening task (controller interface)
+     */
+    public function create(array $taskData, $request = null): ListeningTask
+    {
+        // Add creator_id from authenticated user
+        $taskData['creator_id'] = Auth::id();
+        $taskData['is_published'] = $taskData['is_published'] ?? false;
+        
+        return $this->createListeningTask($taskData);
+    }
+
+    /**
      * Get detailed information about a listening task
      */
     public function getListeningTaskDetails(ListeningTask $task): ListeningTask
@@ -89,6 +102,14 @@ class ListeningTaskService
             $task->update($taskData);
             return $task->fresh(['test', 'audioSegments']);
         });
+    }
+
+    /**
+     * Update a listening task (controller interface)
+     */
+    public function updateTask(ListeningTask $task, array $taskData, $request = null): ListeningTask
+    {
+        return $this->updateListeningTask($task, $taskData);
     }
 
     /**
