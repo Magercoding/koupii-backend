@@ -57,6 +57,14 @@ class ListeningReview extends Model
     }
 
     /**
+     * Get the reviewer (alias for teacher)
+     */
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'teacher_id');
+    }
+
+    /**
      * Mark submission as reviewed
      */
     public function markAsReviewed(): void
