@@ -144,7 +144,7 @@ class VocabularyDocs
     }
 
     /**
-     * @OA\Patch(
+     * @OA\Post(
      *     path="/api/vocab/update/{id}",
      *     tags={"Vocabulary"},
      *     summary="Update a vocabulary entry",

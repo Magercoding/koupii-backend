@@ -37,6 +37,16 @@ class StoreWritingTaskRequest extends BaseRequest
             'allow_submission_files' => 'boolean',
             'is_published' => 'boolean',
             'due_date' => 'nullable|date|after:now',
+            
+            // Multiple questions support (similar to Reading/Listening)
+            'questions' => 'nullable|array',
+            'questions.*.question_type' => 'required_with:questions|string|in:essay,short_answer,creative_writing,argumentative,descriptive,narrative',
+            'questions.*.question_text' => 'required_with:questions|string|max:2000',
+            'questions.*.instructions' => 'nullable|string|max:1000',
+            'questions.*.word_limit' => 'nullable|integer|min:50|max:5000',
+            'questions.*.points' => 'nullable|numeric|min:0|max:100',
+            'questions.*.rubric' => 'nullable|string',
+            'questions.*.sample_answer' => 'nullable|string',
         ];
     }
 

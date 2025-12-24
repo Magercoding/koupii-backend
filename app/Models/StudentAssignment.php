@@ -29,11 +29,13 @@ class StudentAssignment extends Model
     protected $fillable = [
         'assignment_id',
         'student_id',
+        'test_id',
         'status',
         'score',
         'attempt_number',
         'started_at',
         'completed_at',
+        'assigned_at',
     ];
 
     protected $casts = [
@@ -41,6 +43,7 @@ class StudentAssignment extends Model
         'score' => 'float',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'assigned_at' => 'datetime',
     ];
 
     public function assignment()
@@ -61,5 +64,10 @@ class StudentAssignment extends Model
     public function testResult()
     {
         return $this->hasOne(TestResult::class, 'student_assignment_id');
+    }
+
+    public function test()
+    {
+        return $this->belongsTo(Test::class, 'test_id');
     }
 }

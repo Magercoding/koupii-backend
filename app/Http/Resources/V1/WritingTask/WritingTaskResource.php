@@ -25,14 +25,21 @@ class WritingTaskResource extends JsonResource
             'title' => $this->title,
             'description' => $this->description,
             'instructions' => $this->instructions,
+            'difficulty' => $this->difficulty,
+            'difficulty_label' => $this->getDifficultyLabel(),
             'word_limit' => $this->word_limit,
             'timer_type' => $this->timer_type,
             'time_limit_seconds' => $this->time_limit_seconds,
             'allow_submission_files' => $this->allow_submission_files,
             'is_published' => $this->is_published,
+            'is_overdue' => $this->isOverdue(),
             'due_date' => $this->due_date,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+
+            // Questions
+            'questions' => WritingTaskQuestionResource::collection($this->whenLoaded('questions')),
+            'questions_count' => $this->when($this->relationLoaded('questions'), $this->questions->count()),
 
             // Retake settings
             'allow_retake' => $this->allow_retake,

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\V1\WritingTask;
+namespace App\Http\Controllers\V1\WiritingTask;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\WritingTask\StoreWritingTaskRequest;
@@ -95,7 +95,8 @@ class WritingTaskController extends Controller implements HasMiddleware
             'creator',
             'assignments.classroom',
             'submissions.student',
-            'submissions.review'
+            'submissions.review',
+            'questions.resources'
         ])->where('id', $id);
 
         // Role-based access control

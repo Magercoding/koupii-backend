@@ -1,10 +1,13 @@
 <?php
 
-use App\Http\Controllers\V1\WritingTask\WritingTaskController;
-use App\Http\Controllers\V1\WritingTask\WritingTaskAssignmentController;
-use App\Http\Controllers\V1\WritingTask\WritingSubmissionController;
-use App\Http\Controllers\V1\WritingTask\WritingReviewController;
-use App\Http\Controllers\V1\WritingTask\WritingDashboardController;
+use App\Http\Controllers\V1\WiritingTask\WritingTaskController;
+use App\Http\Controllers\V1\WiritingTask\WritingTaskAssignmentController;
+use App\Http\Controllers\V1\WiritingTask\WritingTaskQuestionController;
+use App\Http\Controllers\V1\WiritingTask\WritingSubmissionController;
+use App\Http\Controllers\V1\WiritingTask\WritingReviewController;
+use App\Http\Controllers\V1\WiritingTask\WritingDashboardController;
+use App\Http\Controllers\V1\WritingTask\WritingAttemptController;
+use App\Http\Controllers\V1\WritingTask\WritingFeedbackController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -33,6 +36,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::get('/', [WritingTaskAssignmentController::class, 'getAssignments'])->name('index');
             Route::post('/', [WritingTaskAssignmentController::class, 'assignToClassrooms'])->name('assign');
             Route::delete('/{classroomId}', [WritingTaskAssignmentController::class, 'removeFromClassroom'])->name('remove');
+        });
+
+        // Task Questions Routes
+        Route::prefix('{writingTask}/questions')->name('questions.')->group(function () {
+            Route::get('/', [WritingTaskQuestionController::class, 'index'])->name('index');
+            Route::post('/', [WritingTaskQuestionController::class, 'store'])->name('store');
+            Route::get('/{question}', [WritingTaskQuestionController::class, 'show'])->name('show');
+            Route::put('/{question}', [WritingTaskQuestionController::class, 'update'])->name('update');
+            Route::delete('/{question}', [WritingTaskQuestionController::class, 'destroy'])->name('destroy');
+            Route::post('/reorder', [WritingTaskQuestionController::class, 'reorder'])->name('reorder');
         });
 
         // Submission Routes
@@ -102,5 +115,23 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{id}/submissions', [WritingTaskController::class, 'exportSubmissions'])->name('submissions');
         Route::get('/{id}/grades', [WritingTaskController::class, 'exportGrades'])->name('grades');
         Route::get('/teacher/{teacherId}/report', [WritingTaskController::class, 'exportTeacherReport'])->name('teacher-report');
+    });
+
+    // Writing Attempt Routes (Retake functionality)
+    Route::prefix('writing-attempts')->name('writing-attempts.')->group(function () {
+        Route::post('/start', [WritingAttemptController::class, 'start'])->name('start');
+        Route::get('/task/{taskId}', [WritingAttemptController::class, 'getAttempts'])->name('by-task');
+        Route::get('/{attemptId}', [WritingAttemptController::class, 'show'])->name('show');
+        Route::post('/{attemptId}/submit', [WritingAttemptController::class, 'submit'])->name('submit');
+        Route::get('/task/{taskId}/retake-options', [WritingAttemptController::class, 'getRetakeOptions'])->name('retake-options');
+    });
+
+    // Writing Feedback Routes (Scoring and feedback system)
+    Route::prefix('writing-feedback')->name('writing-feedback.')->group(function () {
+        Route::post('/', [WritingFeedbackController::class, 'store'])->name('store');
+        Route::get('/submission/{submissionId}', [WritingFeedbackController::class, 'getBySubmission'])->name('by-submission');
+        Route::put('/{feedbackId}', [WritingFeedbackController::class, 'update'])->name('update');
+        Route::post('/generate-automated', [WritingFeedbackController::class, 'generateAutomated'])->name('generate-automated');
+        Route::get('/attempt/{attemptId}/summary', [WritingFeedbackController::class, 'getAttemptSummary'])->name('attempt-summary');
     });
 });

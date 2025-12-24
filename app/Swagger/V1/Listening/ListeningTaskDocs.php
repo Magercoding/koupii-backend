@@ -72,25 +72,25 @@ class ListeningTaskDocs
      *     
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             required={"title", "description", "audio_url"},
-     *             @OA\Property(property="title", type="string", example="IELTS Listening Practice"),
-     *             @OA\Property(property="description", type="string", example="Practice listening comprehension"),
-     *             @OA\Property(property="audio_url", type="string", example="audio/listening_task.mp3"),
-     *             @OA\Property(property="transcript", type="string", example="Audio transcript text"),
-     *             @OA\Property(property="duration", type="integer", example=300),
-     *             @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}),
-     *             @OA\Property(property="time_limit_seconds", type="integer", nullable=true),
-     *             @OA\Property(property="is_published", type="boolean", example=false),
-     *             @OA\Property(
-     *                 property="questions",
-     *                 type="array",
-     *                 @OA\Items(
-     *                     @OA\Property(property="question_text", type="string"),
-     *                     @OA\Property(property="question_type", type="string", enum={"multiple_choice", "fill_blank", "true_false"}),
-     *                     @OA\Property(property="time_range", type="object"),
-     *                     @OA\Property(property="options", type="array", @OA\Items(type="object")),
-     *                     @OA\Property(property="correct_answer", type="string")
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"title", "description"},
+     *                 @OA\Property(property="title", type="string", example="IELTS Listening Practice"),
+     *                 @OA\Property(property="description", type="string", example="Practice listening comprehension"),
+     *                 @OA\Property(property="audio_file", type="string", format="binary", description="Upload audio file (mp3, wav, mp4)"),
+     *                 @OA\Property(property="transcript", type="string", example="Audio transcript text"),
+     *                 @OA\Property(property="duration", type="integer", example=300),
+     *                 @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}, example="intermediate"),
+     *                 @OA\Property(property="time_limit_seconds", type="integer", nullable=true, example=1800),
+     *                 @OA\Property(property="is_published", type="boolean", example=false),
+     *                 @OA\Property(property="task_type", type="string", example="listening_comprehension"),
+     *                 @OA\Property(property="points", type="integer", example=100),
+     *                 @OA\Property(
+     *                     property="questions",
+     *                     type="string",
+     *                     description="JSON string of questions array",
+     *                     example="[{""question_text"":""What is the main topic?"",""question_type"":""multiple_choice"",""options"":[{""text"":""Option A""},{""text"":""Option B""}],""correct_answer"":""A""}]"
      *                 )
      *             )
      *         )
@@ -155,8 +155,8 @@ class ListeningTaskDocs
     }
 
     /**
-     * @OA\Put(
-     *     path="/api/v1/listening/tasks/{id}",
+     * @OA\Post(
+     *     path="/api/v1/listening-tasks/{id}/update",
      *     tags={"Listening Tasks"},
      *     summary="Update a listening task",
      *     description="Update an existing listening task",
@@ -169,17 +169,29 @@ class ListeningTaskDocs
      *         description="Listening task ID",
      *         @OA\Schema(type="string", format="uuid")
      *     ),
+     *     @OA\Parameter(
+     *         name="_method",
+     *         in="query", 
+     *         required=true,
+     *         description="HTTP method override for file uploads",
+     *         @OA\Schema(type="string", example="PUT")
+     *     ),
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="title", type="string"),
-     *             @OA\Property(property="description", type="string"),
-     *             @OA\Property(property="audio_url", type="string"),
-     *             @OA\Property(property="transcript", type="string"),
-     *             @OA\Property(property="duration", type="integer"),
-     *             @OA\Property(property="difficulty", type="string"),
-     *             @OA\Property(property="time_limit_seconds", type="integer"),
-     *             @OA\Property(property="is_published", type="boolean")
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(property="title", type="string", example="Updated Listening Task"),
+     *                 @OA\Property(property="description", type="string", example="Updated description"),
+     *                 @OA\Property(property="audio_file", type="string", format="binary", description="Upload new audio file (optional)"),
+     *                 @OA\Property(property="transcript", type="string", example="Updated transcript"),
+     *                 @OA\Property(property="duration", type="integer", example=420),
+     *                 @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}),
+     *                 @OA\Property(property="time_limit_seconds", type="integer", example=2100),
+     *                 @OA\Property(property="is_published", type="boolean", example=true),
+     *                 @OA\Property(property="task_type", type="string", example="listening_comprehension"),
+     *                 @OA\Property(property="points", type="integer", example=120)
+     *             )
      *         )
      *     ),
      *     @OA\Response(

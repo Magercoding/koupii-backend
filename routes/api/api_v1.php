@@ -70,7 +70,7 @@ require __DIR__ . '/../v1/reading_task.php';
 /**
  * Reading Dashboard, Reviews & Assignments
  */
-require __DIR__ . '/../v1/reading_dashboard.php';
+// require __DIR__ . '/../v1/reading_dashboard.php';
 
 /**
  * Writing Task Management
@@ -100,3 +100,8 @@ require __DIR__ . '/../v1/listening_task.php';
  * Speaking Task Management
  */
 require __DIR__ . '/../v1/speaking.php';
+
+/**
+ * Test System Management (Main test system)
+ */
+require __DIR__ . '/../v1/test.php';

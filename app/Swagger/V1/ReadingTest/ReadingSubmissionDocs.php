@@ -70,20 +70,31 @@ class ReadingSubmissionDocs
      *     @OA\RequestBody(
      *         required=true,
      *         description="Reading test answers for 15 Question Types: QT1-Multiple Choice, QT2-Multiple Answer, QT3-True/False/Not Given, QT4-Matching Heading, QT5-Sentence Completion, QT6-Paragraph/Summary Completion, QT7-Yes/No/Not Given, QT8-Matching Information, QT9-Matching Features, QT10-Matching Sentence Ending, QT11-Note Completion, QT12-Table Completion, QT13-Flowchart Completion, QT14-Diagram Label Completion, QT15-Short Answer Question",
-     *         @OA\JsonContent(
-     *             @OA\Property(
-     *                 property="answers",
-     *                 type="array",
-     *                 description="Array of answers for each question",
-     *                 @OA\Items(
-     *                     type="object",
-     *                     @OA\Property(property="question_id", type="string", format="uuid"),
-     *                     @OA\Property(property="answer", type="string", description="Student's answer"),
-     *                     @OA\Property(property="question_type", type="string", enum={"QT1", "QT2", "QT3", "QT4", "QT5", "QT6", "QT7", "QT8", "QT9", "QT10", "QT11", "QT12", "QT13", "QT14", "QT15"})
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"answers"},
+     *                 @OA\Property(
+     *                     property="answers",
+     *                     type="string",
+     *                     description="JSON string of answers array for each question",
+     *                     example="[{""question_id"":""uuid"",""answer"":""A"",""question_type"":""QT1""},{""question_id"":""uuid2"",""answer"":""True"",""question_type"":""QT3""}]"
+     *                 ),
+     *                 @OA\Property(property="time_taken_seconds", type="integer", description="Total time taken to complete the test", example=3600),
+     *                 @OA\Property(property="assignment_id", type="string", format="uuid", description="Assignment ID"),
+     *                 @OA\Property(
+     *                     property="supporting_files",
+     *                     type="array",
+     *                     @OA\Items(type="string", format="binary"),
+     *                     description="Upload supporting files, notes, or work sheets (optional)"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="note_files",
+     *                     type="array",
+     *                     @OA\Items(type="string", format="binary"),
+     *                     description="Upload handwritten notes or additional materials (optional)"
      *                 )
-     *             ),
-     *             @OA\Property(property="time_taken_seconds", type="integer", description="Total time taken to complete the test"),
-     *             @OA\Property(property="assignment_id", type="string", format="uuid", description="Assignment ID")
+     *             )
      *         )
      *     ),
      *     @OA\Response(
