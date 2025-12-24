@@ -38,8 +38,8 @@ class WritingTaskResource extends JsonResource
             'updated_at' => $this->updated_at,
 
             // Questions
-            'questions' => WritingTaskQuestionResource::collection($this->whenLoaded('questions')),
-            'questions_count' => $this->when($this->relationLoaded('questions'), $this->questions->count()),
+            'questions' => $this->questions ?? [],
+            'questions_count' => is_array($this->questions) ? count($this->questions) : 0,
 
             // Retake settings
             'allow_retake' => $this->allow_retake,
@@ -51,24 +51,21 @@ class WritingTaskResource extends JsonResource
 
             // Include assignments for teachers/admins
             'assignments' => $this->when(
-                $isTeacher || $user->role === 'admin',
-                WritingTaskAssignmentResource::collection($this->whenLoaded('assignments'))
+                ($isTeacher || $user->role === 'admin') && $this->relationLoaded('assignments'),
+                $this->assignments->map(function($assignment) {
+                    return [
+                        'id' => $assignment->id,
+                        'classroom_id' => $assignment->classroom_id,
+                        'due_date' => $assignment->due_date,
+                        'assigned_at' => $assignment->assigned_at
+                    ];
+                })
             ),
 
-            // Include student's submissions if student
-            'my_submissions' => $this->when(
-                $isStudent,
-                WritingSubmissionResource::collection(
-                    $this->whenLoaded('submissions', function () use ($user) {
-                        return $this->submissions->where('student_id', $user->id);
-                    })
-                )
-            ),
-
-            // Include all submissions for teacher/admin
-            'submissions' => $this->when(
-                $isTeacher || $user->role === 'admin',
-                WritingSubmissionResource::collection($this->whenLoaded('submissions'))
+            // Include submissions summary
+            'submissions_count' => $this->when(
+                $this->relationLoaded('submissions'),
+                $this->submissions->count()
             ),
 
          

@@ -81,8 +81,27 @@ class StoreWritingTaskRequest extends BaseRequest
             'is_published' => $this->boolean('is_published'),
         ]);
 
-        // Set default retake options if allow_retake is true
-        if ($this->allow_retake && !$this->retake_options) {
+        // Only parse JSON strings if they are actually strings (for multipart/form-data)
+        if ($this->has('questions') && is_string($this->questions)) {
+            $this->merge([
+                'questions' => json_decode($this->questions, true)
+            ]);
+        }
+
+        if ($this->has('retake_options') && is_string($this->retake_options)) {
+            $this->merge([
+                'retake_options' => json_decode($this->retake_options, true)
+            ]);
+        }
+
+        if ($this->has('classroom_assignments') && is_string($this->classroom_assignments)) {
+            $this->merge([
+                'classroom_assignments' => json_decode($this->classroom_assignments, true)
+            ]);
+        }
+
+        // Set default retake options if allow_retake is true and no options provided
+        if ($this->allow_retake && (!$this->retake_options || empty($this->retake_options))) {
             $this->merge([
                 'retake_options' => ['rewrite_all', 'group_similar', 'choose_any']
             ]);

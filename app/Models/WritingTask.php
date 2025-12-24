@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 /**
  * @property string $id
- * @property string $test_id
+ * @property string|null $test_id
+ * @property string|null $creator_id
  * @property string $task_type
  * @property string|null $topic
  * @property string|null $prompt
@@ -29,6 +30,7 @@ class WritingTask extends Model
 
     protected $fillable = [
         'test_id',
+        'creator_id',
         'task_type',
         'topic',
         'prompt',
@@ -68,6 +70,11 @@ class WritingTask extends Model
     public function test()
     {
         return $this->belongsTo(Test::class, 'test_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     public function assignments()

@@ -10250,7 +10250,7 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
                                     "title",
@@ -10305,10 +10305,9 @@
                                         "example": "countdown"
                                     },
                                     "timer_settings": {
-                                        "type": "object",
-                                        "example": {
-                                            "time_limit": 3600
-                                        }
+                                        "description": "JSON string of timer settings",
+                                        "type": "string",
+                                        "example": "{\"time_limit\": 3600}"
                                     },
                                     "allow_repetition": {
                                         "type": "boolean",
@@ -10329,101 +10328,29 @@
                                         "example": true
                                     },
                                     "settings": {
-                                        "type": "object",
-                                        "example": {
-                                            "shuffle_questions": false
-                                        }
+                                        "description": "JSON string of test settings",
+                                        "type": "string",
+                                        "example": "{\"shuffle_questions\": false}"
                                     },
                                     "passages": {
+                                        "description": "JSON string of passages array with questions",
+                                        "type": "string",
+                                        "example": "[{\"title\":\"Reading Passage 1\",\"description\":\"Climate change article\",\"transcript_type\":\"descriptive\",\"question_groups\":[{\"instruction\":\"Answer the following questions\",\"questions\":[{\"question_type\":\"multiple_choice\",\"question_number\":1,\"question_text\":\"What is the main topic?\",\"points_value\":2,\"options\":[{\"option_key\":\"A\",\"option_text\":\"Climate\"},{\"option_key\":\"B\",\"option_text\":\"Weather\"}],\"correct_answers\":[\"A\"]}]}]}]"
+                                    },
+                                    "audio_files": {
+                                        "description": "Upload audio files for listening passages (mp3, wav, mp4)",
                                         "type": "array",
                                         "items": {
-                                            "properties": {
-                                                "title": {
-                                                    "type": "string",
-                                                    "example": "Passage 1: Climate Change"
-                                                },
-                                                "description": {
-                                                    "type": "string",
-                                                    "example": "Reading passage about climate change effects"
-                                                },
-                                                "audio_file_path": {
-                                                    "type": "string",
-                                                    "example": "/audio/passage1.mp3",
-                                                    "nullable": true
-                                                },
-                                                "transcript_type": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "descriptive",
-                                                        "conversation"
-                                                    ],
-                                                    "nullable": true
-                                                },
-                                                "transcript": {
-                                                    "type": "object",
-                                                    "nullable": true
-                                                },
-                                                "question_groups": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "properties": {
-                                                            "instruction": {
-                                                                "type": "string",
-                                                                "example": "Choose the correct answer"
-                                                            },
-                                                            "questions": {
-                                                                "type": "array",
-                                                                "items": {
-                                                                    "properties": {
-                                                                        "question_type": {
-                                                                            "type": "string",
-                                                                            "example": "multiple_choice"
-                                                                        },
-                                                                        "question_number": {
-                                                                            "type": "number",
-                                                                            "example": 1
-                                                                        },
-                                                                        "question_text": {
-                                                                            "type": "string",
-                                                                            "example": "What is the main cause of climate change?"
-                                                                        },
-                                                                        "question_data": {
-                                                                            "type": "object",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "correct_answers": {
-                                                                            "type": "object"
-                                                                        },
-                                                                        "points_value": {
-                                                                            "type": "number",
-                                                                            "example": 1
-                                                                        },
-                                                                        "options": {
-                                                                            "type": "array",
-                                                                            "items": {
-                                                                                "properties": {
-                                                                                    "option_key": {
-                                                                                        "type": "string",
-                                                                                        "example": "A"
-                                                                                    },
-                                                                                    "option_text": {
-                                                                                        "type": "string",
-                                                                                        "example": "Greenhouse gases"
-                                                                                    }
-                                                                                },
-                                                                                "type": "object"
-                                                                            }
-                                                                        }
-                                                                    },
-                                                                    "type": "object"
-                                                                }
-                                                            }
-                                                        },
-                                                        "type": "object"
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
+                                            "type": "string",
+                                            "format": "binary"
+                                        }
+                                    },
+                                    "reference_files": {
+                                        "description": "Upload reference materials for the test",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
                                         }
                                     }
                                 },
@@ -10580,7 +10507,7 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "properties": {
                                     "title": {
@@ -10626,7 +10553,8 @@
                                         ]
                                     },
                                     "timer_settings": {
-                                        "type": "object"
+                                        "description": "JSON string of timer settings",
+                                        "type": "string"
                                     },
                                     "allow_repetition": {
                                         "type": "boolean"
@@ -10643,7 +10571,21 @@
                                         "type": "boolean"
                                     },
                                     "settings": {
-                                        "type": "object"
+                                        "description": "JSON string of test settings",
+                                        "type": "string"
+                                    },
+                                    "passages": {
+                                        "description": "JSON string of passages array with questions",
+                                        "type": "string",
+                                        "example": "[{\"title\":\"Updated Reading Passage\",\"description\":\"Updated content\",\"transcript_type\":\"descriptive\",\"question_groups\":[{\"instruction\":\"Answer the updated questions\",\"questions\":[{\"question_type\":\"multiple_choice\",\"question_number\":1,\"question_text\":\"Updated question text?\",\"points_value\":3,\"options\":[{\"option_key\":\"A\",\"option_text\":\"Option A\"},{\"option_key\":\"B\",\"option_text\":\"Option B\"}],\"correct_answers\":[\"A\"]}]}]}]"
+                                    },
+                                    "audio_files": {
+                                        "description": "Upload new audio files for listening passages",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -14352,7 +14294,99 @@
                 "operationId": "8815b3095f09aaccc6e2ec826a83ffcc",
                 "responses": {
                     "200": {
-                        "description": "Writing tasks retrieved successfully"
+                        "description": "Writing tasks retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Writing tasks retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "title": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "is_published": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "difficulty": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "beginner",
+                                                            "intermediate",
+                                                            "advanced"
+                                                        ]
+                                                    },
+                                                    "time_limit_seconds": {
+                                                        "type": "integer",
+                                                        "nullable": true
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "creator": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "format": "uuid"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "email": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "assignments": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": "string",
+                                                                    "format": "uuid"
+                                                                },
+                                                                "classroom_id": {
+                                                                    "type": "string",
+                                                                    "format": "uuid"
+                                                                },
+                                                                "due_date": {
+                                                                    "type": "string",
+                                                                    "format": "date-time",
+                                                                    "nullable": true
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Server error"
                     }
                 },
                 "security": [
@@ -14433,15 +14467,9 @@
                                         "nullable": true
                                     },
                                     "retake_options": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string",
-                                            "enum": [
-                                                "rewrite_all",
-                                                "group_similar",
-                                                "choose_any"
-                                            ]
-                                        }
+                                        "description": "JSON string of retake options array",
+                                        "type": "string",
+                                        "example": "[\"rewrite_all\", \"group_similar\", \"choose_any\"]"
                                     },
                                     "allow_submission_files": {
                                         "type": "boolean",
@@ -14458,49 +14486,9 @@
                                         "example": false
                                     },
                                     "questions": {
-                                        "description": "Array of writing questions",
-                                        "type": "array",
-                                        "items": {
-                                            "properties": {
-                                                "question_type": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "essay",
-                                                        "short_answer",
-                                                        "creative_writing",
-                                                        "argumentative",
-                                                        "descriptive",
-                                                        "narrative"
-                                                    ],
-                                                    "example": "essay"
-                                                },
-                                                "question_text": {
-                                                    "type": "string",
-                                                    "example": "Write an essay about climate change"
-                                                },
-                                                "instructions": {
-                                                    "type": "string",
-                                                    "example": "Include introduction, body, and conclusion"
-                                                },
-                                                "word_limit": {
-                                                    "type": "integer",
-                                                    "example": 500
-                                                },
-                                                "points": {
-                                                    "type": "number",
-                                                    "example": 25
-                                                },
-                                                "rubric": {
-                                                    "type": "string",
-                                                    "example": "Grading criteria..."
-                                                },
-                                                "sample_answer": {
-                                                    "type": "string",
-                                                    "example": "Sample response..."
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
+                                        "description": "JSON string of questions array",
+                                        "type": "string",
+                                        "example": "[{\"question_type\":\"essay\",\"question_text\":\"Write an essay about climate change\",\"instructions\":\"Include introduction, body, and conclusion\",\"word_limit\":500,\"points\":25,\"rubric\":\"Grading criteria...\",\"sample_answer\":\"Sample response...\"}]"
                                     },
                                     "reference_files": {
                                         "description": "Upload reference materials for the task",
@@ -14760,13 +14748,25 @@
                             "schema": {
                                 "properties": {
                                     "title": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "example": "Updated Essay Writing Task"
                                     },
                                     "description": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "example": "Updated description"
                                     },
                                     "instructions": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "example": "Updated instructions"
+                                    },
+                                    "sample_answer": {
+                                        "type": "string",
+                                        "example": "Updated sample answer"
+                                    },
+                                    "word_limit": {
+                                        "type": "integer",
+                                        "example": 750,
+                                        "nullable": true
                                     },
                                     "difficulty": {
                                         "type": "string",
@@ -14774,7 +14774,55 @@
                                             "beginner",
                                             "intermediate",
                                             "advanced"
-                                        ]
+                                        ],
+                                        "example": "advanced"
+                                    },
+                                    "timer_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "none",
+                                            "countdown",
+                                            "countup"
+                                        ],
+                                        "example": "countdown"
+                                    },
+                                    "time_limit_seconds": {
+                                        "type": "integer",
+                                        "example": 5400,
+                                        "nullable": true
+                                    },
+                                    "allow_retake": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "max_retake_attempts": {
+                                        "type": "integer",
+                                        "example": 2,
+                                        "nullable": true
+                                    },
+                                    "retake_options": {
+                                        "description": "JSON string of retake options array",
+                                        "type": "string",
+                                        "example": "[\"rewrite_all\", \"group_similar\"]"
+                                    },
+                                    "allow_submission_files": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "due_date": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2024-12-31T23:59:59Z",
+                                        "nullable": true
+                                    },
+                                    "is_published": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "questions": {
+                                        "description": "JSON string of updated questions array",
+                                        "type": "string",
+                                        "example": "[{\"question_type\":\"essay\",\"question_text\":\"Updated essay question\",\"word_limit\":600,\"points\":30}]"
                                     },
                                     "reference_files": {
                                         "description": "Upload updated reference materials",
@@ -14784,12 +14832,10 @@
                                             "format": "binary"
                                         }
                                     },
-                                    "time_limit_seconds": {
-                                        "type": "integer",
-                                        "nullable": true
-                                    },
-                                    "is_published": {
-                                        "type": "boolean"
+                                    "classroom_assignments": {
+                                        "description": "JSON string of updated classroom assignments",
+                                        "type": "string",
+                                        "example": "[{\"classroom_id\":\"uuid\",\"due_date\":\"2024-12-31T23:59:59Z\"}]"
                                     }
                                 },
                                 "type": "object"
@@ -15757,14 +15803,6 @@
                     }
                 },
                 "type": "object"
-            }
-        },
-        "responses": {
-            "401": {
-                "description": "Unauthorized"
-            },
-            "500": {
-                "description": "Server error"
             }
         },
         "securitySchemes": {

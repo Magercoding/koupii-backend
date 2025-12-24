@@ -27,12 +27,17 @@ class StoreTestRequest extends BaseRequest
             'difficulty' => ['required', Rule::in(['beginner', 'intermediate', 'advanced'])],
             'test_type' => ['nullable', Rule::in(['single', 'final'])],
             'timer_mode' => ['nullable', Rule::in(['countdown', 'countup', 'none'])],
-            'timer_settings' => 'nullable|json',
+            'timer_settings' => 'nullable|array',
+            'timer_settings.time_limit' => 'nullable|integer|min:60',
+            'timer_settings.warning_time' => 'nullable|integer|min:0',
             'allow_repetition' => 'boolean',
             'max_repetition_count' => 'nullable|integer|min:0|max:10',
             'is_public' => 'boolean',
             'is_published' => 'boolean',
-            'settings' => 'nullable|json',
+            'settings' => 'nullable|array',
+            'settings.shuffle_questions' => 'nullable|boolean',
+            'settings.shuffle_options' => 'nullable|boolean',
+            'settings.show_results' => 'nullable|boolean',
             
             // Passages validation
             'passages' => 'nullable|array',
@@ -51,8 +56,9 @@ class StoreTestRequest extends BaseRequest
             'passages.*.question_groups.*.questions.*.question_type' => 'required|string',
             'passages.*.question_groups.*.questions.*.question_number' => 'nullable|numeric',
             'passages.*.question_groups.*.questions.*.question_text' => 'nullable|string',
-            'passages.*.question_groups.*.questions.*.question_data' => 'nullable|json',
-            'passages.*.question_groups.*.questions.*.correct_answers' => 'nullable|json',
+            'passages.*.question_groups.*.questions.*.question_data' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.correct_answers' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.correct_answers.*' => 'nullable|string',
             'passages.*.question_groups.*.questions.*.points_value' => 'nullable|numeric|min:0',
             
             // Question options validation
@@ -95,5 +101,36 @@ class StoreTestRequest extends BaseRequest
             'timer_mode.in' => 'Timer mode must be one of: countdown, countup, none',
             'max_repetition_count.max' => 'Maximum repetition count cannot exceed 10',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'allow_repetition' => $this->boolean('allow_repetition'),
+            'is_public' => $this->boolean('is_public'),
+            'is_published' => $this->boolean('is_published'),
+        ]);
+
+        // Only parse JSON strings if they are actually strings (for multipart/form-data backward compatibility)
+        if ($this->has('timer_settings') && is_string($this->timer_settings)) {
+            $this->merge([
+                'timer_settings' => json_decode($this->timer_settings, true)
+            ]);
+        }
+
+        if ($this->has('settings') && is_string($this->settings)) {
+            $this->merge([
+                'settings' => json_decode($this->settings, true)
+            ]);
+        }
+
+        if ($this->has('passages') && is_string($this->passages)) {
+            $this->merge([
+                'passages' => json_decode($this->passages, true)
+            ]);
+        }
     }
 }

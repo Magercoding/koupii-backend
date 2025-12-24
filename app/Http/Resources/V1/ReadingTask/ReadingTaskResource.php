@@ -111,7 +111,7 @@ class ReadingTaskResource extends JsonResource
             }),
 
             // Permissions
-            'permissions' => $this->when($user, function () use ($user, $isTeacher) {
+            'permissions' => $this->when($user, function () use ($user, $isTeacher, $isStudent) {
                 return [
                     'can_edit' => $user->role === 'admin' || ($isTeacher && $this->created_by === $user->id),
                     'can_delete' => $user->role === 'admin' || ($isTeacher && $this->created_by === $user->id),

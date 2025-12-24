@@ -27,12 +27,44 @@ class UpdateTestRequest extends BaseRequest
             'difficulty' => ['sometimes', 'required', Rule::in(['beginner', 'intermediate', 'advanced'])],
             'test_type' => ['sometimes', Rule::in(['single', 'final'])],
             'timer_mode' => ['sometimes', Rule::in(['countdown', 'countup', 'none'])],
-            'timer_settings' => 'sometimes|nullable|json',
+            'timer_settings' => 'sometimes|nullable|array',
+            'timer_settings.time_limit' => 'nullable|integer|min:60',
+            'timer_settings.warning_time' => 'nullable|integer|min:0',
             'allow_repetition' => 'sometimes|boolean',
             'max_repetition_count' => 'sometimes|nullable|integer|min:0|max:10',
             'is_public' => 'sometimes|boolean',
             'is_published' => 'sometimes|boolean',
-            'settings' => 'sometimes|nullable|json',
+            'settings' => 'sometimes|nullable|array',
+            'settings.shuffle_questions' => 'nullable|boolean',
+            'settings.shuffle_options' => 'nullable|boolean',
+            'settings.show_results' => 'nullable|boolean',
+            
+            // Passages validation
+            'passages' => 'sometimes|nullable|array',
+            'passages.*.title' => 'nullable|string|max:255',
+            'passages.*.description' => 'nullable|string',
+            'passages.*.audio_file_path' => 'nullable|string',
+            'passages.*.transcript_type' => ['nullable', Rule::in(['descriptive', 'conversation'])],
+            'passages.*.transcript' => 'nullable|json',
+            
+            // Question groups validation
+            'passages.*.question_groups' => 'nullable|array',
+            'passages.*.question_groups.*.instruction' => 'nullable|string',
+            
+            // Questions validation
+            'passages.*.question_groups.*.questions' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.question_type' => 'required|string',
+            'passages.*.question_groups.*.questions.*.question_number' => 'nullable|numeric',
+            'passages.*.question_groups.*.questions.*.question_text' => 'nullable|string',
+            'passages.*.question_groups.*.questions.*.question_data' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.correct_answers' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.correct_answers.*' => 'nullable|string',
+            'passages.*.question_groups.*.questions.*.points_value' => 'nullable|numeric|min:0',
+            
+            // Question options validation
+            'passages.*.question_groups.*.questions.*.options' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.options.*.option_key' => 'nullable|string',
+            'passages.*.question_groups.*.questions.*.options.*.option_text' => 'nullable|string',
         ];
     }
 
@@ -69,5 +101,49 @@ class UpdateTestRequest extends BaseRequest
             'timer_mode.in' => 'Timer mode must be one of: countdown, countup, none',
             'max_repetition_count.max' => 'Maximum repetition count cannot exceed 10',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Convert boolean fields if present
+        if ($this->has('allow_repetition')) {
+            $this->merge([
+                'allow_repetition' => $this->boolean('allow_repetition'),
+            ]);
+        }
+
+        if ($this->has('is_public')) {
+            $this->merge([
+                'is_public' => $this->boolean('is_public'),
+            ]);
+        }
+
+        if ($this->has('is_published')) {
+            $this->merge([
+                'is_published' => $this->boolean('is_published'),
+            ]);
+        }
+
+        // Only parse JSON strings if they are actually strings (for multipart/form-data backward compatibility)
+        if ($this->has('timer_settings') && is_string($this->timer_settings)) {
+            $this->merge([
+                'timer_settings' => json_decode($this->timer_settings, true)
+            ]);
+        }
+
+        if ($this->has('settings') && is_string($this->settings)) {
+            $this->merge([
+                'settings' => json_decode($this->settings, true)
+            ]);
+        }
+
+        if ($this->has('passages') && is_string($this->passages)) {
+            $this->merge([
+                'passages' => json_decode($this->passages, true)
+            ]);
+        }
     }
 }
