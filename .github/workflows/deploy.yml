@@ -179,7 +179,7 @@ volumes:
   logs:
   bootstrap-cache:
   db-data:
-COMPOSEEOF
+            COMPOSEEOF
             # Expand variables in docker-compose.yml
             sed -i "s|\${REGISTRY_IMAGE}:${IMAGE_TAG}|${REGISTRY_IMAGE}:${IMAGE_TAG}|g" docker-compose.yml
             sed -i "s|\${APP_PORT:-8081}|${APP_PORT:-8081}|g" docker-compose.yml
