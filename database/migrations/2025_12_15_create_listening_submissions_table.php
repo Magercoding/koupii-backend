@@ -12,9 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         // Drop old table structure if exists (from 2025_12_10 migration)
+        // This handles the case where the old migration was already run
         Schema::dropIfExists('listening_audio_logs');
         Schema::dropIfExists('listening_vocabulary_discoveries');
         Schema::dropIfExists('listening_audio_segments');
+        Schema::dropIfExists('listening_reviews');
         Schema::dropIfExists('listening_question_answers');
         Schema::dropIfExists('listening_submissions');
 
