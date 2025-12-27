@@ -124,7 +124,7 @@ jobs:
             echo "Image name: ${REGISTRY_IMAGE}:${IMAGE_TAG}"
             echo "IMAGE_NAME from .env: $(grep IMAGE_NAME .env)"
 
-            cat > docker-compose.yml << 'COMPOSEEOF'
+            cat > docker-compose.yml << COMPOSEEOF
 services:
   backend:
     image: ${REGISTRY_IMAGE}:${IMAGE_TAG}
