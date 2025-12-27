@@ -124,7 +124,7 @@ jobs:
             echo "Image name: ${REGISTRY_IMAGE}:${IMAGE_TAG}"
             echo "IMAGE_NAME from .env: $(grep IMAGE_NAME .env)"
 
-            cat > docker-compose.yml << COMPOSEEOF
+            cat > docker-compose.yml << 'COMPOSEEOF'
 services:
   backend:
     image: ${REGISTRY_IMAGE}:${IMAGE_TAG}
@@ -179,7 +179,14 @@ volumes:
   logs:
   bootstrap-cache:
   db-data:
-            COMPOSEEOF
+COMPOSEEOF
+            # Expand variables in docker-compose.yml
+            sed -i "s|\${REGISTRY_IMAGE}:${IMAGE_TAG}|${REGISTRY_IMAGE}:${IMAGE_TAG}|g" docker-compose.yml
+            sed -i "s|\${APP_PORT:-8081}|${APP_PORT:-8081}|g" docker-compose.yml
+            sed -i "s|\${DB_DATABASE:-koupii_staging}|${DB_DATABASE:-koupii_staging}|g" docker-compose.yml
+            sed -i "s|\${DB_USERNAME:-koupii_user}|${DB_USERNAME:-koupii_user}|g" docker-compose.yml
+            sed -i "s|\${DB_PASSWORD}|${DB_PASSWORD}|g" docker-compose.yml
+            sed -i "s|\${DB_ROOT_PASSWORD:-root}|${DB_ROOT_PASSWORD:-root}|g" docker-compose.yml
 
             if docker compose version >/dev/null 2>&1; then
               COMPOSE="docker compose"
