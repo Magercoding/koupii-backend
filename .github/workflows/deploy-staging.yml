@@ -114,8 +114,10 @@ jobs:
             fi
 
             echo "Login registry"
-            mkdir -p /tmp/.docker
-            export DOCKER_CONFIG=/tmp/.docker
+            # Use directory in app folder that user owns, not /tmp/.docker
+            mkdir -p .docker
+            export DOCKER_CONFIG=$(pwd)/.docker
+            chmod 700 .docker
             echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ghcr.io -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
 
             # Debug: Show image name
@@ -247,6 +249,8 @@ jobs:
             eval "$COMPOSE exec -T backend php artisan route:cache"
 
             docker logout ghcr.io || true
+            # Cleanup docker config
+            rm -rf .docker
 
       - name: Cleanup old env backup
         uses: appleboy/ssh-action@v1.1.0
