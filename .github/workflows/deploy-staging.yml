@@ -2,7 +2,7 @@ name: Deploy Staging
 
 on:
   push:
-    branches: ["development"]
+    branches: ["dev"]
   workflow_dispatch:
 
 env:
