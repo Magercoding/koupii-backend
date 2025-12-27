@@ -179,7 +179,7 @@ volumes:
   logs:
   bootstrap-cache:
   db-data:
-COMPOSEEOF
+            COMPOSEEOF
 
             if docker compose version >/dev/null 2>&1; then
               COMPOSE="docker compose"
