@@ -125,60 +125,60 @@ jobs:
             echo "IMAGE_NAME from .env: $(grep IMAGE_NAME .env)"
 
             cat > docker-compose.yml << 'COMPOSEEOF'
-services:
-  backend:
-    image: ${REGISTRY_IMAGE}:${IMAGE_TAG}
-    container_name: koupii-backend
-    restart: unless-stopped
-    env_file:
-      - .env
-    depends_on:
-      mysql:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:${APP_PORT:-8081}:80"
-    volumes:
-      - storage:/var/www/html/storage
-      - logs:/var/www/html/storage/logs
-      - bootstrap-cache:/var/www/html/bootstrap/cache
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:80/api/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 2048M
-        reservations:
-          cpus: "0.5"
-          memory: 1024M
+            services:
+              backend:
+                image: ${REGISTRY_IMAGE}:${IMAGE_TAG}
+                container_name: koupii-backend
+                restart: unless-stopped
+                env_file:
+                  - .env
+                depends_on:
+                  mysql:
+                    condition: service_healthy
+                ports:
+                  - "127.0.0.1:${APP_PORT:-8081}:80"
+                volumes:
+                  - storage:/var/www/html/storage
+                  - logs:/var/www/html/storage/logs
+                  - bootstrap-cache:/var/www/html/bootstrap/cache
+                healthcheck:
+                  test: ["CMD", "curl", "-f", "http://127.0.0.1:80/api/health"]
+                  interval: 30s
+                  timeout: 5s
+                  retries: 3
+                  start_period: 30s
+                deploy:
+                  resources:
+                    limits:
+                      cpus: "2.0"
+                      memory: 2048M
+                    reservations:
+                      cpus: "0.5"
+                      memory: 1024M
 
-  mysql:
-    image: mysql:8.0
-    container_name: koupii-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-koupii_production}
-      MYSQL_USER: ${DB_USERNAME:-koupii_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-    volumes:
-      - db-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_ROOT_PASSWORD:-root}"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 30s
+              mysql:
+                image: mysql:8.0
+                container_name: koupii-mysql
+                restart: unless-stopped
+                environment:
+                  MYSQL_DATABASE: ${DB_DATABASE:-koupii_production}
+                  MYSQL_USER: ${DB_USERNAME:-koupii_user}
+                  MYSQL_PASSWORD: ${DB_PASSWORD}
+                  MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+                volumes:
+                  - db-data:/var/lib/mysql
+                healthcheck:
+                  test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_ROOT_PASSWORD:-root}"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 6
+                  start_period: 30s
 
-volumes:
-  storage:
-  logs:
-  bootstrap-cache:
-  db-data:
+            volumes:
+              storage:
+              logs:
+              bootstrap-cache:
+              db-data:
             COMPOSEEOF
             # Expand variables in docker-compose.yml
             sed -i "s|\${REGISTRY_IMAGE}:${IMAGE_TAG}|${REGISTRY_IMAGE}:${IMAGE_TAG}|g" docker-compose.yml
