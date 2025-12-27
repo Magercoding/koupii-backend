@@ -107,6 +107,11 @@ jobs:
             if ! grep -q '^APP_PORT=' .env; then
               echo 'APP_PORT=8081' >> .env
             fi
+            if ! grep -q '^APP_URL=' .env; then
+              echo 'APP_URL=https://api-staging.koupii.com' >> .env
+            else
+              sed -i 's|^APP_URL=.*|APP_URL=https://api-staging.koupii.com|' .env
+            fi
             if grep -q '^DB_HOST=' .env; then
               sed -i 's/^DB_HOST=.*/DB_HOST=koupii-mysql-staging/' .env
             else
