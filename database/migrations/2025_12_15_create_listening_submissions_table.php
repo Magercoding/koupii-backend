@@ -11,6 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Drop old table structure if exists (from 2025_12_10 migration)
+        Schema::dropIfExists('listening_audio_logs');
+        Schema::dropIfExists('listening_vocabulary_discoveries');
+        Schema::dropIfExists('listening_audio_segments');
+        Schema::dropIfExists('listening_question_answers');
+        Schema::dropIfExists('listening_submissions');
+
         // Listening task submissions by students (following writing pattern)
         Schema::create('listening_submissions', function (Blueprint $table) {
             $table->uuid('id')->primary();

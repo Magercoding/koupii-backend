@@ -249,7 +249,11 @@ jobs:
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/bootstrap/cache"
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/public"
 
-            eval "$COMPOSE exec -T backend php artisan migrate --force"
+            eval "$COMPOSE exec -T backend php artisan migrate --force" || {
+              echo "Migration failed, checking for duplicate migration issues..."
+              eval "$COMPOSE exec -T backend php artisan migrate:status" || true
+              exit 1
+            }
             eval "$COMPOSE exec -T backend php artisan storage:link" || true
             eval "$COMPOSE exec -T backend php artisan optimize"
             eval "$COMPOSE exec -T backend php artisan config:cache"
