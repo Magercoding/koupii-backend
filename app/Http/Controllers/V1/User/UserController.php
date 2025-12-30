@@ -38,7 +38,13 @@ class UserController extends Controller
             return response()->json(['message' => 'User not found'], 404);
         }
 
-        $result = $userService->updateProfile($user, $request->validated(), $request);
+        // Handle method override for file uploads (POST with _method=PATCH)
+        $validatedData = $request->validated();
+        if ($request->hasFile('avatar')) {
+            $validatedData['avatar_file'] = $request->file('avatar');
+        }
+
+        $result = $userService->updateProfile($user, $validatedData, $request);
 
         if (isset($result['error'])) {
             return response()->json(['message' => $result['error']], $result['code']);

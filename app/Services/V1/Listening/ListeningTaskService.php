@@ -121,8 +121,13 @@ class ListeningTaskService
             // Delete associated audio segments
             $task->audioSegments()->delete();
             
-            // Delete associated questions
-            $task->test->questions()->delete();
+            // Delete associated questions for this test
+            if ($task->test_id) {
+                $test = Test::find($task->test_id);
+                if ($test) {
+                    $test->questions()->delete();
+                }
+            }
             
             // Delete the task
             return $task->delete();

@@ -145,7 +145,7 @@ class ReadingTestDocs
     }
 
     /**
-     * @OA\Put(
+     * @OA\Post(
      *     path="/api/v1/reading/update/{id}",
      *     tags={"Reading Tests"},
      *     summary="Update a reading test",

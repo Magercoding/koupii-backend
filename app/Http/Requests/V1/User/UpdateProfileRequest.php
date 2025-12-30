@@ -12,7 +12,7 @@ class UpdateProfileRequest extends BaseRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true; // Allow authenticated users to update their profile
     }
 
     /**

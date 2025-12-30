@@ -13,6 +13,7 @@ class SpeakingTaskAssignment extends Model
 
     protected $fillable = [
         'test_id',
+        'speaking_task_id',
         'class_id',
         'assigned_by',
         'due_date',
@@ -30,6 +31,11 @@ class SpeakingTaskAssignment extends Model
     public function test(): BelongsTo
     {
         return $this->belongsTo(Test::class);
+    }
+
+    public function speakingTask(): BelongsTo
+    {
+        return $this->belongsTo(SpeakingTask::class);
     }
 
     public function class(): BelongsTo

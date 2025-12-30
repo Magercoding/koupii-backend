@@ -64,27 +64,41 @@ class ListeningTestDocs
      *   
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             required={"title", "description", "test_type", "difficulty"},
-     *             @OA\Property(property="title", type="string", example="IELTS Listening Test"),
-     *             @OA\Property(property="description", type="string", example="A comprehensive listening test"),
-     *             @OA\Property(property="test_type", type="string", enum={"academic", "general", "business", "ielts", "toefl"}, example="ielts"),
-     *             @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}, example="intermediate"),
-     *             @OA\Property(property="timer_mode", type="string", enum={"none", "test", "practice"}, example="test"),
-     *             @OA\Property(property="timer_settings", type="object", 
-     *                 @OA\Property(property="test_time", type="integer", example=60),
-     *                 @OA\Property(property="warning_time", type="integer", example=5)
-     *             ),
-     *             @OA\Property(property="allow_repetition", type="boolean", example=true),
-     *             @OA\Property(property="max_repetition_count", type="integer", example=3),
-     *             @OA\Property(property="is_public", type="boolean", example=false),
-     *             @OA\Property(property="is_published", type="boolean", example=true),
-     *             @OA\Property(property="settings", type="object",
-     *                 @OA\Property(property="instructions", type="string", example="Listen carefully and answer the questions"),
-     *                 @OA\Property(property="audio_format", type="string", example="mp3"),
-     *                 @OA\Property(property="audio_speed", type="number", example=1.0),
-     *                 @OA\Property(property="cover_image", type="string", example="test_cover.jpg"),
-     *                 @OA\Property(property="tags", type="array", @OA\Items(type="string"))
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"title", "description", "test_type", "difficulty"},
+     *                 @OA\Property(property="title", type="string", example="IELTS Listening Test"),
+     *                 @OA\Property(property="description", type="string", example="A comprehensive listening test"),
+     *                 @OA\Property(property="test_type", type="string", enum={"academic", "general", "business", "ielts", "toefl"}, example="ielts"),
+     *                 @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}, example="intermediate"),
+     *                 @OA\Property(property="timer_mode", type="string", enum={"none", "test", "practice"}, example="test"),
+     *                 @OA\Property(property="timer_settings", type="string", description="JSON object of timer settings", example="{""test_time"":60,""warning_time"":5}"),
+     *                 @OA\Property(property="allow_repetition", type="boolean", example=true),
+     *                 @OA\Property(property="max_repetition_count", type="integer", example=3),
+     *                 @OA\Property(property="is_public", type="boolean", example=false),
+     *                 @OA\Property(property="duration_minutes", type="integer", example=60),
+     *                 @OA\Property(property="passing_score", type="integer", example=70),
+     *                 @OA\Property(
+     *                     property="audio_files",
+     *                     type="array",
+     *                     @OA\Items(type="string", format="binary"),
+     *                     description="Upload test audio files"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="reference_materials",
+     *                     type="array",
+     *                     @OA\Items(type="string", format="binary"),
+     *                     description="Upload reference materials, transcripts, etc."
+     *                 ),
+     *                 @OA\Property(
+     *                     property="test_data",
+     *                     type="string",
+     *                     description="JSON string containing passages, audio segments and questions data",
+     *                     example="{""passages"":[],""audio_segments"":[],""questions"":[]}"
+     *                 ),
+     *                 @OA\Property(property="is_published", type="boolean", example=true),
+     *                 @OA\Property(property="settings", type="string", description="JSON object of test settings", example="{""instructions"":""Listen carefully"",""audio_format"":""mp3"",""audio_speed"":1.0}")
      *             )
      *         )
      *     ),
@@ -176,11 +190,11 @@ class ListeningTestDocs
     }
 
     /**
-     * @OA\Put(
-     *     path="/api/v1/listening/tests/{id}",
+     * @OA\Post(
+     *     path="/api/v1/listening/tests/{id}/update",
      *     tags={"Listening Tests"},
      *     summary="Update a listening test",
-     *     description="Update an existing listening test. Only test creator or admin can update.",
+     *     description="Update an existing listening test with file upload support",
      *     security={{"bearerAuth":{}}},
      *
      *     @OA\Parameter(
@@ -190,45 +204,46 @@ class ListeningTestDocs
      *         description="Listening test ID",
      *         @OA\Schema(type="string", format="uuid")
      *     ),
+     *     @OA\Parameter(
+     *         name="_method",
+     *         in="query",
+     *         required=true,
+     *         description="HTTP method override for file uploads",
+     *         @OA\Schema(type="string", example="PUT")
+     *     ),
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="title", type="string", example="Updated IELTS Listening Test"),
-     *             @OA\Property(property="description", type="string", example="Updated description"),
-     *             @OA\Property(property="test_type", type="string", enum={"academic", "general", "business", "ielts", "toefl"}),
-     *             @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}),
-     *             @OA\Property(property="timer_mode", type="string", enum={"none", "test", "practice"}),
-     *             @OA\Property(property="timer_settings", type="object"),
-     *             @OA\Property(property="allow_repetition", type="boolean"),
-     *             @OA\Property(property="max_repetition_count", type="integer"),
-     *             @OA\Property(property="is_public", type="boolean"),
-     *             @OA\Property(property="is_published", type="boolean"),
-     *             @OA\Property(property="settings", type="object"),
-     *             @OA\Property(property="audio_segments", type="array",
-     *                 @OA\Items(
-     *                     @OA\Property(property="id", type="string", format="uuid", description="Optional for updates"),
-     *                     @OA\Property(property="title", type="string", example="Section 1 - Conversation"),
-     *                     @OA\Property(property="audio_url", type="string", example="audio_file.mp3"),
-     *                     @OA\Property(property="transcript", type="string", example="Audio transcript"),
-     *                     @OA\Property(property="duration", type="integer", example=180),
-     *                     @OA\Property(property="segment_type", type="string", enum={"conversation", "lecture", "monologue", "dialogue"}),
-     *                     @OA\Property(property="difficulty_level", type="string", enum={"beginner", "intermediate", "advanced"})
-     *                 )
-     *             ),
-     *             @OA\Property(property="questions", type="array",
-     *                 @OA\Items(
-     *                     @OA\Property(property="id", type="string", format="uuid", description="Optional for updates"),
-     *                     @OA\Property(property="audio_segment_id", type="string", format="uuid"),
-     *                     @OA\Property(property="question_text", type="string", example="What is the main topic?"),
-     *                     @OA\Property(property="question_type", type="string", enum={"multiple_choice", "fill_blank", "matching", "true_false", "short_answer"}),
-     *                     @OA\Property(property="time_range", type="object",
-     *                         @OA\Property(property="start", type="integer", example=30),
-     *                         @OA\Property(property="end", type="integer", example=60)
-     *                     ),
-     *                     @OA\Property(property="options", type="array", @OA\Items(type="object")),
-     *                     @OA\Property(property="correct_answer", type="string"),
-     *                     @OA\Property(property="explanation", type="string"),
-     *                     @OA\Property(property="points", type="integer", example=1)
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(property="title", type="string", example="Updated IELTS Listening Test"),
+     *                 @OA\Property(property="description", type="string", example="Updated description"),
+     *                 @OA\Property(property="test_type", type="string", enum={"academic", "general", "business", "ielts", "toefl"}),
+     *                 @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}),
+     *                 @OA\Property(property="timer_mode", type="string", enum={"none", "test", "practice"}),
+     *                 @OA\Property(property="timer_settings", type="string", example="{""test_time"":60,""warning_time"":5}"),
+     *                 @OA\Property(property="allow_repetition", type="boolean"),
+     *                 @OA\Property(property="max_repetition_count", type="integer"),
+     *                 @OA\Property(property="is_public", type="boolean"),
+     *                 @OA\Property(property="is_published", type="boolean"),
+     *                 @OA\Property(property="settings", type="string", example="{""instructions"":""Listen carefully""}"),
+     *                 @OA\Property(
+     *                     property="audio_files",
+     *                     type="array",
+     *                     @OA\Items(type="string", format="binary"),
+     *                     description="Upload updated test audio files"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="reference_materials", 
+     *                     type="array",
+     *                     @OA\Items(type="string", format="binary"),
+     *                     description="Upload updated reference materials"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="test_data",
+     *                     type="string",
+     *                     description="JSON string containing updated test structure",
+     *                     example="{""audio_segments"":[],""questions"":[]}"
      *                 )
      *             )
      *         )

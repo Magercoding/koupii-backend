@@ -64,27 +64,27 @@ class WritingTestDocs
      *   
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             required={"title", "description", "test_type", "difficulty"},
-     *             @OA\Property(property="title", type="string", example="IELTS Writing Test"),
-     *             @OA\Property(property="description", type="string", example="A comprehensive writing test"),
-     *             @OA\Property(property="test_type", type="string", enum={"academic", "general", "business", "ielts", "toefl"}, example="ielts"),
-     *             @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}, example="intermediate"),
-     *             @OA\Property(property="timer_mode", type="string", enum={"none", "test", "practice"}, example="test"),
-     *             @OA\Property(property="timer_settings", type="object", 
-     *                 @OA\Property(property="test_time", type="integer", example=60),
-     *                 @OA\Property(property="warning_time", type="integer", example=5)
-     *             ),
-     *             @OA\Property(property="allow_repetition", type="boolean", example=true),
-     *             @OA\Property(property="max_repetition_count", type="integer", example=3),
-     *             @OA\Property(property="is_public", type="boolean", example=false),
-     *             @OA\Property(property="is_published", type="boolean", example=true),
-     *             @OA\Property(property="settings", type="object",
-     *                 @OA\Property(property="instructions", type="string", example="Write your response clearly and coherently"),
-     *                 @OA\Property(property="sample_format", type="string", example="Essay format"),
-     *                 @OA\Property(property="word_limit", type="integer", example=250),
-     *                 @OA\Property(property="cover_image", type="string", example="test_cover.jpg"),
-     *                 @OA\Property(property="tags", type="array", @OA\Items(type="string"))
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"title", "description", "test_type", "difficulty"},
+     *                 @OA\Property(property="title", type="string", example="IELTS Writing Test"),
+     *                 @OA\Property(property="description", type="string", example="A comprehensive writing test"),
+     *                 @OA\Property(property="test_type", type="string", enum={"academic", "general", "business", "ielts", "toefl"}, example="ielts"),
+     *                 @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}, example="intermediate"),
+     *                 @OA\Property(property="timer_mode", type="string", enum={"none", "test", "practice"}, example="test"),
+ *                 @OA\Property(property="timer_settings", type="string", example="{""test_time"":60,""warning_time"":5}"),
+     *                 @OA\Property(property="allow_repetition", type="boolean", example=true),
+     *                 @OA\Property(property="max_repetition_count", type="integer", example=3),
+     *                 @OA\Property(property="is_public", type="boolean", example=false),
+     *                 @OA\Property(property="is_published", type="boolean", example=true),
+     *                 @OA\Property(property="settings", type="string", example="{""instructions"":""Write your response clearly"",""sample_format"":""Essay format"",""word_limit"":250}"),
+     *                 @OA\Property(
+     *                     property="prompt_files",
+     *                     type="array",
+     *                     @OA\Items(type="string", format="binary"),
+     *                     description="Upload prompt files (pdf, doc, docx, txt, images)"
+     *                 )
      *             )
      *         )
      *     ),
@@ -152,8 +152,8 @@ class WritingTestDocs
     }
 
     /**
-     * @OA\Put(
-     *     path="/api/v1/writing/tests/{id}",
+     * @OA\Post(
+     *     path="/api/v1/writing/tests/{id}/update",
      *     tags={"Writing Tests"},
      *     summary="Update a writing test",
      *     description="Update an existing writing test. Only test creator or admin can update.",
@@ -168,18 +168,27 @@ class WritingTestDocs
      *     ),
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="title", type="string", example="Updated IELTS Writing Test"),
-     *             @OA\Property(property="description", type="string", example="Updated description"),
-     *             @OA\Property(property="test_type", type="string", enum={"academic", "general", "business", "ielts", "toefl"}),
-     *             @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}),
-     *             @OA\Property(property="timer_mode", type="string", enum={"none", "test", "practice"}),
-     *             @OA\Property(property="timer_settings", type="object"),
-     *             @OA\Property(property="allow_repetition", type="boolean"),
-     *             @OA\Property(property="max_repetition_count", type="integer"),
-     *             @OA\Property(property="is_public", type="boolean"),
-     *             @OA\Property(property="is_published", type="boolean"),
-     *             @OA\Property(property="settings", type="object")
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(property="title", type="string", example="Updated IELTS Writing Test"),
+     *                 @OA\Property(property="description", type="string", example="Updated description"),
+     *                 @OA\Property(property="test_type", type="string", enum={"academic", "general", "business", "ielts", "toefl"}),
+     *                 @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}),
+     *                 @OA\Property(property="timer_mode", type="string", enum={"none", "test", "practice"}),
+ *                 @OA\Property(property="timer_settings", type="string", example="{""test_time"":60,""warning_time"":5}"),
+     *                 @OA\Property(property="allow_repetition", type="boolean"),
+     *                 @OA\Property(property="max_repetition_count", type="integer"),
+     *                 @OA\Property(property="is_public", type="boolean"),
+     *                 @OA\Property(property="is_published", type="boolean"),
+     *                 @OA\Property(property="settings", type="string", example="{""instructions"":""Updated instructions""}"),
+     *                 @OA\Property(
+     *                     property="prompt_files",
+     *                     type="array",
+     *                     @OA\Items(type="string", format="binary"),
+     *                     description="Upload prompt files (pdf, doc, docx, txt, images)"
+     *                 )
+     *             )
      *         )
      *     ),
      *     @OA\Response(

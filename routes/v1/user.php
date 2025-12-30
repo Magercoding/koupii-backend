@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('profile')->middleware('auth:sanctum')->group(function () {
 Route::get('/', [UserController::class, 'profile']);
 Route::get('/{id}', [UserController::class, 'show']);
-Route::patch('/update', [UserController::class, 'update']);
+Route::post('/update', [UserController::class, 'update']); // Changed to POST for file upload support
 Route::delete('/destroy', [UserController::class, 'destroy']);
 
 });

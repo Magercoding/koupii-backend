@@ -41,10 +41,20 @@ class VocabularyCategoryDocs
      *     security={{"bearerAuth":{}}},
 *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             required={"name"},
-     *             @OA\Property(property="name", type="string", example="nouns"),
-     *             @OA\Property(property="color_code", type="string", example="#FF0000")
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"name"},
+     *                 @OA\Property(property="name", type="string", example="nouns"),
+     *                 @OA\Property(property="color_code", type="string", example="#FF0000"),
+     *                 @OA\Property(
+     *                     property="icon_image",
+     *                     type="string",
+     *                     format="binary",
+     *                     description="Upload category icon image (jpg, png, svg)"
+     *                 ),
+     *                 @OA\Property(property="description", type="string", example="Category for noun words")
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -104,7 +114,7 @@ class VocabularyCategoryDocs
     }
 
     /**
-     * @OA\Patch(
+     * @OA\Post(
      *     path="/api/vocab/categories/update/{id}",
      *     tags={"Vocabulary Categories"},
      *     summary="Update an existing vocabulary category",
@@ -117,12 +127,29 @@ class VocabularyCategoryDocs
      *         description="UUID of the category",
      *         @OA\Schema(type="string", example="uuid-string")
      *     ),
+     *     @OA\Parameter(
+     *         name="_method",
+     *         in="query",
+     *         required=true,
+     *         description="HTTP method override for file uploads",
+     *         @OA\Schema(type="string", example="PATCH")
+     *     ),
 *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             required={"name"},
-     *             @OA\Property(property="name", type="string", example="verb"),
-     *             @OA\Property(property="color_code", type="string", example="#FFA000")
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"name"},
+     *                 @OA\Property(property="name", type="string", example="verb"),
+     *                 @OA\Property(property="color_code", type="string", example="#FFA000"),
+     *                 @OA\Property(
+     *                     property="icon_image",
+     *                     type="string",
+     *                     format="binary",
+     *                     description="Upload category icon image (jpg, png, svg)"
+     *                 ),
+     *                 @OA\Property(property="description", type="string", example="Category for verb words")
+     *             )
      *         )
      *     ),
      *     @OA\Response(

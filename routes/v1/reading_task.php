@@ -1,6 +1,7 @@
 <?php
 
-use App\Http\Controllers\V1\ReadingTest\ReadingTestQuestionController;
+use App\Http\Controllers\V1\ReadingTask\ReadingTaskController;
+use App\Http\Controllers\V1\ReadingTask\ReadingTaskAssignmentController;
 use App\Http\Controllers\V1\ReadingTest\ReadingSubmissionController;
 use App\Http\Controllers\V1\ReadingTest\ReadingAnswerController;
 use App\Http\Controllers\V1\ReadingTest\ReadingVocabularyController;
@@ -21,11 +22,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Core Reading Task CRUD Routes
     Route::prefix('reading-tasks')->name('reading-tasks.')->group(function () {
-        Route::get('/', [ReadingTestQuestionController::class, 'index'])->name('index');
-        Route::post('/', [ReadingTestQuestionController::class, 'store'])->name('store');
-        Route::get('/{id}', [ReadingTestQuestionController::class, 'show'])->name('show');
-        Route::put('/{id}', [ReadingTestQuestionController::class, 'update'])->name('update');
-        Route::delete('/{id}', [ReadingTestQuestionController::class, 'destroy'])->name('destroy');
+        Route::get('/', [ReadingTaskController::class, 'index'])->name('index');
+        Route::post('/', [ReadingTaskController::class, 'store'])->name('store');
+        Route::get('/{id}', [ReadingTaskController::class, 'show'])->name('show');
+        Route::put('/{id}', [ReadingTaskController::class, 'update'])->name('update');
+        Route::delete('/{id}', [ReadingTaskController::class, 'destroy'])->name('destroy');
+        Route::patch('/{id}/toggle-publish', [ReadingTaskController::class, 'togglePublish'])->name('toggle-publish');
+        
+        // Task Assignment Routes  
+        Route::prefix('{id}/assignments')->name('assignments.')->group(function () {
+            Route::get('/', [ReadingTaskAssignmentController::class, 'getAssignments'])->name('index');
+            Route::post('/', [ReadingTaskAssignmentController::class, 'assignToClassrooms'])->name('assign');
+            Route::delete('/{classroomId}', [ReadingTaskAssignmentController::class, 'removeFromClassroom'])->name('remove');
+        });
         
         // Submission Routes
         Route::prefix('{taskId}/submissions')->name('submissions.')->group(function () {

@@ -25,13 +25,21 @@ class WritingTaskAssignment extends Model
 
     protected $fillable = [
         'writing_task_id',
+        'class_id',
         'classroom_id',
         'assigned_by',
         'assigned_at',
+        'due_date',
+        'max_attempts',
+        'instructions',
+        'auto_grade',
+        'status',
     ];
 
     protected $casts = [
         'assigned_at' => 'datetime',
+        'due_date' => 'datetime',
+        'auto_grade' => 'boolean',
     ];
 
     public function writingTask()
@@ -39,8 +47,36 @@ class WritingTaskAssignment extends Model
         return $this->belongsTo(WritingTask::class, 'writing_task_id');
     }
 
+    public function class()
+    {
+        return $this->belongsTo(Classes::class, 'class_id');
+    }
+
+    public function classroom()
+    {
+        return $this->belongsTo(Classes::class, 'classroom_id');
+    }
+
     public function assignedBy()
     {
         return $this->belongsTo(User::class, 'assigned_by');
+    }
+
+    public function studentAssignments()
+    {
+        return $this->hasMany(StudentAssignment::class, 'assignment_id')
+            ->where('assignment_type', 'writing_task');
+    }
+
+    public function students()
+    {
+        return $this->hasManyThrough(
+            User::class,
+            ClassEnrollment::class,
+            'class_id',
+            'id',
+            'class_id',
+            'student_id'
+        )->where('class_enrollments.status', 'active');
     }
 }

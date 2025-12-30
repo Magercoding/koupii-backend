@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\V1\WritingTask;
+namespace App\Http\Controllers\V1\WiritingTask;
 
 use App\Http\Controllers\Controller;
 use App\Services\V1\WritingTask\WritingDashboardService;
