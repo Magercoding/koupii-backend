@@ -161,12 +161,11 @@ class ReadingTaskService
         $result = [];
 
         if (isset($data['passage_images']) && is_array($data['passage_images'])) {
-            $uploadHelper = app(FileUploadHelper::class);
             $result['passage_images'] = [];
 
             foreach ($data['passage_images'] as $file) {
                 if ($file->isValid()) {
-                    $uploadedFile = $uploadHelper->uploadFile($file, 'reading-passages/images');
+                    $uploadedFile = FileUploadHelper::upload($file, 'reading-passages/images');
                     if ($uploadedFile) {
                         $result['passage_images'][] = $uploadedFile;
                     }
@@ -175,12 +174,11 @@ class ReadingTaskService
         }
 
         if (isset($data['reference_materials']) && is_array($data['reference_materials'])) {
-            $uploadHelper = app(FileUploadHelper::class);
             $result['reference_materials'] = [];
 
             foreach ($data['reference_materials'] as $file) {
                 if ($file->isValid()) {
-                    $uploadedFile = $uploadHelper->uploadFile($file, 'reading-passages/materials');
+                    $uploadedFile = FileUploadHelper::upload($file, 'reading-passages/materials');
                     if ($uploadedFile) {
                         $result['reference_materials'][] = $uploadedFile;
                     }

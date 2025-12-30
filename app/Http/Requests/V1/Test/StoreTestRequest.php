@@ -115,21 +115,21 @@ class StoreTestRequest extends BaseRequest
         ]);
 
         // Only parse JSON strings if they are actually strings (for multipart/form-data backward compatibility)
-        if ($this->has('timer_settings') && is_string($this->timer_settings)) {
+        if ($this->has('timer_settings') && is_string($this->input('timer_settings'))) {
             $this->merge([
-                'timer_settings' => json_decode($this->timer_settings, true)
+                'timer_settings' => json_decode($this->input('timer_settings'), true)
             ]);
         }
 
-        if ($this->has('settings') && is_string($this->settings)) {
+        if ($this->has('settings') && is_string($this->input('settings'))) {
             $this->merge([
-                'settings' => json_decode($this->settings, true)
+                'settings' => json_decode($this->input('settings'), true)
             ]);
         }
 
-        if ($this->has('passages') && is_string($this->passages)) {
+        if ($this->has('passages') && is_string($this->input('passages'))) {
             $this->merge([
-                'passages' => json_decode($this->passages, true)
+                'passages' => json_decode($this->input('passages'), true)
             ]);
         }
     }

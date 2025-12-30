@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\V1\TestController;
-use App\Http\Controllers\V1\TestSubmissionController;
+use App\Http\Controllers\V1\Test\TestController;
+use App\Http\Controllers\V1\Test\TestSubmissionController;
 
 /**
  * Test System Routes - Main test system with passages and questions

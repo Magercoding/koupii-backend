@@ -65,6 +65,13 @@ class WritingTaskQuestion extends Model
         'report' => 'Report Writing',
     ];
 
+    // Difficulty levels constants
+    public const DIFFICULTY_LEVELS = [
+        'beginner',
+        'intermediate',
+        'advanced'
+    ];
+
     /**
      * Relationships
      */
