@@ -11,10 +11,23 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Listening task submissions by students (following writing pattern)
+        // Disable foreign key checks temporarily
+        Schema::disableForeignKeyConstraints();
+        
+        // Drop all old listening-related tables from the old system
+        Schema::dropIfExists('listening_audio_logs');
+        Schema::dropIfExists('listening_vocabulary_discoveries');
+        Schema::dropIfExists('listening_audio_segments');
+        Schema::dropIfExists('listening_question_answers');
+        Schema::dropIfExists('listening_submissions');
+        
+        // Re-enable foreign key checks
+        Schema::enableForeignKeyConstraints();
+
+        // Create listening task submissions by students (following writing pattern)
         Schema::create('listening_submissions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('listening_task_id'); // Changed from test_id to listening_task_id
+            $table->uuid('listening_task_id'); // Links to listening_tasks table
             $table->uuid('student_id');
             $table->json('files')->nullable(); // Writing pattern: uploaded audio files or notes
             $table->enum('status', ['to_do', 'submitted', 'reviewed', 'done'])->default('to_do'); // Writing pattern statuses
@@ -49,8 +62,8 @@ return new class extends Migration
 
             $table->foreign('submission_id')->references('id')->on('listening_submissions')->onDelete('cascade');
             $table->foreign('question_id')->references('id')->on('listening_questions')->onDelete('cascade');
-            $table->unique(['submission_id', 'question_id']);
         });
+            
            
 
         // Audio segments for listening explanations

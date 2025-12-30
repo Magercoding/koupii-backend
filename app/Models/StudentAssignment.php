@@ -29,13 +29,17 @@ class StudentAssignment extends Model
     protected $fillable = [
         'assignment_id',
         'student_id',
+        'assignment_type',
         'test_id',
         'status',
         'score',
         'attempt_number',
+        'attempt_count',
         'started_at',
         'completed_at',
         'assigned_at',
+        'time_spent_seconds',
+        'submission_data',
     ];
 
     protected $casts = [
@@ -44,6 +48,7 @@ class StudentAssignment extends Model
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'assigned_at' => 'datetime',
+        'submission_data' => 'array',
     ];
 
     public function assignment()

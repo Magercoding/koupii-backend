@@ -105,3 +105,8 @@ require __DIR__ . '/../v1/speaking.php';
  * Test System Management (Main test system)
  */
 require __DIR__ . '/../v1/test.php';
+
+/**
+ * Assignment System & Student Dashboard
+ */
+require __DIR__ . '/../v1/assignment.php';

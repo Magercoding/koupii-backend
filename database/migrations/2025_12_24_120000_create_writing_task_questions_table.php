@@ -13,7 +13,9 @@ return new class extends Migration
     {
         // Add questions field to writing_tasks for JSON storage (like reading_tasks)
         Schema::table('writing_tasks', function (Blueprint $table) {
-            $table->json('questions')->nullable(); // JSON array of questions like reading tasks
+            if (!Schema::hasColumn('writing_tasks', 'questions')) {
+                $table->json('questions')->nullable(); // JSON array of questions like reading tasks
+            }
             
             // Add these fields only if they don't exist
             if (!Schema::hasColumn('writing_tasks', 'title')) {
@@ -25,13 +27,21 @@ return new class extends Migration
             if (!Schema::hasColumn('writing_tasks', 'instructions')) {
                 $table->text('instructions')->nullable();
             }
-            
-            // Add missing validation fields
-            $table->enum('difficulty', ['beginner', 'intermediate', 'advanced'])->nullable();
-            $table->integer('word_limit')->nullable(); // Overall task word limit
-            $table->text('sample_answer')->nullable(); // Overall task sample
-            $table->timestamp('due_date')->nullable();
-            $table->boolean('is_published')->default(false);
+            if (!Schema::hasColumn('writing_tasks', 'difficulty')) {
+                $table->enum('difficulty', ['beginner', 'intermediate', 'advanced'])->nullable();
+            }
+            if (!Schema::hasColumn('writing_tasks', 'word_limit')) {
+                $table->integer('word_limit')->nullable(); // Overall task word limit
+            }
+            if (!Schema::hasColumn('writing_tasks', 'sample_answer')) {
+                $table->text('sample_answer')->nullable(); // Overall task sample
+            }
+            if (!Schema::hasColumn('writing_tasks', 'due_date')) {
+                $table->timestamp('due_date')->nullable();
+            }
+            if (!Schema::hasColumn('writing_tasks', 'is_published')) {
+                $table->boolean('is_published')->default(false);
+            }
         });
 
         // Create separate writing task questions table (like test_questions)

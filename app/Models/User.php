@@ -98,4 +98,30 @@ class User extends Authenticatable
     {
         return $this->role === 'student';
     }
+
+    /**
+     * Classes that the teacher owns/manages
+     */
+    public function teacherClasses()
+    {
+        return $this->hasMany(Classes::class, 'teacher_id');
+    }
+
+    /**
+     * Classes that the student is enrolled in
+     */
+    public function studentClasses()
+    {
+        return $this->belongsToMany(Classes::class, 'class_enrollments', 'student_id', 'class_id')
+            ->withTimestamps()
+            ->withPivot('status', 'enrolled_at');
+    }
+
+    /**
+     * Student assignments
+     */
+    public function studentAssignments()
+    {
+        return $this->hasMany(StudentAssignment::class, 'student_id');
+    }
 }
