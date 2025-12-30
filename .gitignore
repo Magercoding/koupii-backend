@@ -2,6 +2,7 @@
 .DS_Store
 .env
 .env.backup
+.env.staging
 .env.production
 .phpactor.json
 .phpunit.result.cache
@@ -31,3 +32,6 @@ docker/
 
 # Docker volumes
 docker-volumes/
+
+# Server setup files (may contain sensitive server info)
+server-setup/

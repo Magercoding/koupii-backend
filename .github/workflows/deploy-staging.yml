@@ -1,8 +1,8 @@
-name: Deploy Production
+name: Deploy Staging
 
 on:
   push:
-    branches: ["main"]
+    branches: ["dev"]
   workflow_dispatch:
 
 env:
@@ -44,10 +44,10 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate
 
-      - name: Run Tests (Production)
+      - name: Run Tests
         id: tests
         run: |
-          echo "## 🧪 Running Tests (Production Build)" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧪 Running Tests" >> $GITHUB_STEP_SUMMARY
           php artisan test --stop-on-failure || echo "No tests found or tests skipped"
           echo "✅ Tests completed!" >> $GITHUB_STEP_SUMMARY
 
@@ -69,13 +69,13 @@ jobs:
         run: |
           docker build -f Dockerfile.backend -t "${REGISTRY_IMAGE}:${IMAGE_TAG}" .
           docker push "${REGISTRY_IMAGE}:${IMAGE_TAG}"
-          docker tag "${REGISTRY_IMAGE}:${IMAGE_TAG}" "${REGISTRY_IMAGE}:latest"
-          docker push "${REGISTRY_IMAGE}:latest"
+          docker tag "${REGISTRY_IMAGE}:${IMAGE_TAG}" "${REGISTRY_IMAGE}:staging-latest"
+          docker push "${REGISTRY_IMAGE}:staging-latest"
 
-  deploy:
+  deploy-staging:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/development' }}
     env:
       IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
     steps:
@@ -93,10 +93,10 @@ jobs:
           command_timeout: 10m
           script: |
             set -e
-            mkdir -p /srv/apps/koupii-backend
-            cd /srv/apps/koupii-backend
+            mkdir -p /srv/apps/koupii-backend-staging
+            cd /srv/apps/koupii-backend-staging
 
-            printf '%s\n' "${{ secrets.ENV_PRODUCTION }}" > .env.tmp
+            printf '%s\n' "${{ secrets.ENV_STAGING }}" > .env.tmp
             if [ -f .env ]; then mv .env .env.backup; fi
             mv .env.tmp .env
             grep -v '^IMAGE_NAME=' .env > .env.tmp && mv .env.tmp .env
@@ -107,10 +107,15 @@ jobs:
             if ! grep -q '^APP_PORT=' .env; then
               echo 'APP_PORT=8081' >> .env
             fi
-            if grep -q '^DB_HOST=' .env; then
-              sed -i 's/^DB_HOST=.*/DB_HOST=koupii-mysql/' .env
+            if ! grep -q '^APP_URL=' .env; then
+              echo 'APP_URL=https://api-staging.koupii.com' >> .env
             else
-              echo 'DB_HOST=koupii-mysql' >> .env
+              sed -i 's|^APP_URL=.*|APP_URL=https://api-staging.koupii.com|' .env
+            fi
+            if grep -q '^DB_HOST=' .env; then
+              sed -i 's/^DB_HOST=.*/DB_HOST=koupii-mysql-staging/' .env
+            else
+              echo 'DB_HOST=koupii-mysql-staging' >> .env
             fi
 
             echo "Login registry"
@@ -128,7 +133,7 @@ jobs:
             services:
               backend:
                 image: ${REGISTRY_IMAGE}:${IMAGE_TAG}
-                container_name: koupii-backend
+                container_name: koupii-backend-staging
                 restart: unless-stopped
                 env_file:
                   - .env
@@ -150,18 +155,18 @@ jobs:
                 deploy:
                   resources:
                     limits:
-                      cpus: "2.0"
-                      memory: 2048M
-                    reservations:
-                      cpus: "0.5"
+                      cpus: "1.5"
                       memory: 1024M
+                    reservations:
+                      cpus: "0.25"
+                      memory: 512M
 
               mysql:
                 image: mysql:8.0
-                container_name: koupii-mysql
+                container_name: koupii-mysql-staging
                 restart: unless-stopped
                 environment:
-                  MYSQL_DATABASE: ${DB_DATABASE:-koupii_production}
+                  MYSQL_DATABASE: ${DB_DATABASE:-koupii_staging}
                   MYSQL_USER: ${DB_USERNAME:-koupii_user}
                   MYSQL_PASSWORD: ${DB_PASSWORD}
                   MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
@@ -183,7 +188,7 @@ jobs:
             # Expand variables in docker-compose.yml
             sed -i "s|\${REGISTRY_IMAGE}:${IMAGE_TAG}|${REGISTRY_IMAGE}:${IMAGE_TAG}|g" docker-compose.yml
             sed -i "s|\${APP_PORT:-8081}|${APP_PORT:-8081}|g" docker-compose.yml
-            sed -i "s|\${DB_DATABASE:-koupii_production}|${DB_DATABASE:-koupii_production}|g" docker-compose.yml
+            sed -i "s|\${DB_DATABASE:-koupii_staging}|${DB_DATABASE:-koupii_staging}|g" docker-compose.yml
             sed -i "s|\${DB_USERNAME:-koupii_user}|${DB_USERNAME:-koupii_user}|g" docker-compose.yml
             sed -i "s|\${DB_PASSWORD}|${DB_PASSWORD}|g" docker-compose.yml
             sed -i "s|\${DB_ROOT_PASSWORD:-root}|${DB_ROOT_PASSWORD:-root}|g" docker-compose.yml
@@ -270,6 +275,6 @@ jobs:
           username: ${{ secrets.SSH_USER_STAGING }}
           key: ${{ secrets.SSH_KEY_STAGING }}
           script: |
-            cd /srv/apps/koupii-backend || exit 0
+            cd /srv/apps/koupii-backend-staging || exit 0
             rm -f .env.backup
 

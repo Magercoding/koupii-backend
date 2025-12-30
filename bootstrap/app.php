@@ -25,6 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckRole::class,
         ]);
 
+        // Trust Cloudflare proxies (for Cloudflare Proxy ON)
+        $middleware->trustProxies(at: '*');
+        $middleware->trustHosts(at: ['api.koupii.com', 'api-staging.koupii.com', '*.koupii.com']);
+
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (TokenMismatchException $e, $request) {
