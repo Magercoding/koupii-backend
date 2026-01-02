@@ -260,6 +260,7 @@ jobs:
               exit 1
             }
             eval "$COMPOSE exec -T backend php artisan storage:link" || true
+            eval "$COMPOSE exec -T backend php artisan l5-swagger:generate" || true
             eval "$COMPOSE exec -T backend php artisan optimize"
             eval "$COMPOSE exec -T backend php artisan config:cache"
             eval "$COMPOSE exec -T backend php artisan route:cache"
