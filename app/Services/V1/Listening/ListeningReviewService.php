@@ -29,7 +29,7 @@ class ListeningReviewService
             // Update submission status to reviewed
             $submission->update(['status' => 'reviewed']);
 
-            return $review->fresh(['submission.task', 'submission.student', 'teacher']);
+            return $review->fresh(['submission.listeningTask', 'submission.student', 'teacher']);
         });
     }
 
@@ -46,7 +46,7 @@ class ListeningReviewService
                 'reviewed_at' => now(),
             ]);
 
-            return $review->fresh(['submission.task', 'submission.student', 'teacher']);
+            return $review->fresh(['submission.listeningTask', 'submission.student', 'teacher']);
         });
     }
 
@@ -74,10 +74,10 @@ class ListeningReviewService
         DB::transaction(function () use ($reviews, $reviewer, &$results) {
             foreach ($reviews as $reviewData) {
                 try {
-                    $submission = ListeningSubmission::with('task')->findOrFail($reviewData['submission_id']);
+                    $submission = ListeningSubmission::with('listeningTask')->findOrFail($reviewData['submission_id']);
 
                     // Check authorization
-                    if ($submission->task->creator_id !== $reviewer->id && $reviewer->role !== 'admin') {
+                    if ($submission->listeningTask->creator_id !== $reviewer->id && $reviewer->role !== 'admin') {
                         $results[] = [
                             'submission_id' => $reviewData['submission_id'],
                             'success' => false,
@@ -157,7 +157,7 @@ class ListeningReviewService
         $unansweredCount = $answers->whereNull('is_correct')->count();
 
         $percentage = ($correctCount / $totalQuestions) * 100;
-        $taskPoints = $submission->task->points ?? 100;
+        $taskPoints = $submission->listeningTask->points ?? 100;
         $totalScore = ($correctCount / $totalQuestions) * $taskPoints;
 
         return [
@@ -256,8 +256,8 @@ class ListeningReviewService
         }
 
         // Analyze time taken
-        if ($submission->time_taken_seconds && $submission->task->time_limit) {
-            $timeRatio = $submission->time_taken_seconds / ($submission->task->time_limit * 60);
+        if ($submission->time_taken_seconds && $submission->listeningTask->time_limit) {
+            $timeRatio = $submission->time_taken_seconds / ($submission->listeningTask->time_limit * 60);
             if ($timeRatio > 0.9) {
                 $areas[] = 'Time management - work on completing tasks more efficiently';
             }

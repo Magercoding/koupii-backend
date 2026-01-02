@@ -11,12 +11,21 @@ use OpenApi\Annotations as OA;
  *     description="Registers a user and returns an access token",
  *     @OA\RequestBody(
  *         required=true,
- *         @OA\JsonContent(
- *             required={"name", "email", "password", "role"},
- *             @OA\Property(property="name", type="string", example="Fika Riyadi"),
- *             @OA\Property(property="email", type="string", format="email", example="fika@example.com"),
- *             @OA\Property(property="password", type="string", format="password", example="secret123"),
- *             @OA\Property(property="role", type="string", example="user")
+ *         @OA\MediaType(
+ *             mediaType="multipart/form-data",
+ *             @OA\Schema(
+ *                 required={"name", "email", "password", "role"},
+ *                 @OA\Property(property="name", type="string", example="Fika Riyadi"),
+ *                 @OA\Property(property="email", type="string", format="email", example="fika@example.com"),
+ *                 @OA\Property(property="password", type="string", format="password", example="secret123"),
+ *                 @OA\Property(property="role", type="string", example="user"),
+ *                 @OA\Property(
+ *                     property="profile_picture",
+ *                     type="string",
+ *                     format="binary",
+ *                     description="Upload profile picture (jpg, png, gif)"
+ *                 )
+ *             )
  *         )
  *     ),
  *     @OA\Response(

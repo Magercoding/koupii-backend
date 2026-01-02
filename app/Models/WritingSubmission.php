@@ -36,6 +36,8 @@ class WritingSubmission extends Model
     protected $fillable = [
         'writing_task_id',
         'student_id',
+        'attempt_id', // Link to WritingAttempt
+        'question_id', // Specific question being answered
         'content',
         'files',
         'word_count',
@@ -61,6 +63,30 @@ class WritingSubmission extends Model
     public function student()
     {
         return $this->belongsTo(User::class, 'student_id');
+    }
+
+    /**
+     * Get the attempt this submission belongs to
+     */
+    public function attempt()
+    {
+        return $this->belongsTo(WritingAttempt::class, 'attempt_id');
+    }
+
+    /**
+     * Get the specific question being answered
+     */
+    public function question()
+    {
+        return $this->belongsTo(WritingTaskQuestion::class, 'question_id');
+    }
+
+    /**
+     * Get all feedback for this submission
+     */
+    public function feedback()
+    {
+        return $this->hasMany(WritingFeedback::class, 'submission_id');
     }
 
     public function reviews()

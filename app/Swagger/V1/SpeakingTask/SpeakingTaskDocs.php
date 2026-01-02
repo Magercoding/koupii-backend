@@ -55,13 +55,38 @@ class SpeakingTaskDocs
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="title", type="string", example="Speaking Test"),
-     *             @OA\Property(property="description", type="string", example="Description of speaking test"),
-     *             @OA\Property(property="instructions", type="string", example="Instructions for speaking test"),
-     *             @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}),
-     *             @OA\Property(property="timer_type", type="string", enum={"countdown", "countup", "none"}),
-     *             @OA\Property(property="time_limit_seconds", type="integer", nullable=true)
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"title", "description"},
+     *                 @OA\Property(property="title", type="string", example="Speaking Test"),
+     *                 @OA\Property(property="description", type="string", example="Description of speaking test"),
+     *                 @OA\Property(property="instructions", type="string", example="Instructions for speaking test"),
+     *                 @OA\Property(property="difficulty", type="string", enum={"beginner", "intermediate", "advanced"}, example="intermediate"),
+     *                 @OA\Property(property="timer_type", type="string", enum={"countdown", "countup", "none"}, example="countdown"),
+     *                 @OA\Property(property="time_limit_seconds", type="integer", nullable=true, example=300),
+     *                 @OA\Property(property="task_type", type="string", example="presentation"),
+     *                 @OA\Property(property="points", type="integer", example=100),
+     *                 @OA\Property(property="is_published", type="boolean", example=false),
+     *                 @OA\Property(
+     *                     property="prompt_audio",
+     *                     type="string",
+     *                     format="binary",
+     *                     description="Upload audio prompt file (optional)"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="reference_materials",
+     *                     type="array",
+     *                     @OA\Items(type="string", format="binary"),
+     *                     description="Upload reference materials (images, documents, etc.)"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="questions",
+     *                     type="string",
+     *                     description="JSON string of questions array",
+     *                     example="[{""question_text"":""Describe your hometown"",""time_limit"":60}]"
+     *                 )
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -103,8 +128,8 @@ class SpeakingTaskDocs
     public function show() {}
 
     /**
-     * @OA\Put(
-     *     path="/api/v1/speaking-tasks/{id}",
+     * @OA\Post(
+     *     path="/api/v1/speaking-tasks/{id}/update",
      *     tags={"Speaking Tasks"},
      *     summary="Update speaking task",
      *     security={{"bearerAuth":{}}},

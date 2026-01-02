@@ -6,7 +6,7 @@ use App\Http\Controllers\V1\SpeakingTask\{
     SpeakingSubmissionController,
     SpeakingDashboardController,
     SpeakingRecordingController,
-    SpeakingReviewController
+    // SpeakingReviewController
 };
 
 /*
@@ -72,21 +72,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     // === SPEAKING REVIEWS ROUTES ===
-    Route::prefix('speaking/reviews')->middleware('role:admin,teacher')->group(function () {
-        Route::post('/', [SpeakingReviewController::class, 'store']); // POST /api/v1/speaking/reviews
-        Route::get('/{review}', [SpeakingReviewController::class, 'show']); // GET /api/v1/speaking/reviews/{id}
-        Route::put('/{review}', [SpeakingReviewController::class, 'update']); // PUT /api/v1/speaking/reviews/{id}
-        Route::delete('/{review}', [SpeakingReviewController::class, 'destroy']); // DELETE /api/v1/speaking/reviews/{id}
+    // Route::prefix('speaking/reviews')->middleware('role:admin,teacher')->group(function () {
+    //     Route::post('/', [SpeakingReviewController::class, 'store']); // POST /api/v1/speaking/reviews
+    //     Route::get('/{review}', [SpeakingReviewController::class, 'show']); // GET /api/v1/speaking/reviews/{id}
+    //     Route::put('/{review}', [SpeakingReviewController::class, 'update']); // PUT /api/v1/speaking/reviews/{id}
+    //     Route::delete('/{review}', [SpeakingReviewController::class, 'destroy']); // DELETE /api/v1/speaking/reviews/{id}
         
-        // Review management
-        Route::patch('/{review}/publish', [SpeakingReviewController::class, 'publishReview']); // PATCH /api/v1/speaking/reviews/{id}/publish
-        Route::post('/{review}/add-comment', [SpeakingReviewController::class, 'addComment']); // POST /api/v1/speaking/reviews/{id}/add-comment
-    });
+    //     // Review management
+    //     Route::patch('/{review}/publish', [SpeakingReviewController::class, 'publishReview']); // PATCH /api/v1/speaking/reviews/{id}/publish
+    //     Route::post('/{review}/add-comment', [SpeakingReviewController::class, 'addComment']); // POST /api/v1/speaking/reviews/{id}/add-comment
+    // });
 
     // === BULK OPERATIONS ===
     Route::prefix('speaking/bulk')->middleware('role:admin,teacher')->group(function () {
         Route::post('/assign-tasks', [SpeakingTaskController::class, 'bulkAssign']); // POST /api/v1/speaking/bulk/assign-tasks
-        Route::patch('/review-submissions', [SpeakingReviewController::class, 'bulkReview']); // PATCH /api/v1/speaking/bulk/review-submissions
+        // Route::patch('/review-submissions', [SpeakingReviewController::class, 'bulkReview']); // PATCH /api/v1/speaking/bulk/review-submissions
         Route::post('/process-recordings', [SpeakingRecordingController::class, 'bulkProcessSpeech']); // POST /api/v1/speaking/bulk/process-recordings
     });
 
