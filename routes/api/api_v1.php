@@ -5,8 +5,15 @@ use Illuminate\Support\Facades\Route;
  * API V1 Routes
  */
 
+/**
+ * @unauthenticated
+ */
 Route::get('/health', fn() => response()->json(['ok' => true, 'time' => time()]));
 
+
+/**
+ * @unauthenticated
+ */
 Route::get('/version', function () {
     $version = [
         'app' => config('app.name', 'Koupii API'),
