@@ -26,22 +26,17 @@ class ScrambleServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Scramble::afterOpenApiGenerated(function (OpenApi $openApi) {
-            $openApi->secure(
-                SecurityScheme::http('bearer')
-            );
-        });
-
-        Gate::define('viewApiDocs', function () {
-            return true;
-        });
-
         Scramble::registerApi('v1', ['info' => ['version' => '1.0']])
             ->routes(function (Route $route) {
-                return Str::startsWith($route->uri, 'api/');
+                return Str::startsWith($route->uri, 'api/v1/');
             })
             ->afterOpenApiGenerated(function (OpenApi $openApi) {
-                // Some operations on the resulting documentation.
+                $openApi->secure(
+                    SecurityScheme::http('bearer')
+                );
             });
+        Gate::define('viewApiDocs', function () {
+            return true;
+        });       
     }
 }
