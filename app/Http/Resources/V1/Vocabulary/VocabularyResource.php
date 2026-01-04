@@ -18,6 +18,11 @@ class VocabularyResource extends JsonResource
             'id' => $this->id,
             'word' => $this->word,
             'meaning' => $this->meaning,
+            'translation' => $this->translation,
+            'spelling' => $this->spelling,
+            'explanation' => $this->explanation,
+            'audio_file_path' => $this->audio_file_path,
+            'is_public' => $this->is_public,
 
             'teacher' => $this->whenLoaded('teacher', function () {
                 return [
@@ -34,9 +39,13 @@ class VocabularyResource extends JsonResource
                 ];
             }),
 
-            'is_bookmarked' => $this->whenLoaded('bookmarks', function () {
-                return $this->bookmarks->first()->is_bookmarked ?? false;
-            }, false), 
+            'is_bookmarked' => $this->when(
+                isset($this->is_bookmarked), 
+                $this->is_bookmarked ?? false
+            ),
+
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }

@@ -87,12 +87,12 @@ Authorization: Bearer YOUR_TOKEN
  )
  * 
  * @OA\Server(
- *     url="https://api-koupii.magercoding.com/api/v1",
+ *     url="https://api-koupii.magercoding.com",
  *     description="Production Server"
  * )
  * 
  * @OA\Server(
- *     url="http://127.0.0.1:8000/api/v1",
+ *     url="http://127.0.0.1:8000",
  *     description="Development Server"
  * )
  * 

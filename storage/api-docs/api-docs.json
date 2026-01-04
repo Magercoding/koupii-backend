@@ -16,11 +16,11 @@
     },
     "servers": [
         {
-            "url": "https://api-koupii.magercoding.com/api/v1",
+            "url": "https://api-koupii.magercoding.com",
             "description": "Production Server"
         },
         {
-            "url": "http://127.0.0.1:8000/api/v1",
+            "url": "http://127.0.0.1:8000",
             "description": "Development Server"
         }
     ],
@@ -1090,7 +1090,9 @@
                         "bearerAuth": []
                     }
                 ]
-            },
+            }
+        },
+        "/api/v1/classes/create": {
             "post": {
                 "tags": [
                     "Classes"
@@ -1102,7 +1104,7 @@
                     "description": "Class creation data",
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
                                     "name",
@@ -1139,15 +1141,8 @@
                                         "type": "string",
                                         "example": "IELTS-ADV-001"
                                     },
-                                    "cover_image_url": {
-                                        "description": "Optional cover image URL",
-                                        "type": "string",
-                                        "format": "uri",
-                                        "example": "https://api.koupii.com/storage/classes/cover-1.jpg"
-                                    },
                                     "is_active": {
                                         "type": "boolean",
-                                        "default": true,
                                         "example": true
                                     },
                                     "max_students": {
@@ -1156,80 +1151,20 @@
                                         "minimum": 1,
                                         "example": 25
                                     },
+                                    "cover_image": {
+                                        "description": "Cover image file for the class (JPEG, PNG, max 5MB)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
                                     "schedule": {
-                                        "description": "Class schedule configuration",
-                                        "properties": {
-                                            "days": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "monday",
-                                                        "tuesday",
-                                                        "wednesday",
-                                                        "thursday",
-                                                        "friday",
-                                                        "saturday",
-                                                        "sunday"
-                                                    ]
-                                                },
-                                                "example": [
-                                                    "monday",
-                                                    "wednesday",
-                                                    "friday"
-                                                ]
-                                            },
-                                            "time": {
-                                                "description": "Class start time",
-                                                "type": "string",
-                                                "format": "time",
-                                                "example": "14:00"
-                                            },
-                                            "duration_minutes": {
-                                                "type": "integer",
-                                                "maximum": 240,
-                                                "minimum": 30,
-                                                "example": 90
-                                            },
-                                            "timezone": {
-                                                "description": "Class timezone",
-                                                "type": "string",
-                                                "example": "UTC+7"
-                                            }
-                                        },
-                                        "type": "object"
+                                        "description": "JSON string for class schedule configuration",
+                                        "type": "string",
+                                        "example": "class_schedule_json"
                                     },
                                     "settings": {
-                                        "description": "Class behavior settings",
-                                        "properties": {
-                                            "auto_enroll": {
-                                                "description": "Allow students to auto-enroll with class code",
-                                                "type": "boolean",
-                                                "example": false
-                                            },
-                                            "require_approval": {
-                                                "description": "Require teacher approval for enrollment",
-                                                "type": "boolean",
-                                                "example": true
-                                            },
-                                            "show_leaderboard": {
-                                                "description": "Display class leaderboard to students",
-                                                "type": "boolean",
-                                                "example": true
-                                            },
-                                            "allow_late_submission": {
-                                                "description": "Allow assignments after due date",
-                                                "type": "boolean",
-                                                "example": true
-                                            },
-                                            "late_penalty_percent": {
-                                                "type": "integer",
-                                                "maximum": 100,
-                                                "minimum": 0,
-                                                "example": 10
-                                            }
-                                        },
-                                        "type": "object"
+                                        "description": "JSON string for class behavior settings",
+                                        "type": "string",
+                                        "example": "class_settings_json"
                                     }
                                 },
                                 "type": "object"
@@ -1829,7 +1764,188 @@
                     }
                 ]
             },
-            "put": {
+            "delete": {
+                "tags": [
+                    "Classes"
+                ],
+                "summary": "🗑️ Delete Class",
+                "description": "Permanently delete a class and all associated data. Teachers can only delete their own classes, administrators can delete any class. This action cannot be undone.",
+                "operationId": "deleteClass",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Class UUID identifier",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "0199800b-be72-71ed-91bc-118cbfdadc22"
+                        }
+                    },
+                    {
+                        "name": "force",
+                        "in": "query",
+                        "description": "Force delete even with active assignments",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    },
+                    {
+                        "name": "archive_data",
+                        "in": "query",
+                        "description": "Archive student data before deletion",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "✅ Class deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Class deleted successfully"
+                                        },
+                                        "summary": {
+                                            "properties": {
+                                                "class_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "class_name": {
+                                                    "type": "string",
+                                                    "example": "IELTS Preparation - Advanced"
+                                                },
+                                                "students_affected": {
+                                                    "type": "integer",
+                                                    "example": 18
+                                                },
+                                                "assignments_removed": {
+                                                    "type": "integer",
+                                                    "example": 24
+                                                },
+                                                "data_archived": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "archive_id": {
+                                                    "type": "string",
+                                                    "format": "uuid",
+                                                    "nullable": true
+                                                },
+                                                "deleted_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "❌ Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "❌ Forbidden - Cannot delete this class",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "You can only delete your own classes."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "❌ Class not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Class not found."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "⚠️ Cannot delete - Active dependencies",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Cannot delete class with active assignments. Use force=true to override."
+                                        },
+                                        "dependencies": {
+                                            "properties": {
+                                                "active_assignments": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "pending_submissions": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "enrolled_students": {
+                                                    "type": "integer",
+                                                    "example": 18
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/classes/update/{id}": {
+            "post": {
                 "tags": [
                     "Classes"
                 ],
@@ -1853,9 +1969,14 @@
                     "description": "Updated class data",
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "properties": {
+                                    "_method": {
+                                        "description": "HTTP method override for Laravel form method spoofing",
+                                        "type": "string",
+                                        "example": "PATCH"
+                                    },
                                     "name": {
                                         "description": "Updated class name",
                                         "type": "string",
@@ -1882,11 +2003,6 @@
                                         "type": "string",
                                         "example": "IELTS-ADV-002"
                                     },
-                                    "cover_image_url": {
-                                        "type": "string",
-                                        "format": "uri",
-                                        "example": "https://api.koupii.com/storage/classes/new-cover.jpg"
-                                    },
                                     "is_active": {
                                         "type": "boolean",
                                         "example": true
@@ -1897,58 +2013,20 @@
                                         "minimum": 1,
                                         "example": 30
                                     },
+                                    "cover_image": {
+                                        "description": "Updated cover image file for the class (JPEG, PNG, max 5MB)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
                                     "schedule": {
-                                        "properties": {
-                                            "days": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "example": [
-                                                    "tuesday",
-                                                    "thursday"
-                                                ]
-                                            },
-                                            "time": {
-                                                "type": "string",
-                                                "format": "time",
-                                                "example": "15:30"
-                                            },
-                                            "duration_minutes": {
-                                                "type": "integer",
-                                                "example": 120
-                                            },
-                                            "timezone": {
-                                                "type": "string",
-                                                "example": "UTC+7"
-                                            }
-                                        },
-                                        "type": "object"
+                                        "description": "JSON string for updated class schedule configuration",
+                                        "type": "string",
+                                        "example": "updated_schedule_json"
                                     },
                                     "settings": {
-                                        "properties": {
-                                            "auto_enroll": {
-                                                "type": "boolean",
-                                                "example": false
-                                            },
-                                            "require_approval": {
-                                                "type": "boolean",
-                                                "example": true
-                                            },
-                                            "show_leaderboard": {
-                                                "type": "boolean",
-                                                "example": true
-                                            },
-                                            "allow_late_submission": {
-                                                "type": "boolean",
-                                                "example": false
-                                            },
-                                            "late_penalty_percent": {
-                                                "type": "integer",
-                                                "example": 15
-                                            }
-                                        },
-                                        "type": "object"
+                                        "description": "JSON string for updated class behavior settings",
+                                        "type": "string",
+                                        "example": "updated_settings_json"
                                     }
                                 },
                                 "type": "object"
@@ -2116,91 +2194,142 @@
                         "bearerAuth": []
                     }
                 ]
-            },
-            "delete": {
+            }
+        },
+        "/api/v1/classes/join": {
+            "post": {
                 "tags": [
                     "Classes"
                 ],
-                "summary": "🗑️ Delete Class",
-                "description": "Permanently delete a class and all associated data. Teachers can only delete their own classes, administrators can delete any class. This action cannot be undone.",
-                "operationId": "deleteClass",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "Class UUID identifier",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid",
-                            "example": "0199800b-be72-71ed-91bc-118cbfdadc22"
-                        }
-                    },
-                    {
-                        "name": "force",
-                        "in": "query",
-                        "description": "Force delete even with active assignments",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean",
-                            "default": false
-                        }
-                    },
-                    {
-                        "name": "archive_data",
-                        "in": "query",
-                        "description": "Archive student data before deletion",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean",
-                            "default": true
+                "summary": "🎓 Join Class by Code",
+                "description": "Allow students to join a class using the unique class code provided by their teacher.",
+                "operationId": "joinClassByCode",
+                "requestBody": {
+                    "description": "Class code to join",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "class_code"
+                                ],
+                                "properties": {
+                                    "class_code": {
+                                        "description": "Unique class code to join",
+                                        "type": "string",
+                                        "maxLength": 20,
+                                        "minLength": 3,
+                                        "example": "ABC123"
+                                    }
+                                },
+                                "type": "object"
+                            }
                         }
                     }
-                ],
+                },
                 "responses": {
                     "200": {
-                        "description": "✅ Class deleted successfully",
+                        "description": "✅ Successfully joined class",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Class deleted successfully"
+                                            "example": "Successfully joined class: IELTS Preparation Advanced"
                                         },
-                                        "summary": {
+                                        "class": {
                                             "properties": {
-                                                "class_id": {
+                                                "id": {
                                                     "type": "string",
-                                                    "format": "uuid"
+                                                    "format": "uuid",
+                                                    "example": "0199800b-be72-71ed-91bc-118cbfdadc22"
                                                 },
-                                                "class_name": {
+                                                "name": {
                                                     "type": "string",
-                                                    "example": "IELTS Preparation - Advanced"
+                                                    "example": "IELTS Preparation Advanced"
                                                 },
-                                                "students_affected": {
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "Advanced IELTS preparation course"
+                                                },
+                                                "class_code": {
+                                                    "type": "string",
+                                                    "example": "ABC123"
+                                                },
+                                                "teacher": {
+                                                    "type": "string",
+                                                    "example": "Dr. Sarah Johnson"
+                                                },
+                                                "student_count": {
                                                     "type": "integer",
                                                     "example": 18
                                                 },
-                                                "assignments_removed": {
+                                                "max_students": {
                                                     "type": "integer",
-                                                    "example": 24
+                                                    "example": 25
                                                 },
-                                                "data_archived": {
+                                                "level": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "beginner",
+                                                        "intermediate",
+                                                        "advanced"
+                                                    ],
+                                                    "example": "advanced"
+                                                },
+                                                "subject": {
+                                                    "type": "string",
+                                                    "example": "IELTS"
+                                                },
+                                                "is_active": {
                                                     "type": "boolean",
                                                     "example": true
                                                 },
-                                                "archive_id": {
-                                                    "type": "string",
-                                                    "format": "uuid",
-                                                    "nullable": true
-                                                },
-                                                "deleted_at": {
+                                                "created_at": {
                                                     "type": "string",
                                                     "format": "date-time"
+                                                },
+                                                "enrollment": {
+                                                    "properties": {
+                                                        "enrolled_at": {
+                                                            "type": "string",
+                                                            "format": "date-time"
+                                                        },
+                                                        "status": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "active",
+                                                                "pending",
+                                                                "suspended"
+                                                            ],
+                                                            "example": "active"
+                                                        }
+                                                    },
+                                                    "type": "object"
                                                 }
                                             },
                                             "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "❌ Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Class is not accepting new enrollments"
+                                        },
+                                        "details": {
+                                            "type": "string",
+                                            "example": "This class has reached maximum capacity or is inactive"
                                         }
                                     },
                                     "type": "object"
@@ -2225,30 +2354,14 @@
                         }
                     },
                     "403": {
-                        "description": "❌ Forbidden - Cannot delete this class",
+                        "description": "❌ Only students can join classes",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "You can only delete your own classes."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "❌ Class not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Class not found."
+                                            "example": "Only students can join classes"
                                         }
                                     },
                                     "type": "object"
@@ -2257,28 +2370,52 @@
                         }
                     },
                     "409": {
-                        "description": "⚠️ Cannot delete - Active dependencies",
+                        "description": "⚠️ Already enrolled in this class",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Cannot delete class with active assignments. Use force=true to override."
+                                            "example": "You are already enrolled in this class"
                                         },
-                                        "dependencies": {
+                                        "enrollment": {
                                             "properties": {
-                                                "active_assignments": {
-                                                    "type": "integer",
-                                                    "example": 5
+                                                "enrolled_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
                                                 },
-                                                "pending_submissions": {
-                                                    "type": "integer",
-                                                    "example": 12
-                                                },
-                                                "enrolled_students": {
-                                                    "type": "integer",
-                                                    "example": 18
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "active"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "❌ Invalid class code or validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The given data was invalid."
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "class_code": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "Invalid class code or class not found."
+                                                    }
                                                 }
                                             },
                                             "type": "object"
@@ -3156,6 +3293,977 @@
                     },
                     "404": {
                         "description": "Invitation not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/classes/{classId}/tests": {
+            "get": {
+                "tags": [
+                    "Classes",
+                    "Tests"
+                ],
+                "summary": "📝 Get All Tests for a Class",
+                "description": "Retrieve all tests created for a specific class. Only class teachers can access this.",
+                "operationId": "getClassTests",
+                "parameters": [
+                    {
+                        "name": "classId",
+                        "in": "path",
+                        "description": "Class ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Filter by test type",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "reading",
+                                "writing",
+                                "listening",
+                                "speaking",
+                                "mixed"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "is_published",
+                        "in": "query",
+                        "description": "Filter by publication status",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Number of tests per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 50,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "✅ Class tests retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Class tests retrieved successfully"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "IELTS Reading Practice Test 1"
+                                                    },
+                                                    "description": {
+                                                        "type": "string",
+                                                        "example": "Comprehensive reading skills assessment"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "example": "reading"
+                                                    },
+                                                    "difficulty": {
+                                                        "type": "string",
+                                                        "example": "intermediate"
+                                                    },
+                                                    "is_published": {
+                                                        "type": "boolean",
+                                                        "example": true
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "statistics": {
+                                                        "properties": {
+                                                            "total_passages": {
+                                                                "type": "integer",
+                                                                "example": 3
+                                                            },
+                                                            "total_questions": {
+                                                                "type": "integer",
+                                                                "example": 40
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "class": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "IELTS Preparation Advanced"
+                                                },
+                                                "class_code": {
+                                                    "type": "string",
+                                                    "example": "ABC123"
+                                                },
+                                                "student_count": {
+                                                    "type": "integer",
+                                                    "example": 18
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "❌ Unauthorized - not class teacher",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthorized"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "❌ Class not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to retrieve tests"
+                                        },
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Classes",
+                    "Tests"
+                ],
+                "summary": "🆕 Create New Test for Class",
+                "description": "Create a new test specifically for this class. Only the class teacher can create tests.",
+                "operationId": "createClassTest",
+                "parameters": [
+                    {
+                        "name": "classId",
+                        "in": "path",
+                        "description": "Class ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "description",
+                                    "type",
+                                    "difficulty",
+                                    "timer_mode"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "example": "IELTS Reading Practice Test 1"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Practice test focusing on academic reading skills"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "reading",
+                                            "writing",
+                                            "listening",
+                                            "speaking"
+                                        ],
+                                        "example": "reading"
+                                    },
+                                    "difficulty": {
+                                        "type": "string",
+                                        "enum": [
+                                            "beginner",
+                                            "intermediate",
+                                            "advanced"
+                                        ],
+                                        "example": "intermediate"
+                                    },
+                                    "test_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "single",
+                                            "final"
+                                        ],
+                                        "example": "single"
+                                    },
+                                    "timer_mode": {
+                                        "type": "string",
+                                        "enum": [
+                                            "none",
+                                            "countdown",
+                                            "countup"
+                                        ],
+                                        "example": "countdown"
+                                    },
+                                    "timer_settings": {
+                                        "properties": {
+                                            "time_limit": {
+                                                "description": "Time limit in seconds",
+                                                "type": "integer",
+                                                "example": 3600
+                                            },
+                                            "warning_time": {
+                                                "description": "Warning time in seconds",
+                                                "type": "integer",
+                                                "example": 300
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "allow_repetition": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "max_repetition_count": {
+                                        "type": "integer",
+                                        "maximum": 10,
+                                        "minimum": 1,
+                                        "example": 2
+                                    },
+                                    "is_public": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "is_published": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "settings": {
+                                        "properties": {
+                                            "shuffle_questions": {
+                                                "type": "boolean",
+                                                "example": false
+                                            },
+                                            "shuffle_options": {
+                                                "type": "boolean",
+                                                "example": false
+                                            },
+                                            "show_results": {
+                                                "type": "boolean",
+                                                "example": true
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "passages": {
+                                        "description": "Array of passages with questions for the test",
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "Climate Change Passage"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "Academic text about environmental issues"
+                                                },
+                                                "audio_file_path": {
+                                                    "type": "string",
+                                                    "example": "audio/climate-change.mp3"
+                                                },
+                                                "question_groups": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "instruction": {
+                                                                "type": "string",
+                                                                "example": "Choose the correct answer"
+                                                            },
+                                                            "questions": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "question_type": {
+                                                                            "type": "string",
+                                                                            "example": "multiple_choice"
+                                                                        },
+                                                                        "question_number": {
+                                                                            "type": "number",
+                                                                            "example": 1
+                                                                        },
+                                                                        "question_text": {
+                                                                            "type": "string",
+                                                                            "example": "What is the main idea of the passage?"
+                                                                        },
+                                                                        "points_value": {
+                                                                            "type": "number",
+                                                                            "example": 1
+                                                                        },
+                                                                        "options": {
+                                                                            "type": "array",
+                                                                            "items": {
+                                                                                "properties": {
+                                                                                    "option_key": {
+                                                                                        "type": "string",
+                                                                                        "example": "A"
+                                                                                    },
+                                                                                    "option_text": {
+                                                                                        "type": "string",
+                                                                                        "example": "Climate change is a serious issue"
+                                                                                    }
+                                                                                },
+                                                                                "type": "object"
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "type": "object"
+                                                                }
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "✅ Test created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test created successfully for class: IELTS Preparation Advanced"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "IELTS Reading Practice Test 1"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "example": "reading"
+                                                },
+                                                "is_published": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "class": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "IELTS Preparation Advanced"
+                                                },
+                                                "class_code": {
+                                                    "type": "string",
+                                                    "example": "ABC123"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "❌ Validation failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to create test"
+                                        },
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/classes/{classId}/tests/{testId}": {
+            "get": {
+                "tags": [
+                    "Classes",
+                    "Tests"
+                ],
+                "summary": "📊 Get Class Test Details",
+                "description": "Get detailed information about a specific test within a class including statistics",
+                "operationId": "getClassTest",
+                "parameters": [
+                    {
+                        "name": "classId",
+                        "in": "path",
+                        "description": "Class ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "testId",
+                        "in": "path",
+                        "description": "Test ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "✅ Test details retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test details retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "IELTS Reading Practice Test 1"
+                                                },
+                                                "description": {
+                                                    "type": "string"
+                                                },
+                                                "type": {
+                                                    "type": "string",
+                                                    "example": "reading"
+                                                },
+                                                "difficulty": {
+                                                    "type": "string",
+                                                    "example": "intermediate"
+                                                },
+                                                "is_published": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "passages": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "class": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string",
+                                                            "format": "uuid"
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "IELTS Preparation Advanced"
+                                                        },
+                                                        "class_code": {
+                                                            "type": "string",
+                                                            "example": "ABC123"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "statistics": {
+                                            "properties": {
+                                                "assigned_students": {
+                                                    "type": "integer",
+                                                    "example": 15
+                                                },
+                                                "completed": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "in_progress": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "not_started": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "class": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "IELTS Preparation Advanced"
+                                                },
+                                                "class_code": {
+                                                    "type": "string",
+                                                    "example": "ABC123"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "❌ Test not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test not found"
+                                        },
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Classes",
+                    "Tests"
+                ],
+                "summary": "📝 Update Class Test",
+                "description": "Update an existing test within a class",
+                "operationId": "updateClassTest",
+                "parameters": [
+                    {
+                        "name": "classId",
+                        "in": "path",
+                        "description": "Class ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "testId",
+                        "in": "path",
+                        "description": "Test ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Updated Test Title"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Updated test description"
+                                    },
+                                    "is_published": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "timer_mode": {
+                                        "type": "string",
+                                        "enum": [
+                                            "none",
+                                            "countdown",
+                                            "countup"
+                                        ]
+                                    },
+                                    "timer_settings": {
+                                        "properties": {
+                                            "time_limit": {
+                                                "type": "integer"
+                                            },
+                                            "warning_time": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "✅ Test updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test updated successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "title": {
+                                                    "type": "string"
+                                                },
+                                                "is_published": {
+                                                    "type": "boolean"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Classes",
+                    "Tests"
+                ],
+                "summary": "🗑️ Delete Class Test",
+                "description": "Delete a test from the class. This will also remove all related assignments and student submissions.",
+                "operationId": "deleteClassTest",
+                "parameters": [
+                    {
+                        "name": "classId",
+                        "in": "path",
+                        "description": "Class ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Test ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "✅ Test deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test deleted successfully from IELTS Preparation Advanced"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "❌ Test not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to delete test"
+                                        },
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/classes/{classId}/tests/{testId}/assign": {
+            "post": {
+                "tags": [
+                    "Classes",
+                    "Tests"
+                ],
+                "summary": "📋 Assign Test to All Students in Class",
+                "description": "Assign a test to all enrolled students in the class with due date and instructions",
+                "operationId": "assignTestToClass",
+                "parameters": [
+                    {
+                        "name": "classId",
+                        "in": "path",
+                        "description": "Class ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "testId",
+                        "in": "path",
+                        "description": "Test ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "due_date"
+                                ],
+                                "properties": {
+                                    "due_date": {
+                                        "description": "Assignment due date",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-01-15T23:59:59Z"
+                                    },
+                                    "close_date": {
+                                        "description": "Assignment close date (optional)",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-01-16T23:59:59Z"
+                                    },
+                                    "title": {
+                                        "description": "Custom assignment title",
+                                        "type": "string",
+                                        "example": "Weekly IELTS Assessment"
+                                    },
+                                    "description": {
+                                        "description": "Assignment instructions",
+                                        "type": "string",
+                                        "example": "Complete all reading passages and submit answers before due date"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "✅ Test assigned successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Test assigned to all students in IELTS Preparation Advanced"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "assignment_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "test_title": {
+                                                    "type": "string",
+                                                    "example": "IELTS Reading Practice Test 1"
+                                                },
+                                                "due_date": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "assigned_to_students": {
+                                                    "type": "integer",
+                                                    "example": 18
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "class": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "IELTS Preparation Advanced"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "❌ Test must be published or validation failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to assign test"
+                                        },
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -17488,6 +18596,10 @@
             "description": "Invitations"
         },
         {
+            "name": "Tests",
+            "description": "Tests"
+        },
+        {
             "name": "Listening Tests",
             "description": "Listening Tests"
         },
@@ -17566,10 +18678,6 @@
         {
             "name": "Speaking Tasks",
             "description": "Speaking Tasks"
-        },
-        {
-            "name": "Tests",
-            "description": "Tests"
         },
         {
             "name": "Test Submissions",

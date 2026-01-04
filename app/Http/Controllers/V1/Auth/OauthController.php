@@ -14,11 +14,18 @@ use Illuminate\Support\Facades\DB;
 
 class OauthController extends Controller
 {
+    /**
+     * @unauthenticated
+     */
     public function redirectToGoogle()
     {
         return Socialite::driver('google')->stateless()->redirect();
     }
 
+
+    /**
+     * @unauthenticated
+     */
     public function handleGoogleCallback(Request $request)
     {
         $socialUser = Socialite::driver('google')->stateless()->user();
@@ -68,12 +75,16 @@ class OauthController extends Controller
         ], 200);
     }
 
-
+    /**
+     * @unauthenticated
+     */
     public function redirectToFacebook()
     {
         return Socialite::driver('facebook')->stateless()->redirect();
     }
-
+    /**
+     * @unauthenticated
+     */
     public function handleFacebookCallback(Request $request)
     {
         $socialUser = Socialite::driver('facebook')->stateless()->user();

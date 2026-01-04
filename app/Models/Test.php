@@ -34,6 +34,7 @@ class Test extends Model
 
     protected $fillable = [
         'creator_id',
+        'class_id',
         'type',
         'difficulty',
         'title',
@@ -62,6 +63,11 @@ class Test extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'creator_id');
+    }
+
+    public function class()
+    {
+        return $this->belongsTo(Classes::class, 'class_id');
     }
 
     public function passages()

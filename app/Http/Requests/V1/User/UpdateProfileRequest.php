@@ -27,7 +27,7 @@ class UpdateProfileRequest extends BaseRequest
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|email',
             'role' => 'sometimes|required|in:teacher,student,admin',
-            'avatar' => 'nullable|file|mimetypes:image/jpeg,image/png,image/jpg|max:10240',
+            'avatar' => 'file|mimetypes:image/jpeg,image/png,image/jpg',
             'bio' => 'nullable|string',
         ];
     }

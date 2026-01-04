@@ -69,11 +69,17 @@ class Classes extends Model
         return $this->belongsToMany(Vocabulary::class, 'class_vocabularies', 'class_id', 'vocabulary_id')->withPivot('assigned_at')->withTimestamps();
     }
 
+    public function tests()
+    {
+        return $this->hasMany(Test::class, 'class_id');
+    }
+
     public function assignments()
     {
         return $this->hasMany(Assignment::class, 'class_id');
     }
 
+ 
     public function analytics()
     {
         return $this->hasMany(ClassAnalytic::class, 'class_id');

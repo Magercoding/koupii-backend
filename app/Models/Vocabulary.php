@@ -30,6 +30,7 @@ class Vocabulary extends Model
         'teacher_id',
         'category_id',
         'word',
+        'meaning',
         'translation',
         'spelling',
         'explanation',

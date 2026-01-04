@@ -24,6 +24,7 @@ class StoreVocabularyRequest extends FormRequest
         return [
             'category_id' => 'required|exists:vocabulary_categories,id',
             'word' => 'required|string|max:255|unique:vocabularies,word',
+            'meaning' => 'required|string',
             'translation' => 'required|string|max:255',
             'spelling' => 'nullable|string|max:255',
             'explanation' => 'nullable|string',
@@ -39,6 +40,7 @@ class StoreVocabularyRequest extends FormRequest
             'category_id.exists' => 'Category ID not found',
             'word.required' => 'Word is required',
             'word.unique' => 'Vocabulary word already exists',
+            'meaning.required' => 'Meaning is required',
             'translation.required' => 'Translation is required',
         ];
     }

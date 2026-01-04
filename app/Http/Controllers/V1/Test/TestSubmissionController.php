@@ -33,6 +33,7 @@ class TestSubmissionController extends Controller
                     'student_assignment_id' => $result['student_assignment']->id,
                     'result_id' => $result['test_result']->id,
                     'test_id' => $result['test']->id,
+                     'class_id' => $result['test']->class_id,
                     'student_id' => auth()->id(),
                     'total_score' => $result['statistics']['totalScore'],
                     'max_score' => $result['statistics']['maxScore'],
@@ -41,6 +42,7 @@ class TestSubmissionController extends Controller
                     'correct_answers' => $result['statistics']['totalCorrect'],
                     'incorrect_answers' => $result['statistics']['totalIncorrect'],
                     'submitted_at' => now(),
+                    'submission_type' => $result['test']->class_id ? 'class_assignment' : 'global_test'
                 ]
             ], 201);
         } catch (\Exception $e) {
@@ -72,10 +74,42 @@ class TestSubmissionController extends Controller
     
     /**
      * Get test attempt for student (to continue or start)
+     * Validates class enrollment for class-based tests
      */
     public function attempt(Test $test)
     {
         try {
+            // Validate access for class-based tests
+            if ($test->class_id) {
+                $user = auth()->user();
+                
+                // Check if student is enrolled in the class
+                if ($user->role === 'student') {
+                    $enrollment = \App\Models\ClassEnrollment::where([
+                        'class_id' => $test->class_id,
+                        'student_id' => $user->id,
+                        'status' => 'active'
+                    ])->first();
+                    
+                    if (!$enrollment) {
+                        return response()->json([
+                            'message' => 'You are not enrolled in this class',
+                            'error' => 'Class enrollment required'
+                        ], 403);
+                    }
+                }
+                // Teachers and admins can access any class test
+                elseif ($user->role === 'teacher') {
+                    $class = \App\Models\Classes::find($test->class_id);
+                    if ($class && $class->teacher_id !== $user->id && $user->role !== 'admin') {
+                        return response()->json([
+                            'message' => 'Unauthorized to access this class test',
+                            'error' => 'Insufficient permissions'
+                        ], 403);
+                    }
+                }
+            }
+            
             $attemptData = $this->submissionService->getTestAttempt($test);
             
             return response()->json([

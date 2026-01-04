@@ -82,26 +82,26 @@ class StoreWritingTaskRequest extends BaseRequest
         ]);
 
         // Only parse JSON strings if they are actually strings (for multipart/form-data)
-        if ($this->has('questions') && is_string($this->questions)) {
+        if ($this->has('questions') && is_string($this->input('questions'))) {
             $this->merge([
-                'questions' => json_decode($this->questions, true)
+                'questions' => json_decode($this->input('questions'), true)
             ]);
         }
 
-        if ($this->has('retake_options') && is_string($this->retake_options)) {
+        if ($this->has('retake_options') && is_string($this->input('retake_options'))) {
             $this->merge([
-                'retake_options' => json_decode($this->retake_options, true)
+                'retake_options' => json_decode($this->input('retake_options'), true)
             ]);
         }
 
-        if ($this->has('classroom_assignments') && is_string($this->classroom_assignments)) {
+        if ($this->has('classroom_assignments') && is_string($this->input('classroom_assignments'))) {
             $this->merge([
-                'classroom_assignments' => json_decode($this->classroom_assignments, true)
+                'classroom_assignments' => json_decode($this->input('classroom_assignments'), true)
             ]);
         }
 
         // Set default retake options if allow_retake is true and no options provided
-        if ($this->allow_retake && (!$this->retake_options || empty($this->retake_options))) {
+        if ($this->boolean('allow_retake') && (!$this->input('retake_options') || empty($this->input('retake_options')))) {
             $this->merge([
                 'retake_options' => ['rewrite_all', 'group_similar', 'choose_any']
             ]);

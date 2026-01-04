@@ -3,7 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use App\Http\Controllers\AuthController;
-
+use Dedoc\Scramble\Scramble;
+/**
+ * @unauthenticated
+ */
 Route::get('/', function () {
     return response()->json([
         'status' => 'OK',
@@ -14,6 +17,17 @@ Route::get('/', function () {
     ]);
 });
 
+
+
+
+
+Route::domain('docs.example.com')->group(function () {
+    Scramble::registerUiRoute('api');
+    Scramble::registerJsonSpecificationRoute('api.json');
+});
+
+Scramble::registerUiRoute(path: 'docs/v1', api: 'v1');
+Scramble::registerJsonSpecificationRoute(path: 'docs/v1.json', api: 'v1');
 /**
  * @OA\Server(
  *     url="http://localhost:8000",

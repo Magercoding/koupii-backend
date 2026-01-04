@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\V1\Test;
 
+use App\Http\Resources\V1\ReadingTest\PassageResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -38,6 +39,15 @@ class TestResource extends JsonResource
                     'id' => $this->creator->id,
                     'name' => $this->creator->name,
                     'email' => $this->creator->email,
+                ];
+            }),
+            
+            // Class information
+            'class' => $this->whenLoaded('class', function () {
+                return [
+                    'id' => $this->class->id,
+                    'name' => $this->class->name,
+                    'class_code' => $this->class->class_code,
                 ];
             }),
             

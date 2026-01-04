@@ -2,6 +2,7 @@
 use App\Http\Controllers\V1\Class\ClassController;
 use App\Http\Controllers\V1\Class\ClassEnrollmentController;
 use App\Http\Controllers\V1\Class\ClassInvitationController;
+use App\Http\Controllers\V1\Class\ClassTestController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -13,9 +14,11 @@ Route::middleware('auth:sanctum')
         Route::get('/{id}/students', [ClassController::class, 'students']);
         Route::middleware(['role:admin,teacher'])->group(function () {
             Route::post('/create', [ClassController::class, 'store']);
-            Route::patch('/update/{id}', [ClassController::class, 'update']);
+            Route::post('/update/{id}', [ClassController::class, 'update']); 
             Route::delete('/delete/{id}', [ClassController::class, 'destroy']);
         });
+        Route::post('/join', [ClassController::class, 'joinByCode'])
+            ->middleware('role:student');
     });
 
 Route::middleware('auth:sanctum')
@@ -48,3 +51,19 @@ Route::middleware('auth:sanctum')
             Route::delete('/delete/{id}', [ClassInvitationController::class, 'destroy']);
         });
     });
+
+Route::middleware(['auth:sanctum'])->group(function () {
+
+
+    Route::prefix('classes/{classId}')->middleware('role:teacher')->group(function () {
+        // Test CRUD within classes
+        Route::get('tests', [ClassTestController::class, 'index']);
+        Route::post('tests', [ClassTestController::class, 'store']);
+        Route::get('tests/{testId}', [ClassTestController::class, 'show']);
+        Route::put('tests/{testId}', [ClassTestController::class, 'update']);
+        Route::delete('tests/{testId}', [ClassTestController::class, 'destroy']);
+
+        // Test assignment to all class students
+        Route::post('tests/{testId}/assign', [ClassTestController::class, 'assignToClass']);
+    });
+});

@@ -125,7 +125,7 @@ class ClassDocs
 
     /**
      * @OA\Post(
-     *     path="/api/v1/classes",
+     *     path="/api/v1/classes/create",
      *     operationId="createClass",
      *     tags={"Classes"},
      *     summary="🆕 Create New Class",
@@ -134,34 +134,35 @@ class ClassDocs
      *     @OA\RequestBody(
      *         required=true,
      *         description="Class creation data",
-     *         @OA\JsonContent(
-     *             required={"name", "description", "level", "subject"},
-     *             @OA\Property(property="name", type="string", example="IELTS Preparation - Advanced", description="Clear, descriptive class name"),
-     *             @OA\Property(property="description", type="string", example="Advanced IELTS preparation focusing on academic modules with practice tests and personalized feedback"),
-     *             @OA\Property(property="level", type="string", enum={"beginner", "intermediate", "advanced"}, example="advanced"),
-     *             @OA\Property(property="subject", type="string", example="IELTS", description="Subject or exam type"),
-     *             @OA\Property(property="class_code", type="string", example="IELTS-ADV-001", description="Optional custom code, auto-generated if not provided"),
-     *             @OA\Property(property="cover_image_url", type="string", format="uri", example="https://api.koupii.com/storage/classes/cover-1.jpg", description="Optional cover image URL"),
-     *             @OA\Property(property="is_active", type="boolean", example=true, default=true),
-     *             @OA\Property(property="max_students", type="integer", example=25, minimum=1, maximum=100),
-     *             @OA\Property(
-     *                 property="schedule",
-     *                 type="object",
-     *                 description="Class schedule configuration",
-     *                 @OA\Property(property="days", type="array", @OA\Items(type="string", enum={"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}), example={"monday", "wednesday", "friday"}),
-     *                 @OA\Property(property="time", type="string", format="time", example="14:00", description="Class start time"),
-     *                 @OA\Property(property="duration_minutes", type="integer", example=90, minimum=30, maximum=240),
-     *                 @OA\Property(property="timezone", type="string", example="UTC+7", description="Class timezone")
-     *             ),
-     *             @OA\Property(
-     *                 property="settings",
-     *                 type="object",
-     *                 description="Class behavior settings",
-     *                 @OA\Property(property="auto_enroll", type="boolean", example=false, description="Allow students to auto-enroll with class code"),
-     *                 @OA\Property(property="require_approval", type="boolean", example=true, description="Require teacher approval for enrollment"),
-     *                 @OA\Property(property="show_leaderboard", type="boolean", example=true, description="Display class leaderboard to students"),
-     *                 @OA\Property(property="allow_late_submission", type="boolean", example=true, description="Allow assignments after due date"),
-     *                 @OA\Property(property="late_penalty_percent", type="integer", example=10, minimum=0, maximum=100)
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"name", "description", "level", "subject"},
+     *                 @OA\Property(property="name", type="string", example="IELTS Preparation - Advanced", description="Clear, descriptive class name"),
+     *                 @OA\Property(property="description", type="string", example="Advanced IELTS preparation focusing on academic modules with practice tests and personalized feedback"),
+     *                 @OA\Property(property="level", type="string", enum={"beginner", "intermediate", "advanced"}, example="advanced"),
+     *                 @OA\Property(property="subject", type="string", example="IELTS", description="Subject or exam type"),
+     *                 @OA\Property(property="class_code", type="string", example="IELTS-ADV-001", description="Optional custom code, auto-generated if not provided"),
+     *                 @OA\Property(property="is_active", type="boolean", example=true),
+     *                 @OA\Property(property="max_students", type="integer", example=25, minimum=1, maximum=100),
+     *                 @OA\Property(
+     *                     property="cover_image",
+     *                     type="string",
+     *                     format="binary",
+     *                     description="Cover image file for the class (JPEG, PNG, max 5MB)"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="schedule",
+     *                     type="string",
+     *                     description="JSON string for class schedule configuration",
+     *                     example="class_schedule_json"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="settings",
+     *                     type="string",
+     *                     description="JSON string for class behavior settings",
+     *                     example="class_settings_json"
+     *                 )
      *             )
      *         )
      *     ),
@@ -378,8 +379,8 @@ class ClassDocs
     public function getClassDetail() {}
 
     /**
-     * @OA\Put(
-     *     path="/api/v1/classes/{id}",
+     * @OA\Post(
+     *     path="/api/v1/classes/update/{id}",
      *     operationId="updateClass",
      *     tags={"Classes"},
      *     summary="✏️ Update Class",
@@ -395,31 +396,40 @@ class ClassDocs
      *     @OA\RequestBody(
      *         required=true,
      *         description="Updated class data",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="name", type="string", example="IELTS Preparation - Advanced Plus", description="Updated class name"),
-     *             @OA\Property(property="description", type="string", example="Enhanced IELTS preparation with personalized feedback"),
-     *             @OA\Property(property="level", type="string", enum={"beginner", "intermediate", "advanced"}, example="advanced"),
-     *             @OA\Property(property="subject", type="string", example="IELTS"),
-     *             @OA\Property(property="class_code", type="string", example="IELTS-ADV-002"),
-     *             @OA\Property(property="cover_image_url", type="string", format="uri", example="https://api.koupii.com/storage/classes/new-cover.jpg"),
-     *             @OA\Property(property="is_active", type="boolean", example=true),
-     *             @OA\Property(property="max_students", type="integer", example=30, minimum=1, maximum=100),
-     *             @OA\Property(
-     *                 property="schedule",
-     *                 type="object",
-     *                 @OA\Property(property="days", type="array", @OA\Items(type="string"), example={"tuesday", "thursday"}),
-     *                 @OA\Property(property="time", type="string", format="time", example="15:30"),
-     *                 @OA\Property(property="duration_minutes", type="integer", example=120),
-     *                 @OA\Property(property="timezone", type="string", example="UTC+7")
-     *             ),
-     *             @OA\Property(
-     *                 property="settings",
-     *                 type="object",
-     *                 @OA\Property(property="auto_enroll", type="boolean", example=false),
-     *                 @OA\Property(property="require_approval", type="boolean", example=true),
-     *                 @OA\Property(property="show_leaderboard", type="boolean", example=true),
-     *                 @OA\Property(property="allow_late_submission", type="boolean", example=false),
-     *                 @OA\Property(property="late_penalty_percent", type="integer", example=15)
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(
+     *                     property="_method",
+     *                     type="string",
+     *                     example="PATCH",
+     *                     description="HTTP method override for Laravel form method spoofing"
+     *                 ),
+     *                 @OA\Property(property="name", type="string", example="IELTS Preparation - Advanced Plus", description="Updated class name"),
+     *                 @OA\Property(property="description", type="string", example="Enhanced IELTS preparation with personalized feedback"),
+     *                 @OA\Property(property="level", type="string", enum={"beginner", "intermediate", "advanced"}, example="advanced"),
+     *                 @OA\Property(property="subject", type="string", example="IELTS"),
+     *                 @OA\Property(property="class_code", type="string", example="IELTS-ADV-002"),
+     *                 @OA\Property(property="is_active", type="boolean", example=true),
+     *                 @OA\Property(property="max_students", type="integer", example=30, minimum=1, maximum=100),
+     *                 @OA\Property(
+     *                     property="cover_image",
+     *                     type="string",
+     *                     format="binary",
+     *                     description="Updated cover image file for the class (JPEG, PNG, max 5MB)"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="schedule",
+     *                     type="string",
+     *                     description="JSON string for updated class schedule configuration",
+     *                     example="updated_schedule_json"
+     *                 ),
+     *                 @OA\Property(
+     *                     property="settings",
+     *                     type="string",
+     *                     description="JSON string for updated class behavior settings",
+     *                     example="updated_settings_json"
+     *                 )
      *             )
      *         )
      *     ),
@@ -573,5 +583,113 @@ class ClassDocs
      * )
      */
     public function deleteClass() {}
+
+    /**
+     * @OA\Post(
+     *     path="/api/v1/classes/join",
+     *     operationId="joinClassByCode",
+     *     tags={"Classes"},
+     *     summary="🎓 Join Class by Code",
+     *     description="Allow students to join a class using the unique class code provided by their teacher.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         description="Class code to join",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             required={"class_code"},
+     *             @OA\Property(
+     *                 property="class_code",
+     *                 type="string",
+     *                 example="ABC123",
+     *                 description="Unique class code to join",
+     *                 minLength=3,
+     *                 maxLength=20
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="✅ Successfully joined class",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="message", type="string", example="Successfully joined class: IELTS Preparation Advanced"),
+     *             @OA\Property(
+     *                 property="class",
+     *                 type="object",
+     *                 @OA\Property(property="id", type="string", format="uuid", example="0199800b-be72-71ed-91bc-118cbfdadc22"),
+     *                 @OA\Property(property="name", type="string", example="IELTS Preparation Advanced"),
+     *                 @OA\Property(property="description", type="string", example="Advanced IELTS preparation course"),
+     *                 @OA\Property(property="class_code", type="string", example="ABC123"),
+     *                 @OA\Property(property="teacher", type="string", example="Dr. Sarah Johnson"),
+     *                 @OA\Property(property="student_count", type="integer", example=18),
+     *                 @OA\Property(property="max_students", type="integer", example=25),
+     *                 @OA\Property(property="level", type="string", enum={"beginner", "intermediate", "advanced"}, example="advanced"),
+     *                 @OA\Property(property="subject", type="string", example="IELTS"),
+     *                 @OA\Property(property="is_active", type="boolean", example=true),
+     *                 @OA\Property(property="created_at", type="string", format="date-time"),
+     *                 @OA\Property(
+     *                     property="enrollment",
+     *                     type="object",
+     *                     @OA\Property(property="enrolled_at", type="string", format="date-time"),
+     *                     @OA\Property(property="status", type="string", enum={"active", "pending", "suspended"}, example="active")
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="❌ Bad Request",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="message", type="string", example="Class is not accepting new enrollments"),
+     *             @OA\Property(property="details", type="string", example="This class has reached maximum capacity or is inactive")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="❌ Unauthorized",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="❌ Only students can join classes",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="message", type="string", example="Only students can join classes")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=409,
+     *         description="⚠️ Already enrolled in this class",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="message", type="string", example="You are already enrolled in this class"),
+     *             @OA\Property(
+     *                 property="enrollment",
+     *                 type="object",
+     *                 @OA\Property(property="enrolled_at", type="string", format="date-time"),
+     *                 @OA\Property(property="status", type="string", example="active")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="❌ Invalid class code or validation error",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="message", type="string", example="The given data was invalid."),
+     *             @OA\Property(
+     *                 property="errors",
+     *                 type="object",
+     *                 @OA\Property(property="class_code", type="array", @OA\Items(type="string", example="Invalid class code or class not found."))
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function joinByCode() {}
 }
 
