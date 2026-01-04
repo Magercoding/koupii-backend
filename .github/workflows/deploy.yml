@@ -85,9 +85,9 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.1.0
         with:
-          host: ${{ secrets.SSH_HOST_PRODUCTION }}
-          username: ${{ secrets.SSH_USER_PRODUCTION }}
-          key: ${{ secrets.SSH_KEY_PRODUCTION }}
+          host: ${{ secrets.SSH_HOST_STAGING }}
+          username: ${{ secrets.SSH_USER_STAGING }}
+          key: ${{ secrets.SSH_KEY_STAGING }}
           envs: IMAGE_TAG,REGISTRY_IMAGE
           timeout: 60s
           command_timeout: 10m
@@ -112,6 +112,8 @@ jobs:
             else
               echo 'DB_HOST=koupii-mysql' >> .env
             fi
+            # Add environment variable to disable Scramble during deployment
+            echo "DISABLE_SCRAMBLE=true" >> .env
 
             echo "Login registry"
             # Use directory in app folder that user owns, not /tmp/.docker
@@ -180,7 +182,6 @@ jobs:
               bootstrap-cache:
               db-data:
             COMPOSEEOF
-            
             # Expand variables in docker-compose.yml
             sed -i "s|\${REGISTRY_IMAGE}:${IMAGE_TAG}|${REGISTRY_IMAGE}:${IMAGE_TAG}|g" docker-compose.yml
             sed -i "s|\${APP_PORT:-8081}|${APP_PORT:-8081}|g" docker-compose.yml
@@ -250,30 +251,21 @@ jobs:
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/bootstrap/cache"
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/public"
 
-            # Before migrations, temporarily remove Scramble
-            echo "🔧 Temporarily disabling Scramble for migrations..."
-            eval "$COMPOSE exec -T backend composer remove dedoc/scramble --no-scripts --no-update --no-interaction" || true
-
-            # Run migrations without Scramble
-            echo "🚀 Running migrations..."
+            # Run migrations with Scramble disabled
             eval "$COMPOSE exec -T backend php artisan migrate --force" || {
-              echo "❌ Migration failed, checking for duplicate migration issues..."
+              echo "Migration failed, checking for duplicate migration issues..."
               eval "$COMPOSE exec -T backend php artisan migrate:status" || true
               exit 1
             }
-            
             eval "$COMPOSE exec -T backend php artisan storage:link" || true
-            echo "✅ Migrations completed successfully!"
-
-            # Re-add Scramble after migrations
-            echo "📚 Re-enabling Scramble for API documentation..."
-            eval "$COMPOSE exec -T backend composer require dedoc/scramble --no-scripts --no-interaction" || true
             
-            # Restart backend to load Scramble
+            # Remove DISABLE_SCRAMBLE from .env to enable Scramble for web requests
+            sed -i '/^DISABLE_SCRAMBLE=/d' .env
+            
+            # Restart backend to enable Scramble for web requests
             eval "$COMPOSE restart backend"
-            echo "✅ Scramble API documentation now available at /docs/v1"
             
-            # Optimize application
+            echo "✅ Scramble API documentation available at /docs/v1"
             eval "$COMPOSE exec -T backend php artisan optimize"
             eval "$COMPOSE exec -T backend php artisan config:cache"
             eval "$COMPOSE exec -T backend php artisan route:cache"
@@ -285,9 +277,9 @@ jobs:
       - name: Cleanup old env backup
         uses: appleboy/ssh-action@v1.1.0
         with:
-          host: ${{ secrets.SSH_HOST_PRODUCTION }}
-          username: ${{ secrets.SSH_USER_PRODUCTION }}
-          key: ${{ secrets.SSH_KEY_PRODUCTION }}
+          host: ${{ secrets.SSH_HOST_STAGING }}
+          username: ${{ secrets.SSH_USER_STAGING }}
+          key: ${{ secrets.SSH_KEY_STAGING }}
           script: |
             cd /srv/apps/koupii-backend || exit 0
             rm -f .env.backup
