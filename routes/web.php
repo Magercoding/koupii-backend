@@ -16,18 +16,10 @@ Route::get('/', function () {
         'api-documentation' =>  config('app.url') . '/api/documentation',
     ]);
 });
-
-
-
-
-
-Route::domain('docs.example.com')->group(function () {
-    Scramble::registerUiRoute('api');
-    Scramble::registerJsonSpecificationRoute('api.json');
-});
-
-Scramble::registerUiRoute(path: 'docs/v1', api: 'v1');
+Scramble::registerUiRoute(path: 'docs/api/v1', api: 'v1');
 Scramble::registerJsonSpecificationRoute(path: 'docs/v1.json', api: 'v1');
+
+
 /**
  * @OA\Server(
  *     url="http://localhost:8000",
