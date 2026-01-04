@@ -91,7 +91,8 @@ return [
      */
     'servers' => [
         'Local' => 'api',
-        'Prod' => 'https://api-koupii.magercoding.com/api',
+        'staging' => 'https://api-staging.koupii.com/api',
+        'Prod' => 'https://api.koupii.com/api',
     ],
 
     
