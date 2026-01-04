@@ -117,6 +117,8 @@ jobs:
             else
               echo 'DB_HOST=koupii-mysql-staging' >> .env
             fi
+            # Add environment variable to disable Scramble during deployment
+            echo "DISABLE_SCRAMBLE=true" >> .env
 
             echo "Login registry"
             # Use directory in app folder that user owns, not /tmp/.docker
@@ -254,13 +256,21 @@ jobs:
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/bootstrap/cache"
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/public"
 
+            # Run migrations with Scramble disabled
             eval "$COMPOSE exec -T backend php artisan migrate --force" || {
               echo "Migration failed, checking for duplicate migration issues..."
               eval "$COMPOSE exec -T backend php artisan migrate:status" || true
               exit 1
             }
             eval "$COMPOSE exec -T backend php artisan storage:link" || true
-            eval "$COMPOSE exec -T backend php artisan l5-swagger:generate" || true
+            
+            # Remove DISABLE_SCRAMBLE from .env to enable Scramble for web requests
+            sed -i '/^DISABLE_SCRAMBLE=/d' .env
+            
+            # Restart backend to enable Scramble for web requests
+            eval "$COMPOSE restart backend"
+            
+            echo "✅ Scramble API documentation available at /docs/v1"
             eval "$COMPOSE exec -T backend php artisan optimize"
             eval "$COMPOSE exec -T backend php artisan config:cache"
             eval "$COMPOSE exec -T backend php artisan route:cache"
@@ -278,4 +288,3 @@ jobs:
           script: |
             cd /srv/apps/koupii-backend-staging || exit 0
             rm -f .env.backup
-
