@@ -33,9 +33,6 @@ class ScrambleServiceProvider extends ServiceProvider
                 $openApi->secure(
                     SecurityScheme::http('bearer')
                 );
-            });
-        Gate::define('viewApiDocs', function () {
-            return true;
-        });       
+            });    
     }
 }
