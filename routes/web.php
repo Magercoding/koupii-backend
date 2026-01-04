@@ -16,8 +16,6 @@ Route::get('/', function () {
         'api-documentation' =>  config('app.url') . '/api/documentation',
     ]);
 });
-Scramble::registerUiRoute(path: 'docs/api/v1', api: 'v1');
-Scramble::registerJsonSpecificationRoute(path: 'docs/v1.json', api: 'v1');
 
 
 /**
