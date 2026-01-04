@@ -41,7 +41,7 @@ class ClassRequest extends BaseRequest
      */
      public function rules(): array
     {
-        $id = $this->route('id'); // for update
+        $id = $this->route('id'); 
 
         return [
             'name'        => 'required|string|max:255',
@@ -49,7 +49,7 @@ class ClassRequest extends BaseRequest
 
             'class_code'  => 'nullable|string|max:50|unique:classes,class_code,' . ($id ?? 'NULL'),
 
-            'cover_image' => 'nullable|file|mimetypes:image/jpeg,image/png,image/jpg|max:10240',
+            'cover_image' => 'file|mimes:jpg,jpeg,png', 
 
             'is_active'   => 'nullable|boolean',
         ];

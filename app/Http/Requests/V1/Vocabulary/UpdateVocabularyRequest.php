@@ -24,6 +24,7 @@ class UpdateVocabularyRequest extends FormRequest
         return [
             'category_id' => 'sometimes|exists:vocabulary_categories,id',
             'word' => 'sometimes|string|max:255',
+            'meaning' => 'sometimes|string',
             'translation' => 'sometimes|string|max:255',
             'spelling' => 'nullable|string|max:255',
             'explanation' => 'nullable|string',
