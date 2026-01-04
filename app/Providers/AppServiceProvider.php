@@ -3,6 +3,7 @@
 namespace App\Providers;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,7 +20,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+         Gate::define('viewApiDocs', function () {
+            return true;
+        });
     }
 
   
