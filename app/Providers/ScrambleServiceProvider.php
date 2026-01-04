@@ -26,11 +26,10 @@ class ScrambleServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Scramble::registerApi('v1', ['info' => ['version' => '1.0']])
+        Scramble::configure()
             ->routes(function (Route $route) {
-                return Str::startsWith($route->uri, 'api/v1/');
-            })
-            ->afterOpenApiGenerated(function (OpenApi $openApi) {
+                return Str::startsWith($route->uri, 'api/');
+            })->withDocumentTransformers(function (OpenApi $openApi) {
                 $openApi->secure(
                     SecurityScheme::http('bearer')
                 );
