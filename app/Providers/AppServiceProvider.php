@@ -38,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
                 return Str::startsWith($route->uri, 'api/');
             });
 
-        // Register API version
+       
         Scramble::registerApi('v1', ['info' => ['version' => '1.0']])
             ->expose(
                 ui: '/docs/v1/api',
