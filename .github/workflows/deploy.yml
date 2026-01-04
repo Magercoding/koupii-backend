@@ -85,9 +85,9 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.1.0
         with:
-          host: ${{ secrets.SSH_HOST_STAGING }}
-          username: ${{ secrets.SSH_USER_STAGING }}
-          key: ${{ secrets.SSH_KEY_STAGING }}
+          host: ${{ secrets.SSH_HOST_PRODUCTION }}
+          username: ${{ secrets.SSH_USER_PRODUCTION }}
+          key: ${{ secrets.SSH_KEY_PRODUCTION }}
           envs: IMAGE_TAG,REGISTRY_IMAGE
           timeout: 60s
           command_timeout: 10m
@@ -105,26 +105,21 @@ jobs:
               echo 'APP_BASE_PATH=/var/www/html' >> .env
             fi
             if ! grep -q '^APP_PORT=' .env; then
-              echo 'APP_PORT=8081' >> .env
+              echo 'APP_PORT=8080' >> .env
             fi
             if grep -q '^DB_HOST=' .env; then
               sed -i 's/^DB_HOST=.*/DB_HOST=koupii-mysql/' .env
             else
               echo 'DB_HOST=koupii-mysql' >> .env
             fi
-            # Add environment variable to disable Scramble during deployment
-            echo "DISABLE_SCRAMBLE=true" >> .env
 
             echo "Login registry"
-            # Use directory in app folder that user owns, not /tmp/.docker
             mkdir -p .docker
             export DOCKER_CONFIG=$(pwd)/.docker
             chmod 700 .docker
             echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ghcr.io -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
 
-            # Debug: Show image name
             echo "Image name: ${REGISTRY_IMAGE}:${IMAGE_TAG}"
-            echo "IMAGE_NAME from .env: $(grep IMAGE_NAME .env)"
 
             cat > docker-compose.yml << 'COMPOSEEOF'
             services:
@@ -138,7 +133,7 @@ jobs:
                   mysql:
                     condition: service_healthy
                 ports:
-                  - "127.0.0.1:${APP_PORT:-8081}:80"
+                  - "127.0.0.1:${APP_PORT:-8080}:80"
                 volumes:
                   - storage:/var/www/html/storage
                   - logs:/var/www/html/storage/logs
@@ -182,9 +177,10 @@ jobs:
               bootstrap-cache:
               db-data:
             COMPOSEEOF
+            
             # Expand variables in docker-compose.yml
             sed -i "s|\${REGISTRY_IMAGE}:${IMAGE_TAG}|${REGISTRY_IMAGE}:${IMAGE_TAG}|g" docker-compose.yml
-            sed -i "s|\${APP_PORT:-8081}|${APP_PORT:-8081}|g" docker-compose.yml
+            sed -i "s|\${APP_PORT:-8080}|${APP_PORT:-8080}|g" docker-compose.yml
             sed -i "s|\${DB_DATABASE:-koupii_production}|${DB_DATABASE:-koupii_production}|g" docker-compose.yml
             sed -i "s|\${DB_USERNAME:-koupii_user}|${DB_USERNAME:-koupii_user}|g" docker-compose.yml
             sed -i "s|\${DB_PASSWORD}|${DB_PASSWORD}|g" docker-compose.yml
@@ -199,7 +195,6 @@ jobs:
             eval "$COMPOSE pull"
             eval "$COMPOSE up -d --remove-orphans"
             
-            # Wait for MySQL to be ready
             echo "Waiting for MySQL to be ready..."
             sleep 25
             
@@ -251,35 +246,42 @@ jobs:
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/bootstrap/cache"
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/public"
 
-            # Run migrations with Scramble disabled
+            # Run migrations (Scramble should work now with your fix)
+            echo "🚀 Running migrations..."
             eval "$COMPOSE exec -T backend php artisan migrate --force" || {
               echo "Migration failed, checking for duplicate migration issues..."
               eval "$COMPOSE exec -T backend php artisan migrate:status" || true
               exit 1
             }
+            
             eval "$COMPOSE exec -T backend php artisan storage:link" || true
+            echo "✅ Migrations completed successfully!"
             
-            # Remove DISABLE_SCRAMBLE from .env to enable Scramble for web requests
-            sed -i '/^DISABLE_SCRAMBLE=/d' .env
+            # Enable Scramble and optimize
+            echo "📚 Setting up Scramble API documentation..."
+            eval "$COMPOSE exec -T backend php artisan config:clear" || true
+            eval "$COMPOSE exec -T backend php artisan route:clear" || true
+            eval "$COMPOSE exec -T backend php artisan cache:clear" || true
             
-            # Restart backend to enable Scramble for web requests
+            # Restart backend to ensure Scramble is properly loaded
             eval "$COMPOSE restart backend"
+            sleep 10
             
             echo "✅ Scramble API documentation available at /docs/v1"
-            eval "$COMPOSE exec -T backend php artisan optimize"
-            eval "$COMPOSE exec -T backend php artisan config:cache"
-            eval "$COMPOSE exec -T backend php artisan route:cache"
+            
+            # Final optimization
+            eval "$COMPOSE exec -T backend php artisan config:cache" || true
+            eval "$COMPOSE exec -T backend php artisan route:cache" || true
 
             docker logout ghcr.io || true
-            # Cleanup docker config
             rm -rf .docker
 
       - name: Cleanup old env backup
         uses: appleboy/ssh-action@v1.1.0
         with:
-          host: ${{ secrets.SSH_HOST_STAGING }}
-          username: ${{ secrets.SSH_USER_STAGING }}
-          key: ${{ secrets.SSH_KEY_STAGING }}
+          host: ${{ secrets.SSH_HOST_PRODUCTION }}
+          username: ${{ secrets.SSH_USER_PRODUCTION }}
+          key: ${{ secrets.SSH_KEY_PRODUCTION }}
           script: |
             cd /srv/apps/koupii-backend || exit 0
             rm -f .env.backup
