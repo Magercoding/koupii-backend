@@ -75,7 +75,7 @@ jobs:
   deploy-staging:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/development' }}
+    if: ${{ github.ref == 'refs/heads/dev' }}
     env:
       IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
     steps:
@@ -117,19 +117,14 @@ jobs:
             else
               echo 'DB_HOST=koupii-mysql-staging' >> .env
             fi
-            # Add environment variable to disable Scramble during deployment
-            echo "DISABLE_SCRAMBLE=true" >> .env
 
             echo "Login registry"
-            # Use directory in app folder that user owns, not /tmp/.docker
             mkdir -p .docker
             export DOCKER_CONFIG=$(pwd)/.docker
             chmod 700 .docker
             echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ghcr.io -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
 
-            # Debug: Show image name
             echo "Image name: ${REGISTRY_IMAGE}:${IMAGE_TAG}"
-            echo "IMAGE_NAME from .env: $(grep IMAGE_NAME .env)"
 
             cat > docker-compose.yml << 'COMPOSEEOF'
             services:
@@ -187,6 +182,7 @@ jobs:
               bootstrap-cache:
               db-data:
             COMPOSEEOF
+            
             # Expand variables in docker-compose.yml
             sed -i "s|\${REGISTRY_IMAGE}:${IMAGE_TAG}|${REGISTRY_IMAGE}:${IMAGE_TAG}|g" docker-compose.yml
             sed -i "s|\${APP_PORT:-8081}|${APP_PORT:-8081}|g" docker-compose.yml
@@ -204,11 +200,10 @@ jobs:
             eval "$COMPOSE pull"
             eval "$COMPOSE up -d --remove-orphans"
             
-            # Wait for MySQL to be ready
             echo "Waiting for MySQL to be ready..."
             sleep 25
             
-            # Extract database credentials
+            # Extract database credentials and setup if needed
             DB_NAME=$(grep '^DB_DATABASE=' .env | cut -d'=' -f2)
             DB_USER=$(grep '^DB_USERNAME=' .env | cut -d'=' -f2)
             DB_PASS=$(grep '^DB_PASSWORD=' .env | cut -d'=' -f2-)
@@ -218,27 +213,10 @@ jobs:
               DB_ROOT_PASS="root"
             fi
             
-            # Detect actual MySQL root password
-            ACTUAL_ROOT_PASS=""
-            for TRY_PASS in "root" "$DB_ROOT_PASS"; do
-              TEST_RESULT=$(eval "$COMPOSE exec -T mysql mysql -uroot -p\"${TRY_PASS}\" -e 'SELECT 1;' 2>&1" || echo "ERROR")
-              if echo "$TEST_RESULT" | grep -qv "ERROR\|Access denied"; then
-                ACTUAL_ROOT_PASS="$TRY_PASS"
-                break
-              fi
-            done
-            
-            if [ -z "$ACTUAL_ROOT_PASS" ]; then
-              ACTUAL_ROOT_PASS="$DB_ROOT_PASS"
-            else
-              DB_ROOT_PASS="$ACTUAL_ROOT_PASS"
-            fi
-            
-            # Setup MySQL user if needed
             CONNECTION_OUTPUT=$(eval "$COMPOSE exec -T mysql mysql -u${DB_USER} -p${DB_PASS} -e 'SELECT 1;' 2>&1" || echo "ERROR")
             
             if echo "$CONNECTION_OUTPUT" | grep -qiE "Access denied|ERROR 1045|ERROR"; then
-              echo "Setting up MySQL user with Docker network permissions..."
+              echo "Setting up MySQL user..."
               SQL_FILE=$(mktemp)
               echo "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" > "$SQL_FILE"
               echo "CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';" >> "$SQL_FILE"
@@ -256,27 +234,34 @@ jobs:
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/bootstrap/cache"
             eval "$COMPOSE exec -T -u root backend chown -R www-data:www-data /var/www/html/public"
 
-            # Run migrations with Scramble disabled
+            # Run migrations (Scramble should work now with your fix)
+            echo "🚀 Running migrations..."
             eval "$COMPOSE exec -T backend php artisan migrate --force" || {
               echo "Migration failed, checking for duplicate migration issues..."
               eval "$COMPOSE exec -T backend php artisan migrate:status" || true
               exit 1
             }
+            
             eval "$COMPOSE exec -T backend php artisan storage:link" || true
+            echo "✅ Migrations completed successfully!"
             
-            # Remove DISABLE_SCRAMBLE from .env to enable Scramble for web requests
-            sed -i '/^DISABLE_SCRAMBLE=/d' .env
+            # Enable Scramble and optimize
+            echo "📚 Setting up Scramble API documentation..."
+            eval "$COMPOSE exec -T backend php artisan config:clear" || true
+            eval "$COMPOSE exec -T backend php artisan route:clear" || true
+            eval "$COMPOSE exec -T backend php artisan cache:clear" || true
             
-            # Restart backend to enable Scramble for web requests
+            # Restart backend to ensure Scramble is properly loaded
             eval "$COMPOSE restart backend"
+            sleep 10
             
             echo "✅ Scramble API documentation available at /docs/v1"
-            eval "$COMPOSE exec -T backend php artisan optimize"
-            eval "$COMPOSE exec -T backend php artisan config:cache"
-            eval "$COMPOSE exec -T backend php artisan route:cache"
+            
+            # Final optimization
+            eval "$COMPOSE exec -T backend php artisan config:cache" || true
+            eval "$COMPOSE exec -T backend php artisan route:cache" || true
 
             docker logout ghcr.io || true
-            # Cleanup docker config
             rm -rf .docker
 
       - name: Cleanup old env backup
