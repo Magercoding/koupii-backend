@@ -37,8 +37,6 @@ class ScrambleServiceProvider extends ServiceProvider
             });
         Gate::define('viewApiDocs', function () {
             return true;
-        });
-
-       
+        });       
     }
 }
