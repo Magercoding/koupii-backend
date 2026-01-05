@@ -36,13 +36,7 @@ jobs:
             ${{ runner.os }}-composer-
 
       - name: Install Composer dependencies
-        run: |
-          composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
-          rm -rf bootstrap/cache/*.php
-          rm -rf storage/framework/cache/data/*
-          php artisan config:clear --ansi || true
-          php artisan cache:clear --ansi || true
-          php artisan package:discover --ansi
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Copy .env for testing
         run: cp .env.example .env
@@ -279,4 +273,3 @@ jobs:
           script: |
             cd /srv/apps/koupii-backend || exit 0
             rm -f .env.backup
-
