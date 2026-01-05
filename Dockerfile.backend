@@ -35,25 +35,38 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
+# Copy composer files first for better caching
+COPY composer.json composer.lock ./
+
+# Install dependencies (production only)
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
+
 # Copy application files
 COPY . .
 
-# Create Laravel storage structure (since symlinks don't work in Docker)
+# Create Laravel storage structure
 RUN mkdir -p storage/app/public \
     && mkdir -p storage/framework/cache/data \
     && mkdir -p storage/framework/sessions \
     && mkdir -p storage/framework/views \
     && mkdir -p storage/logs \
-    && mkdir -p bootstrap/cache \
-    && chown -R www-data:www-data /var/www/html \
+    && mkdir -p bootstrap/cache
+
+# Set proper permissions
+RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 
-# Install dependencies (skip scripts to avoid storage issues)
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+# Clear any cached config and discover packages (with error handling)
+RUN php artisan config:clear --ansi || true \
+    && php artisan package:discover --ansi || true
 
-# Run package discovery separately with error handling
-RUN php artisan package:discover --ansi || true
+# Optimize for production (only if not in development)
+RUN if [ "$APP_ENV" != "local" ]; then \
+        php artisan config:cache || true; \
+        php artisan route:cache || true; \
+        php artisan view:cache || true; \
+    fi
 
 # Create necessary directories FIRST
 RUN mkdir -p /var/log/supervisor /var/run /etc/supervisor/conf.d
@@ -61,7 +74,7 @@ RUN mkdir -p /var/log/supervisor /var/run /etc/supervisor/conf.d
 # Create nginx configuration
 RUN echo 'events { worker_connections 1024; } http { include /etc/nginx/mime.types; default_type application/octet-stream; server { listen 80; server_name localhost; root /var/www/html/public; index index.php index.html; location / { try_files $uri $uri/ /index.php?$query_string; } location ~ \.php$ { fastcgi_pass 127.0.0.1:9000; fastcgi_index index.php; fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name; include fastcgi_params; } } }' > /etc/nginx/nginx.conf
 
-# Create supervisor configuration with proper newlines
+# Create supervisor configuration
 RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf \
     && echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf \
     && echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf \
