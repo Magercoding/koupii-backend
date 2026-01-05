@@ -38,10 +38,7 @@ WORKDIR /var/www/html
 # Copy composer files first for better caching
 COPY composer.json composer.lock ./
 
-# Install dependencies (production only)
-RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
-
-# Copy application files
+# Copy application files (excluding cached files via .dockerignore)
 COPY . .
 
 # Create Laravel storage structure
@@ -52,26 +49,26 @@ RUN mkdir -p storage/app/public \
     && mkdir -p storage/logs \
     && mkdir -p bootstrap/cache
 
+# CRITICAL: Remove any cached service providers and install dependencies
+RUN rm -rf bootstrap/cache/* \
+    && rm -rf storage/framework/cache/* \
+    && rm -rf vendor/ \
+    && composer install --no-dev --optimize-autoloader --no-interaction
+
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 
-# CRITICAL FIX: Clear all caches and regenerate package discovery
-RUN rm -rf bootstrap/cache/*.php \
-    && rm -rf storage/framework/cache/data/* \
-    && php artisan config:clear --ansi || true \
-    && php artisan cache:clear --ansi || true \
-    && php artisan package:discover --ansi
+# Clear Laravel caches and regenerate package discovery
+RUN php artisan config:clear \
+    && php artisan cache:clear \
+    && php artisan package:discover \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
 
-# Optimize for production (only if not in development)
-RUN if [ "$APP_ENV" != "local" ]; then \
-        php artisan config:cache || true; \
-        php artisan route:cache || true; \
-        php artisan view:cache || true; \
-    fi
-
-# Create necessary directories FIRST
+# Create necessary directories
 RUN mkdir -p /var/log/supervisor /var/run /etc/supervisor/conf.d
 
 # Create nginx configuration
