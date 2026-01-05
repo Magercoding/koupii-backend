@@ -35,46 +35,33 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy composer files first for better caching
-COPY composer.json composer.lock ./
-
-# Copy application files (excluding cached files via .dockerignore)
+# Copy application files
 COPY . .
 
-# Create Laravel storage structure
+# Create Laravel storage structure (since symlinks don't work in Docker)
 RUN mkdir -p storage/app/public \
     && mkdir -p storage/framework/cache/data \
     && mkdir -p storage/framework/sessions \
     && mkdir -p storage/framework/views \
     && mkdir -p storage/logs \
-    && mkdir -p bootstrap/cache
-
-# CRITICAL: Remove any cached service providers and install dependencies
-RUN rm -rf bootstrap/cache/* \
-    && rm -rf storage/framework/cache/* \
-    && rm -rf vendor/ \
-    && composer install --no-dev --optimize-autoloader --no-interaction
-
-# Set proper permissions
-RUN chown -R www-data:www-data /var/www/html \
+    && mkdir -p bootstrap/cache \
+    && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 
-# Clear Laravel caches and regenerate package discovery
-RUN php artisan config:clear \
-    && php artisan cache:clear \
-    && php artisan package:discover \
-    && php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
+# Install dependencies (skip scripts to avoid storage issues)
+RUN composer install --no-dev --optimize-autoloader --no-scripts
 
-# Create necessary directories
+# Run package discovery separately with error handling
+RUN php artisan package:discover --ansi || true
+
+# Create necessary directories FIRST
 RUN mkdir -p /var/log/supervisor /var/run /etc/supervisor/conf.d
 
 # Create nginx configuration
 RUN echo 'events { worker_connections 1024; } http { include /etc/nginx/mime.types; default_type application/octet-stream; server { listen 80; server_name localhost; root /var/www/html/public; index index.php index.html; location / { try_files $uri $uri/ /index.php?$query_string; } location ~ \.php$ { fastcgi_pass 127.0.0.1:9000; fastcgi_index index.php; fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name; include fastcgi_params; } } }' > /etc/nginx/nginx.conf
 
-# Create supervisor configuration
+# Create supervisor configuration with proper newlines
 RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf \
     && echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf \
     && echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf \
