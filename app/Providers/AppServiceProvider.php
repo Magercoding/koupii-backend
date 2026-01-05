@@ -24,13 +24,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Scramble::afterOpenApiGenerated(function (OpenApi $openApi) {
-            $openApi->secure(
-                SecurityScheme::http('bearer')
-            );
-        });
+        Gate::define('viewApiDocs', function ($user = null) {
+            
+            if (app()->environment('local')) {
+                return true;
+            }
 
-        Gate::define('viewApiDocs', function () {
             return true;
         });
     }
