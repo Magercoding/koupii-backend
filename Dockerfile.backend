@@ -57,9 +57,12 @@ RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 
-# Clear any cached config and discover packages (with error handling)
-RUN php artisan config:clear --ansi || true \
-    && php artisan package:discover --ansi || true
+# CRITICAL FIX: Clear all caches and regenerate package discovery
+RUN rm -rf bootstrap/cache/*.php \
+    && rm -rf storage/framework/cache/data/* \
+    && php artisan config:clear --ansi || true \
+    && php artisan cache:clear --ansi || true \
+    && php artisan package:discover --ansi
 
 # Optimize for production (only if not in development)
 RUN if [ "$APP_ENV" != "local" ]; then \

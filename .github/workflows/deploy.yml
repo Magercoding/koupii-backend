@@ -39,6 +39,9 @@ jobs:
         run: |
           composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
           rm -rf bootstrap/cache/*.php
+          rm -rf storage/framework/cache/data/*
+          php artisan config:clear --ansi || true
+          php artisan cache:clear --ansi || true
           php artisan package:discover --ansi
 
       - name: Copy .env for testing
