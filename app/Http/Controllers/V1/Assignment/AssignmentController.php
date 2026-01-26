@@ -14,7 +14,8 @@ class AssignmentController extends Controller
 {
     public function __construct(
         private AssignmentService $assignmentService
-    ) {}
+    ) {
+    }
 
     /**
      * Assign a task to a class
@@ -23,7 +24,7 @@ class AssignmentController extends Controller
     {
         try {
             $result = $this->assignmentService->assignTaskToClass($request->validated());
-            
+
             return response()->json([
                 'message' => 'Task assigned successfully',
                 'data' => [
@@ -48,14 +49,30 @@ class AssignmentController extends Controller
     {
         try {
             $assignments = $this->assignmentService->getClassAssignments($classId);
-            
+
+            // If no assignments, return empty array with appropriate message
+            if ($assignments->isEmpty()) {
+                return response()->json([
+                    'message' => 'No assignments yet',
+                    'data' => []
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Assignments retrieved successfully',
                 'data' => AssignmentResource::collection($assignments)
             ]);
         } catch (\Exception $e) {
+            // Log the error for debugging
+            \Log::error('Error fetching assignments', [
+                'class_id' => $classId,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
-                'message' => $e->getMessage()
+                'error' => $e->getMessage()
             ], 403);
         }
     }
@@ -67,7 +84,7 @@ class AssignmentController extends Controller
     {
         try {
             $stats = $this->assignmentService->getAssignmentStatistics($assignmentId, $type);
-            
+
             return response()->json([
                 'message' => 'Assignment statistics retrieved successfully',
                 'data' => new AssignmentStatsResource($stats)
@@ -86,11 +103,11 @@ class AssignmentController extends Controller
     {
         try {
             $result = $this->assignmentService->updateAssignment(
-                $assignmentId, 
-                $type, 
+                $assignmentId,
+                $type,
                 $request->validated()
             );
-            
+
             return response()->json([
                 'message' => 'Assignment updated successfully',
                 'data' => new AssignmentResource($result)
@@ -109,7 +126,7 @@ class AssignmentController extends Controller
     {
         try {
             $this->assignmentService->deleteAssignment($assignmentId, $type);
-            
+
             return response()->json([
                 'message' => 'Assignment deleted successfully'
             ]);

@@ -27,10 +27,15 @@ class ReadingTaskAssignment extends Model
 
     protected $fillable = [
         'reading_task_id',
-        'classroom_id',
+        'class_id',
+        'classroom_id', // Add this back for legacy support/constraint safety
         'assigned_by',
         'due_date',
         'assigned_at',
+        'status',
+        'max_attempts',
+        'instructions',
+        'auto_grade',
     ];
 
     protected $casts = [
@@ -55,10 +60,18 @@ class ReadingTaskAssignment extends Model
     }
 
     /**
-     * Get the classroom this task was assigned to
+     * Get the class this task was assigned to
+     */
+    public function class(): BelongsTo
+    {
+        return $this->belongsTo(Classes::class, 'class_id');
+    }
+
+    /**
+     * Legacy accessor for backward compatibility if needed, using new column
      */
     public function classroom(): BelongsTo
     {
-        return $this->belongsTo(Classes::class, 'classroom_id');
+        return $this->belongsTo(Classes::class, 'class_id');
     }
 }

@@ -17,7 +17,6 @@ class VocabularyResource extends JsonResource
         return [
             'id' => $this->id,
             'word' => $this->word,
-            'meaning' => $this->meaning,
             'translation' => $this->translation,
             'spelling' => $this->spelling,
             'explanation' => $this->explanation,
@@ -40,7 +39,7 @@ class VocabularyResource extends JsonResource
             }),
 
             'is_bookmarked' => $this->when(
-                isset($this->is_bookmarked), 
+                isset($this->is_bookmarked),
                 $this->is_bookmarked ?? false
             ),
 

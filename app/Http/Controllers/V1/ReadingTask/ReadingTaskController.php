@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
-class ReadingTaskController extends Controller implements HasMiddleware 
+class ReadingTaskController extends Controller implements HasMiddleware
 {
     public static function middleware(): array
     {
@@ -52,7 +52,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
             // Teachers see their own tasks and published tasks
             $query->where(function ($q) use ($user) {
                 $q->where('created_by', $user->id)
-                  ->orWhere('is_published', true);
+                    ->orWhere('is_published', true);
             });
         }
 
@@ -69,7 +69,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -84,8 +84,11 @@ class ReadingTaskController extends Controller implements HasMiddleware
     public function store(StoreReadingTaskRequest $request)
     {
         try {
+            $validated = $request->validated();
+            \Illuminate\Support\Facades\Log::info('ReadingTaskController: Validated data', ['data' => $validated]);
+
             $service = app(ReadingTaskService::class);
-            $task = $service->create($request->validated());
+            $task = $service->create($validated);
 
             return new ReadingTaskResource($task->load(['creator', 'assignments.classroom']));
         } catch (\Exception $e) {
@@ -102,9 +105,9 @@ class ReadingTaskController extends Controller implements HasMiddleware
     public function show(Request $request, string $id)
     {
         $user = $request->user();
-        
+
         $task = ReadingTask::with([
-            'creator', 
+            'creator',
             'assignments.classroom',
             'submissions' => function ($query) use ($user) {
                 if ($user->role === 'student') {
@@ -131,7 +134,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
     public function update(UpdateReadingTaskRequest $request, string $id)
     {
         $user = $request->user();
-        
+
         $task = ReadingTask::findOrFail($id);
 
         // Check permissions
@@ -158,7 +161,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
     public function destroy(Request $request, string $id)
     {
         $user = $request->user();
-        
+
         $task = ReadingTask::findOrFail($id);
 
         // Check permissions
@@ -185,7 +188,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
     public function togglePublish(Request $request, string $id)
     {
         $user = $request->user();
-        
+
         $task = ReadingTask::findOrFail($id);
 
         // Check permissions

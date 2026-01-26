@@ -38,6 +38,7 @@ class StoreReadingTaskRequest extends BaseRequest
             'passage_images.*' => 'file|mimes:jpg,jpeg,png,gif|max:5120', // 5MB max
             'reference_materials' => 'nullable|array',
             'reference_materials.*' => 'file|mimes:pdf,doc,docx,txt|max:10240', // 10MB max
+            'class_id' => 'nullable|string|exists:classes,id',
         ];
     }
 
@@ -63,6 +64,7 @@ class StoreReadingTaskRequest extends BaseRequest
             'passages' => 'passages data',
             'passage_images' => 'passage images',
             'reference_materials' => 'reference materials',
+            'class_id' => 'class',
         ];
     }
 

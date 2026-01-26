@@ -58,10 +58,16 @@ class AssignmentService
     /**
      * Get assignments for a class
      */
-    public function getClassAssignments(string $classId): Collection
+    public function getClassAssignments(string $classId): \Illuminate\Support\Collection
     {
-        if (!$this->verifyTeacherOwnsClass($classId)) {
-            throw new \Exception('You do not have permission to view assignments for this class');
+        $user = Auth::user();
+
+        $isTeacher = $user->teacherClasses()->where('id', $classId)->exists();
+
+        $isStudent = $user->studentClasses()->where('classes.id', $classId)->exists();
+
+        if (!$isTeacher && !$isStudent) {
+            return collect();
         }
 
         $assignments = collect();
@@ -100,7 +106,7 @@ class AssignmentService
     public function getAssignmentStatistics(string $assignmentId, string $type): array
     {
         $assignment = $this->getAssignmentByType($type, $assignmentId);
-        
+
         if (!$assignment || $assignment->assigned_by !== Auth::id()) {
             throw new \Exception('Assignment not found or access denied');
         }
@@ -124,7 +130,7 @@ class AssignmentService
     public function updateAssignment(string $assignmentId, string $type, array $data): mixed
     {
         $assignment = $this->getAssignmentByType($type, $assignmentId);
-        
+
         if (!$assignment || $assignment->assigned_by !== Auth::id()) {
             throw new \Exception('Assignment not found or access denied');
         }
@@ -139,7 +145,7 @@ class AssignmentService
     public function deleteAssignment(string $assignmentId, string $type): void
     {
         $assignment = $this->getAssignmentByType($type, $assignmentId);
-        
+
         if (!$assignment || $assignment->assigned_by !== Auth::id()) {
             throw new \Exception('Assignment not found or access denied');
         }
@@ -174,7 +180,7 @@ class AssignmentService
 
     private function getTaskModel(string $type): string
     {
-        return match($type) {
+        return match ($type) {
             'writing_task' => WritingTask::class,
             'reading_task' => ReadingTask::class,
             'listening_task' => ListeningTask::class,
@@ -197,7 +203,7 @@ class AssignmentService
             unset($data['task_id']);
         }
 
-        return match($type) {
+        return match ($type) {
             'writing_task' => WritingTaskAssignment::create($data),
             'reading_task' => ReadingTaskAssignment::create($data),
             'listening_task' => ListeningTaskAssignment::create($data),
@@ -227,7 +233,7 @@ class AssignmentService
 
     private function getAssignmentByType(string $type, string $assignmentId)
     {
-        return match($type) {
+        return match ($type) {
             'writing_task' => WritingTaskAssignment::with(['writingTask', 'class', 'assignedBy'])->find($assignmentId),
             'reading_task' => ReadingTaskAssignment::with(['readingTask', 'class', 'assignedBy'])->find($assignmentId),
             'listening_task' => ListeningTaskAssignment::with(['listeningTask', 'class', 'assignedBy'])->find($assignmentId),
@@ -238,7 +244,7 @@ class AssignmentService
     private function calculateStatistics($studentAssignments): array
     {
         $totalStudents = $studentAssignments->count();
-        
+
         return [
             'total_students' => $totalStudents,
             'completed' => $studentAssignments->where('status', 'completed')->count(),
@@ -248,7 +254,7 @@ class AssignmentService
             'overdue' => $studentAssignments->where('due_date', '<', now())
                 ->whereNotIn('status', ['completed', 'submitted'])->count(),
             'average_score' => $studentAssignments->whereNotNull('score')->avg('score'),
-            'completion_rate' => $totalStudents > 0 
+            'completion_rate' => $totalStudents > 0
                 ? round(($studentAssignments->whereIn('status', ['completed', 'submitted'])->count() / $totalStudents) * 100, 2)
                 : 0
         ];

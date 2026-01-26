@@ -10,7 +10,7 @@ class AssignmentResource extends JsonResource
     public function toArray(Request $request): array
     {
         $task = $this->getTask();
-        
+
         return [
             'id' => $this->resource['assignment']->id,
             'type' => $this->resource['type'],
@@ -22,12 +22,12 @@ class AssignmentResource extends JsonResource
                 'time_limit_seconds' => $task?->time_limit_seconds ?? null
             ],
             'class' => [
-                'id' => $this->resource['assignment']->class->id ?? null,
-                'name' => $this->resource['assignment']->class->name ?? 'N/A'
+                'id' => $this->getClassRelation()?->id ?? null,
+                'name' => $this->getClassRelation()?->name ?? 'N/A'
             ],
             'assigned_by' => [
-                'id' => $this->resource['assignment']->assignedBy->id ?? null,
-                'name' => $this->resource['assignment']->assignedBy->name ?? 'N/A'
+                'id' => $this->resource['assignment']->assignedBy?->id ?? null,
+                'name' => $this->resource['assignment']->assignedBy?->name ?? 'N/A'
             ],
             'due_date' => $this->resource['assignment']->due_date,
             'max_attempts' => $this->resource['assignment']->max_attempts,
@@ -41,12 +41,19 @@ class AssignmentResource extends JsonResource
 
     private function getTask()
     {
-        return match($this->resource['type']) {
+        return match ($this->resource['type']) {
             'writing_task' => $this->resource['assignment']->writingTask,
             'reading_task' => $this->resource['assignment']->readingTask,
             'listening_task' => $this->resource['assignment']->listeningTask,
             'speaking_task' => $this->resource['assignment']->speakingTask,
             default => null
         };
+    }
+
+    private function getClassRelation()
+    {
+        return $this->resource['assignment']->class
+            ?? $this->resource['assignment']->classroom
+            ?? null;
     }
 }

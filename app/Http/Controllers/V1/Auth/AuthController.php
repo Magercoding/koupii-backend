@@ -21,7 +21,8 @@ class AuthController extends Controller implements HasMiddleware
     /**
      * @unauthenticated
      */
-    public function login(LoginRequest $request){
+    public function login(LoginRequest $request)
+    {
         $request->authenticate();
 
         $user = $request->user();
@@ -34,12 +35,13 @@ class AuthController extends Controller implements HasMiddleware
             'user' => $user,
         ]);
     }
-    public function logout(Request $request){
+    public function logout(Request $request)
+    {
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
             'message' => 'Logged out successfully',
-        ],200);
+        ], 200);
     }
     /**
      * @unauthenticated
@@ -48,23 +50,15 @@ class AuthController extends Controller implements HasMiddleware
     {
         $validated = $request->validated();
 
-        $validated['password'] = Hash::make($validated['password']);
-
         $user = User::create($validated);
 
-        $token = $user->createToken('api-token')->plainTextToken;
-
         return response()->json([
-            'message' => 'Registration successful',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
+            'message' => 'Registration successful. Please login to continue.',
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
-                'created_at' => $user->created_at,
-                'updated_at' => $user->updated_at,
             ]
         ], 201);
     }

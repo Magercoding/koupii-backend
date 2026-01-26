@@ -36,8 +36,7 @@ class RegisterRequest extends BaseRequest
 
     protected function prepareForValidation()
     {
-        // Debug: Log the password before validation
-        Log::info('Password before validation: ' . $this->password);
+        // No preparation needed
     }
     public function messages(): array
     {

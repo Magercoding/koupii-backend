@@ -27,7 +27,7 @@ class ListeningTaskAssignment extends Model
 
     protected $fillable = [
         'listening_task_id',
-        'classroom_id',
+        'class_id',
         'assigned_by',
         'due_date',
         'assigned_at',
@@ -55,10 +55,18 @@ class ListeningTaskAssignment extends Model
     }
 
     /**
-     * Get the classroom this task was assigned to
+     * Get the class this task was assigned to
+     */
+    public function class(): BelongsTo
+    {
+        return $this->belongsTo(Classes::class, 'class_id');
+    }
+
+    /**
+     * Legacy accessor
      */
     public function classroom(): BelongsTo
     {
-        return $this->belongsTo(Classes::class, 'classroom_id');
+        return $this->belongsTo(Classes::class, 'class_id');
     }
 }
