@@ -13,19 +13,25 @@ use App\Models\QuestionOption;
 use App\Models\QuestionBreakdown;
 use App\Models\HighlightSegment;
 use App\Helpers\FileUploadHelper;
+use App\Services\V1\Test\TestService;
 
 class ReadingTestService
 {
+    protected TestService $testService;
+
+    public function __construct(TestService $testService)
+    {
+        $this->testService = $testService;
+    }
+
     /**
      * CREATE READING TEST
      */
     public function create(array $data, Request $request): Test
     {
         return DB::transaction(function () use ($data, $request) {
-
-            $test = Test::create([
-                'id' => Str::uuid()->toString(),
-                'creator_id' => auth()->id(),
+            // Prepare test data for the unified TestService
+            $testData = [
                 'title' => $data['title'],
                 'type' => $data['type'],
                 'difficulty' => $data['difficulty'],
@@ -38,10 +44,14 @@ class ReadingTestService
                 'is_public' => $data['is_public'] ?? false,
                 'is_published' => $data['is_published'] ?? true,
                 'settings' => $data['settings'] ?? null,
-            ]);
+                'class_id' => $data['class_id'] ?? null, // Include class_id if provided
+            ];
 
+            // Use the unified TestService to create the test (this will trigger automatic assignment creation)
+            $test = $this->testService->createTest($testData);
+
+            // Now create the reading-specific passages and questions
             foreach ($data['passages'] as $pIndex => $pData) {
-
                 $passage = Passage::create([
                     'id' => Str::uuid()->toString(),
                     'test_id' => $test->id,
@@ -50,7 +60,6 @@ class ReadingTestService
                 ]);
 
                 foreach ($pData['question_groups'] as $gIndex => $gData) {
-
                     $group = QuestionGroup::create([
                         'id' => Str::uuid()->toString(),
                         'passage_id' => $passage->id,
@@ -58,7 +67,6 @@ class ReadingTestService
                     ]);
 
                     foreach ($gData['questions'] as $qIndex => $qData) {
-
                         $question = $this->createQuestion($qData, $group, $request, $pIndex, $gIndex, $qIndex);
 
                         if (isset($qData['items'])) {
@@ -74,7 +82,7 @@ class ReadingTestService
                 }
             }
 
-            return $test;
+            return $test->load(['passages.questionGroups.questions.options']);
         });
     }
 

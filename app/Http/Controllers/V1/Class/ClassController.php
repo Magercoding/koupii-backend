@@ -8,6 +8,7 @@ use App\Http\Resources\V1\Class\ClassResource;
 use App\Models\ClassEnrollment;
 use App\Models\Classes;
 use App\Services\V1\Class\ClassService;
+use App\Events\StudentEnrolledInClass;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
@@ -144,15 +145,21 @@ class ClassController extends Controller
                         'status' => 'active',
                         'enrolled_at' => now()
                     ]);
+                    
+                    // Dispatch event for reactivated enrollment
+                    StudentEnrolledInClass::dispatch($user, $class);
                 }
             } else {
                
-                ClassEnrollment::create([
+                $enrollment = ClassEnrollment::create([
                     'class_id' => $class->id,
                     'student_id' => $user->id,
                     'status' => 'active',
                     'enrolled_at' => now()
                 ]);
+                
+                // Dispatch event for new enrollment
+                StudentEnrolledInClass::dispatch($user, $class);
             }
 
             return response()->json([

@@ -3,6 +3,7 @@ use App\Http\Controllers\V1\Class\ClassController;
 use App\Http\Controllers\V1\Class\ClassEnrollmentController;
 use App\Http\Controllers\V1\Class\ClassInvitationController;
 use App\Http\Controllers\V1\Class\ClassTestController;
+use App\Http\Controllers\V1\Class\ClassAssignmentController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -49,12 +50,18 @@ Route::middleware('auth:sanctum')
             Route::post('/create', [ClassInvitationController::class, 'store']);
             Route::patch('/update/{id}', [ClassInvitationController::class, 'update']);
             Route::delete('/delete/{id}', [ClassInvitationController::class, 'destroy']);
+            Route::post('/resend/{id}', [ClassInvitationController::class, 'resend']);
         });
     });
 
+// Token-based invitation routes (for email links)
+Route::prefix('invitations/token')->group(function () {
+    Route::get('/{token}', [ClassInvitationController::class, 'showByToken']);
+    Route::post('/{token}/accept', [ClassInvitationController::class, 'acceptByToken']);
+    Route::post('/{token}/decline', [ClassInvitationController::class, 'declineByToken']);
+});
+
 Route::middleware(['auth:sanctum'])->group(function () {
-
-
     Route::prefix('classes/{classId}')->middleware('role:teacher')->group(function () {
         // Test CRUD within classes
         Route::get('tests', [ClassTestController::class, 'index']);
@@ -65,5 +72,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Test assignment to all class students
         Route::post('tests/{testId}/assign', [ClassTestController::class, 'assignToClass']);
+        
+        // Manual assignment creation for existing tests
+        Route::post('tests/{testId}/create-assignment', [ClassAssignmentController::class, 'assignTestToClass']);
     });
 });

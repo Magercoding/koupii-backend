@@ -37,6 +37,7 @@ class StoreReadingTestRequest extends FormRequest
             'is_public' => 'nullable|boolean',
             'is_published' => 'nullable|boolean',
             'settings' => 'nullable|array',
+            'class_id' => 'nullable|string|exists:classes,id', // Add class_id validation
 
             'passages' => 'required|array|min:1',
             'passages.*.title' => 'nullable|string|max:255',

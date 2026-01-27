@@ -63,7 +63,6 @@ class AssignmentService
         $user = Auth::user();
 
         $isTeacher = $user->teacherClasses()->where('id', $classId)->exists();
-
         $isStudent = $user->studentClasses()->where('classes.id', $classId)->exists();
 
         if (!$isTeacher && !$isStudent) {
@@ -72,32 +71,47 @@ class AssignmentService
 
         $assignments = collect();
 
-        // Get all assignment types
+        // Get new unified assignments (from automatic assignment system)
+        $unifiedAssignments = \App\Models\Assignment::where('class_id', $classId)
+            ->with(['test', 'class'])
+            ->get()
+            ->map(function($assignment) {
+                return [
+                    'assignment' => $assignment,
+                    'type' => $assignment->type,
+                    'unified' => true
+                ];
+            });
+
+        // Get legacy assignment types for backward compatibility
         $writingAssignments = WritingTaskAssignment::where('class_id', $classId)
             ->with(['writingTask', 'class', 'assignedBy'])
             ->get()
-            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'writing_task']);
+            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'writing_task', 'unified' => false]);
 
         $readingAssignments = ReadingTaskAssignment::where('class_id', $classId)
             ->with(['readingTask', 'class', 'assignedBy'])
             ->get()
-            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'reading_task']);
+            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'reading_task', 'unified' => false]);
 
         $listeningAssignments = ListeningTaskAssignment::where('class_id', $classId)
             ->with(['listeningTask', 'class', 'assignedBy'])
             ->get()
-            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'listening_task']);
+            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'listening_task', 'unified' => false]);
 
         $speakingAssignments = SpeakingTaskAssignment::where('class_id', $classId)
             ->with(['speakingTask', 'class', 'assignedBy'])
             ->get()
-            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'speaking_task']);
+            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'speaking_task', 'unified' => false]);
 
-        return $assignments->merge($writingAssignments)
+        return $assignments->merge($unifiedAssignments)
+            ->merge($writingAssignments)
             ->merge($readingAssignments)
             ->merge($listeningAssignments)
             ->merge($speakingAssignments)
-            ->sortByDesc('assignment.created_at');
+            ->sortByDesc(function($item) {
+                return $item['assignment']->created_at;
+            });
     }
 
     /**

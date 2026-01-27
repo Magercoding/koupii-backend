@@ -7,6 +7,7 @@ use App\Http\Requests\V1\Class\ClassEnrollmentRequest;
 use App\Http\Resources\V1\Class\ClassEnrollmentCollection;
 use App\Http\Resources\V1\Class\ClassEnrollmentResource;
 use App\Models\ClassEnrollment;
+use App\Events\StudentEnrolledInClass;
 use Illuminate\Support\Facades\Gate;
 
 use Illuminate\Http\Request;
@@ -39,6 +40,11 @@ class ClassEnrollmentController extends Controller
 
         $enrollment = ClassEnrollment::create($data);
 
+        // Dispatch event for automatic assignment creation
+        if ($enrollment->status === 'active') {
+            StudentEnrolledInClass::dispatch($enrollment->student, $enrollment->class);
+        }
+
         return response()->json([
             'message' => 'Enrollment created successfully',
             'data' => new ClassEnrollmentResource($enrollment),
@@ -59,7 +65,15 @@ class ClassEnrollmentController extends Controller
     {
         Gate::authorize('update', $id);
 
-        $id->update($request->validated());
+        $originalStatus = $id->status;
+        $validatedData = $request->validated();
+        
+        $id->update($validatedData);
+
+        // Dispatch event if enrollment status changed to active
+        if ($originalStatus !== 'active' && $validatedData['status'] === 'active') {
+            StudentEnrolledInClass::dispatch($id->student, $id->class);
+        }
 
         return response()->json([
             'message' => 'Enrollment updated successfully',

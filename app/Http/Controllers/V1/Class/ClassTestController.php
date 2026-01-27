@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Test\StoreTestRequest;
 use App\Http\Requests\V1\Test\UpdateTestRequest;
 use App\Http\Resources\V1\Test\TestResource;
+use App\Services\V1\Test\TestService;
 use App\Models\StudentAssignment;
 use App\Models\Test;
 use App\Models\Classes;
 use App\Models\Assignment;
 use App\Models\ClassEnrollment;
+use App\Events\TestAssignedToClass;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +22,12 @@ use Illuminate\Validation\ValidationException;
 
 class ClassTestController extends Controller
 {
+    protected TestService $testService;
+
+    public function __construct(TestService $testService)
+    {
+        $this->testService = $testService;
+    }
     /**
      * Get all tests for a specific class
      */
@@ -72,23 +80,12 @@ class ClassTestController extends Controller
                 ->where('teacher_id', auth()->id())
                 ->firstOrFail();
 
-            DB::beginTransaction();
-
             $testData = $request->validated();
             $testData['class_id'] = $classId;
             $testData['creator_id'] = auth()->id();
 
-            // Create the test
-            $test = Test::create($testData);
-
-            // Create passages and questions if provided
-            if (isset($testData['passages']) && is_array($testData['passages'])) {
-                foreach ($testData['passages'] as $passageData) {
-                    $this->createPassageWithQuestions($test, $passageData);
-                }
-            }
-
-            DB::commit();
+            // Use TestService to create the test (this will trigger automatic assignment creation)
+            $test = $this->testService->createTest($testData);
 
             return response()->json([
                 'message' => 'Test created successfully for class: ' . $class->name,
@@ -101,7 +98,6 @@ class ClassTestController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'message' => 'Failed to create test',
                 'error' => $e->getMessage()
@@ -171,7 +167,7 @@ class ClassTestController extends Controller
     public function update(UpdateTestRequest $request, string $classId, string $testId): JsonResponse
     {
         try {
- 
+            // Verify class ownership
             $class = Classes::where('id', $classId)
                 ->where('teacher_id', auth()->id())
                 ->firstOrFail();
@@ -180,15 +176,15 @@ class ClassTestController extends Controller
                 ->where('class_id', $classId)
                 ->firstOrFail();
 
-            DB::beginTransaction();
+            $testData = $request->validated();
+            $testData['class_id'] = $classId; // Ensure class_id is maintained
 
-            $test->update($request->validated());
-
-            DB::commit();
+            // Use TestService to update the test (this will trigger automatic assignment creation if needed)
+            $updatedTest = $this->testService->updateTest($test, $testData);
 
             return response()->json([
                 'message' => 'Test updated successfully',
-                'data' => new TestResource($test->load(['passages.questionGroups.questions', 'creator', 'class'])),
+                'data' => new TestResource($updatedTest->load(['passages.questionGroups.questions', 'creator', 'class'])),
                 'class' => [
                     'id' => $class->id,
                     'name' => $class->name
@@ -196,7 +192,6 @@ class ClassTestController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'message' => 'Failed to update test',
                 'error' => $e->getMessage()
@@ -272,49 +267,30 @@ class ClassTestController extends Controller
                 ]);
             }
 
-            DB::beginTransaction();
-
-            // Create assignment
-            $assignment = Assignment::create([
-                'class_id' => $classId,
-                'test_id' => $testId,
+            // Prepare assignment options
+            $options = [
                 'title' => $request->input('title', $test->title . ' Assignment'),
                 'description' => $request->input('description', 'Complete this test by the due date'),
                 'due_date' => $request->due_date,
                 'close_date' => $request->close_date,
                 'is_published' => true
-            ]);
+            ];
 
-            // Get all active students in class
-            $activeStudents = $class->enrollments()
+            // Dispatch event to trigger automatic assignment creation
+            TestAssignedToClass::dispatch($test, $class, $options);
+
+            // Get student count for response
+            $studentCount = $class->enrollments()
                 ->where('status', 'active')
-                ->pluck('student_id');
-
-            // Create student assignments
-            $studentAssignments = [];
-            foreach ($activeStudents as $studentId) {
-                $studentAssignments[] = [
-                    'id' => Str::uuid(),
-                    'assignment_id' => $assignment->id,
-                    'student_id' => $studentId,
-                    'status' => 'not_started',
-                    'attempt_number' => 1,
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ];
-            }
-
-            StudentAssignment::insert($studentAssignments);
-
-            DB::commit();
+                ->count();
 
             return response()->json([
                 'message' => 'Test assigned to all students in ' . $class->name,
                 'data' => [
-                    'assignment_id' => $assignment->id,
+                    'test_id' => $test->id,
                     'test_title' => $test->title,
-                    'due_date' => $assignment->due_date,
-                    'assigned_to_students' => count($studentAssignments)
+                    'due_date' => $options['due_date'],
+                    'assigned_to_students' => $studentCount
                 ],
                 'class' => [
                     'id' => $class->id,
@@ -323,7 +299,6 @@ class ClassTestController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'message' => 'Failed to assign test',
                 'error' => $e->getMessage()

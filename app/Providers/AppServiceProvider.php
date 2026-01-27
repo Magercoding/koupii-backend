@@ -16,7 +16,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bind AssignmentFactory interface to implementation
+        $this->app->bind(
+            \App\Contracts\AssignmentFactoryInterface::class,
+            \App\Services\V1\Assignment\AssignmentFactory::class
+        );
     }
 
     /**

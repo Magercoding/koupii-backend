@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Carbon\Carbon;
 
 /**
  * @property string $id
@@ -134,6 +135,32 @@ class Test extends Model
             'writing' => $this->writingSubmissions(),
             'listening' => $this->hasMany(ListeningSubmission::class, 'test_id'),
             default => null,
+        };
+    }
+
+    public function canBeAutoAssigned(): bool
+    {
+        return $this->is_published && $this->class_id !== null;
+    }
+
+    public function getAssignmentTitle(): string
+    {
+        return $this->title;
+    }
+
+    public function getDefaultDueDate(): Carbon
+    {
+        return now()->addDays(7); // Default 7 days from creation
+    }
+
+    public function getAssignmentType(): string
+    {
+        return match ($this->type) {
+            'reading' => 'reading_task',
+            'writing' => 'writing_task',
+            'listening' => 'listening_task',
+            'speaking' => 'speaking_task',
+            default => 'general_task'
         };
     }
 

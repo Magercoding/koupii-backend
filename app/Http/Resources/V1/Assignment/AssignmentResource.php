@@ -9,11 +9,46 @@ class AssignmentResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $assignment = $this->resource['assignment'];
+        $type = $this->resource['type'];
+        $isUnified = $this->resource['unified'] ?? false;
+
+        if ($isUnified) {
+            // Handle new unified assignment system
+            return [
+                'id' => $assignment->id,
+                'type' => $type,
+                'task' => [
+                    'id' => $assignment->test?->id,
+                    'title' => $assignment->test?->title ?? $assignment->title,
+                    'description' => $assignment->test?->description ?? $assignment->description,
+                    'difficulty' => $assignment->test?->difficulty ?? null,
+                    'time_limit_seconds' => null // TODO: Add if needed
+                ],
+                'class' => [
+                    'id' => $assignment->class?->id,
+                    'name' => $assignment->class?->name ?? 'N/A'
+                ],
+                'assigned_by' => [
+                    'id' => $assignment->test?->creator_id,
+                    'name' => $assignment->test?->creator?->name ?? 'System'
+                ],
+                'due_date' => $assignment->due_date,
+                'max_attempts' => $assignment->max_attempts,
+                'instructions' => $assignment->description,
+                'status' => $assignment->is_published ? 'active' : 'draft',
+                'auto_grade' => true,
+                'created_at' => $assignment->created_at,
+                'updated_at' => $assignment->updated_at
+            ];
+        }
+
+        // Handle legacy assignment system
         $task = $this->getTask();
 
         return [
-            'id' => $this->resource['assignment']->id,
-            'type' => $this->resource['type'],
+            'id' => $assignment->id,
+            'type' => $type,
             'task' => [
                 'id' => $task?->id,
                 'title' => $task?->title ?? 'N/A',
@@ -26,16 +61,16 @@ class AssignmentResource extends JsonResource
                 'name' => $this->getClassRelation()?->name ?? 'N/A'
             ],
             'assigned_by' => [
-                'id' => $this->resource['assignment']->assignedBy?->id ?? null,
-                'name' => $this->resource['assignment']->assignedBy?->name ?? 'N/A'
+                'id' => $assignment->assignedBy?->id ?? null,
+                'name' => $assignment->assignedBy?->name ?? 'N/A'
             ],
-            'due_date' => $this->resource['assignment']->due_date,
-            'max_attempts' => $this->resource['assignment']->max_attempts,
-            'instructions' => $this->resource['assignment']->instructions,
-            'status' => $this->resource['assignment']->status,
-            'auto_grade' => $this->resource['assignment']->auto_grade ?? true,
-            'created_at' => $this->resource['assignment']->created_at,
-            'updated_at' => $this->resource['assignment']->updated_at
+            'due_date' => $assignment->due_date,
+            'max_attempts' => $assignment->max_attempts,
+            'instructions' => $assignment->instructions,
+            'status' => $assignment->status,
+            'auto_grade' => $assignment->auto_grade ?? true,
+            'created_at' => $assignment->created_at,
+            'updated_at' => $assignment->updated_at
         ];
     }
 

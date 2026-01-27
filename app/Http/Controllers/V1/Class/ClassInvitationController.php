@@ -118,4 +118,81 @@ class ClassInvitationController extends Controller
 
         return response()->json(['message' => 'Invitation deleted successfully'], 200);
     }
+
+    /**
+     * Show invitation details by token (for email links)
+     */
+    public function showByToken($token)
+    {
+        $invitation = ClassInvitation::where('invitation_token', $token)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
+            ->with(['class', 'teacher', 'student'])
+            ->firstOrFail();
+
+        return response()->json([
+            'message' => 'Invitation details retrieved successfully',
+            'data' => new ClassInvitationResource($invitation)
+        ]);
+    }
+
+    /**
+     * Accept invitation by token (for email links)
+     */
+    public function acceptByToken($token, ClassInvitationService $service)
+    {
+        $invitation = ClassInvitation::where('invitation_token', $token)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
+            ->firstOrFail();
+
+        $updated = $service->updateStatus($invitation, 'accepted');
+
+        return response()->json([
+            'message' => 'Invitation accepted successfully! You have been enrolled in the class.',
+            'data' => new ClassInvitationResource($updated),
+            'redirect_url' => config('app.frontend_url') . '/dashboard/class/' . $invitation->class_id
+        ]);
+    }
+
+    /**
+     * Decline invitation by token (for email links)
+     */
+    public function declineByToken($token, ClassInvitationService $service)
+    {
+        $invitation = ClassInvitation::where('invitation_token', $token)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
+            ->firstOrFail();
+
+        $updated = $service->updateStatus($invitation, 'declined');
+
+        return response()->json([
+            'message' => 'Invitation declined successfully.',
+            'data' => new ClassInvitationResource($updated)
+        ]);
+    }
+
+    /**
+     * Resend invitation email
+     */
+    public function resend($id, ClassInvitationService $service)
+    {
+        $invitation = ClassInvitation::findOrFail($id);
+        Gate::authorize('update', $invitation);
+
+        $user = auth()->user();
+        
+        // Only admin or the teacher who owns the class can resend invitations
+        if (!($user->role === 'admin' || ($user->role === 'teacher' && $invitation->class->teacher_id === $user->id))) {
+            return response()->json(['message' => 'You can only resend invitations for your own classes'], 403);
+        }
+
+        $service->resendInvitation($invitation);
+
+        return response()->json([
+            'message' => 'Invitation email sent successfully',
+            'data' => new ClassInvitationResource($invitation->fresh())
+        ]);
+    }
 }

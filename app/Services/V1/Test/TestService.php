@@ -3,9 +3,11 @@
 namespace App\Services\V1\Test;
 
 use App\Models\Test;
+use App\Models\Classes;
 use App\Models\Passage;
 use App\Models\QuestionGroup;
 use App\Models\TestQuestion;
+use App\Events\TestAssignedToClass;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
@@ -18,6 +20,7 @@ class TestService
                 $test = Test::create([
                     'id' => Str::uuid(),
                     'creator_id' => auth()->id(),
+                    'class_id' => $data['class_id'] ?? null,
                     'title' => $data['title'],
                     'description' => $data['description'] ?? null,
                     'type' => $data['type'],
@@ -37,6 +40,11 @@ class TestService
                     $this->createPassages($test, $data['passages']);
                 }
 
+                // If test is published and assigned to a class, automatically create assignments
+                if ($test->is_published && $test->class_id) {
+                    $this->triggerAutomaticAssignment($test);
+                }
+
                 return $test->load(['passages.questionGroups.questions.options']);
             });
         } catch (\Exception $e) {
@@ -48,6 +56,9 @@ class TestService
     {
         try {
             return DB::transaction(function () use ($test, $data) {
+                $wasPublished = $test->is_published;
+                $hadClassId = $test->class_id;
+
                 $test->update([
                     'title' => $data['title'] ?? $test->title,
                     'description' => $data['description'] ?? $test->description,
@@ -61,7 +72,16 @@ class TestService
                     'is_public' => $data['is_public'] ?? $test->is_public,
                     'is_published' => $data['is_published'] ?? $test->is_published,
                     'settings' => $data['settings'] ?? $test->settings,
+                    'class_id' => $data['class_id'] ?? $test->class_id,
                 ]);
+
+                // If test was just published or assigned to a class, trigger automatic assignment
+                $justPublished = !$wasPublished && $test->is_published;
+                $justAssignedToClass = !$hadClassId && $test->class_id;
+                
+                if (($justPublished || $justAssignedToClass) && $test->is_published && $test->class_id) {
+                    $this->triggerAutomaticAssignment($test);
+                }
 
                 return $test->load(['passages.questionGroups.questions.options']);
             });
@@ -231,6 +251,32 @@ class TestService
             $newOption->id = Str::uuid();
             $newOption->question_id = $newQuestion->id;
             $newOption->save();
+        }
+    }
+
+    /**
+     * Trigger automatic assignment creation when test is published and assigned to a class
+     */
+    private function triggerAutomaticAssignment(Test $test)
+    {
+        try {
+            $class = Classes::find($test->class_id);
+            if ($class) {
+                // Dispatch event to create automatic assignments
+                TestAssignedToClass::dispatch($test, $class, [
+                    'title' => $test->title . ' - Assignment',
+                    'description' => 'Complete this test by the due date',
+                    'due_date' => now()->addDays(7), // Default 7 days from now
+                    'is_published' => true
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Log error but don't fail the test creation
+            \Log::error('Failed to create automatic assignment', [
+                'test_id' => $test->id,
+                'class_id' => $test->class_id,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 }
