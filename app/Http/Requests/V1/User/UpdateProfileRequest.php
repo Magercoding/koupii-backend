@@ -23,26 +23,32 @@ class UpdateProfileRequest extends BaseRequest
 
     public function rules() : array
     {
+        $userId = auth()->id();
+        
         return [
             'name' => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|email',
+            'email' => 'sometimes|required|email|unique:users,email,' . $userId,
             'role' => 'sometimes|required|in:teacher,student,admin',
-            'avatar' => 'file|mimetypes:image/jpeg,image/png,image/jpg',
-            'bio' => 'nullable|string',
+            'avatar' => 'sometimes|file|mimetypes:image/jpeg,image/png,image/jpg|max:10240', // 10MB max
+            'bio' => 'sometimes|nullable|string|max:1000',
         ];
     }
     public function messages()
     {
         return [
             'name.required' => 'Name is required',
+            'name.string' => 'Name must be a string',
+            'name.max' => 'Name must not exceed 255 characters',
             'email.required' => 'Email is required',
             'email.email' => 'Email must be a valid email address',
+            'email.unique' => 'This email is already taken',
             'role.required' => 'Role is required',
             'role.in' => 'Role must be teacher, student, or admin',
             'avatar.file' => 'Avatar must be a file',
             'avatar.mimetypes' => 'Avatar must be a JPEG, PNG, or JPG file',
             'avatar.max' => 'Avatar size must be at most 10MB',
             'bio.string' => 'Bio must be a string',
+            'bio.max' => 'Bio must not exceed 1000 characters',
         ];
     }
 }

@@ -12,22 +12,36 @@ class UserService
     {
         DB::beginTransaction();
         try {
-            if (
-                isset($data['email']) &&
-                User::where('email', $data['email'])
+            // Remove empty values to avoid overwriting with null/empty strings
+            $data = array_filter($data, function($value) {
+                return $value !== null && $value !== '';
+            });
+
+            // Handle email uniqueness check (already handled by validation, but double-check)
+            if (isset($data['email']) && $data['email'] !== $user->email) {
+                if (User::where('email', $data['email'])
                     ->where('id', '!=', $user->id)
-                    ->exists()
-            ) {
-                return ['error' => 'Email already exists', 'code' => 422];
-            }
-
-            if ($request->hasFile('avatar')) {
-                if ($user->avatar) {
-                    FileUploadHelper::delete($user->avatar);
+                    ->exists()) {
+                    return ['error' => 'Email already exists', 'code' => 422];
                 }
-                $data['avatar'] = FileUploadHelper::upload($request->file('avatar'), 'avatar');
             }
 
+            // Handle avatar upload
+            if ($request->hasFile('avatar')) {
+                try {
+                    // Delete old avatar if exists
+                    if ($user->avatar) {
+                        FileUploadHelper::delete($user->avatar);
+                    }
+                    
+                    // Upload new avatar
+                    $data['avatar'] = FileUploadHelper::upload($request->file('avatar'), 'avatars');
+                } catch (\Exception $e) {
+                    return ['error' => 'Failed to upload avatar: ' . $e->getMessage(), 'code' => 500];
+                }
+            }
+
+            // Update user with filtered data
             $user->update($data);
 
             DB::commit();
@@ -36,7 +50,7 @@ class UserService
             return ['user' => $user];
         } catch (\Exception $e) {
             DB::rollBack();
-            return ['error' => $e->getMessage(), 'code' => 500];
+            return ['error' => 'Failed to update profile: ' . $e->getMessage(), 'code' => 500];
         }
     }
 
