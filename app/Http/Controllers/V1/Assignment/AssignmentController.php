@@ -9,16 +9,28 @@ use App\Http\Resources\V1\Assignment\AssignmentResource;
 use App\Http\Resources\V1\Assignment\AssignmentStatsResource;
 use App\Services\V1\Assignment\AssignmentService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AssignmentController extends Controller
 {
     public function __construct(
         private AssignmentService $assignmentService
-    ) {
-    }
+    ) {}
 
     /**
-     * Assign a task to a class
+     * Assign a test or task to a class
+     *
+     * @response 201 {
+     *   "message": "Assignment created successfully",
+     *   "data": {
+     *     "assignment_id": "uuid",
+     *     "assigned_to_students": 30,
+     *     "title": "Listening Practice 1 - Assignment",
+     *     "class_name": "English A",
+     *     "due_date": "2026-03-15"
+     *   }
+     * }
      */
     public function assignTask(AssignTaskRequest $request): JsonResponse
     {
@@ -26,19 +38,18 @@ class AssignmentController extends Controller
             $result = $this->assignmentService->assignTaskToClass($request->validated());
 
             return response()->json([
-                'message' => 'Task assigned successfully',
+                'message' => 'Assignment created successfully',
                 'data' => [
                     'assignment_id' => $result['assignment']->id,
                     'assigned_to_students' => $result['student_count'],
-                    'task_title' => $result['task']->title,
+                    'title' => $result['assignment']->title,
                     'class_name' => $result['assignment']->class->name,
-                    'due_date' => $result['assignment']->due_date
+                    'due_date' => $result['assignment']->due_date,
                 ]
             ], 201);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage()
-            ], $e->getMessage() === 'Task not found or you do not have permission to assign it' ? 404 : 403);
+            $status = str_contains($e->getMessage(), 'not found') ? 404 : 403;
+            return response()->json(['message' => $e->getMessage()], $status);
         }
     }
 
@@ -50,7 +61,6 @@ class AssignmentController extends Controller
         try {
             $assignments = $this->assignmentService->getClassAssignments($classId);
 
-            // If no assignments, return empty array with appropriate message
             if ($assignments->isEmpty()) {
                 return response()->json([
                     'message' => 'No assignments yet',
@@ -63,17 +73,13 @@ class AssignmentController extends Controller
                 'data' => AssignmentResource::collection($assignments)
             ]);
         } catch (\Exception $e) {
-            // Log the error for debugging
-            \Log::error('Error fetching assignments', [
+            Log::error('Error fetching assignments', [
                 'class_id' => $classId,
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 403);
+            return response()->json(['error' => $e->getMessage()], 403);
         }
     }
 
@@ -90,9 +96,7 @@ class AssignmentController extends Controller
                 'data' => new AssignmentStatsResource($stats)
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 404);
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
 
@@ -113,9 +117,7 @@ class AssignmentController extends Controller
                 'data' => new AssignmentResource($result)
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 404);
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
 
@@ -127,13 +129,9 @@ class AssignmentController extends Controller
         try {
             $this->assignmentService->deleteAssignment($assignmentId, $type);
 
-            return response()->json([
-                'message' => 'Assignment deleted successfully'
-            ]);
+            return response()->json(['message' => 'Assignment deleted successfully']);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 404);
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
 }

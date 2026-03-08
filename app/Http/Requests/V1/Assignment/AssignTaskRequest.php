@@ -6,30 +6,37 @@ use App\Http\Requests\BaseRequest;
 
 class AssignTaskRequest extends BaseRequest
 {
-
-       public function authorize(): bool
+    public function authorize(): bool
     {
         return true;
     }
+
     public function rules(): array
     {
         return [
-            'task_id' => 'required|uuid',
-            'task_type' => 'required|in:writing_task,reading_task,listening_task,speaking_task',
+            'source_type' => 'required|in:test,task',
+            'test_id' => 'required_if:source_type,test|uuid',
+            'task_id' => 'required_if:source_type,task|uuid',
+            'task_type' => 'required_if:source_type,task|in:writing_task,reading_task,listening_task,speaking_task',
             'class_id' => 'required|uuid',
+            'title' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
             'due_date' => 'required|date|after:now',
             'max_attempts' => 'nullable|integer|min:1|max:10',
             'instructions' => 'nullable|string',
-            'auto_grade' => 'boolean'
         ];
     }
 
     public function messages(): array
     {
         return [
-            'task_id.required' => 'Task ID is required',
+            'source_type.required' => 'Source type is required (test or task)',
+            'source_type.in' => 'Source type must be either: test, task',
+            'test_id.required_if' => 'Test ID is required when assigning a test',
+            'test_id.uuid' => 'Test ID must be a valid UUID',
+            'task_id.required_if' => 'Task ID is required when assigning a task',
             'task_id.uuid' => 'Task ID must be a valid UUID',
-            'task_type.required' => 'Task type is required',
+            'task_type.required_if' => 'Task type is required when assigning a task',
             'task_type.in' => 'Task type must be one of: writing_task, reading_task, listening_task, speaking_task',
             'class_id.required' => 'Class ID is required',
             'class_id.uuid' => 'Class ID must be a valid UUID',
@@ -39,7 +46,6 @@ class AssignTaskRequest extends BaseRequest
             'max_attempts.integer' => 'Max attempts must be a number',
             'max_attempts.min' => 'Max attempts must be at least 1',
             'max_attempts.max' => 'Max attempts cannot exceed 10',
-            'auto_grade.boolean' => 'Auto grade must be true or false'
         ];
     }
 }

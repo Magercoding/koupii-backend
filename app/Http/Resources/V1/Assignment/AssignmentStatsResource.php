@@ -12,7 +12,8 @@ class AssignmentStatsResource extends JsonResource
         return [
             'assignment' => new AssignmentResource([
                 'assignment' => $this->resource['assignment'],
-                'type' => $this->resource['type']
+                'type' => $this->resource['type'],
+                'unified' => $this->resource['unified'] ?? false
             ]),
             'statistics' => $this->resource['statistics'],
             'student_details' => $this->resource['student_details']->map(function($studentAssignment) {

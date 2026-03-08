@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\V1\Assignment;
 
+use App\Models\Assignment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,81 +15,95 @@ class AssignmentResource extends JsonResource
         $isUnified = $this->resource['unified'] ?? false;
 
         if ($isUnified) {
-            // Handle new unified assignment system
-            return [
-                'id' => $assignment->id,
-                'type' => $type,
-                'task' => [
-                    'id' => $assignment->test?->id,
-                    'title' => $assignment->test?->title ?? $assignment->title,
-                    'description' => $assignment->test?->description ?? $assignment->description,
-                    'difficulty' => $assignment->test?->difficulty ?? null,
-                    'time_limit_seconds' => null // TODO: Add if needed
-                ],
-                'class' => [
-                    'id' => $assignment->class?->id,
-                    'name' => $assignment->class?->name ?? 'N/A'
-                ],
-                'assigned_by' => [
-                    'id' => $assignment->test?->creator_id,
-                    'name' => $assignment->test?->creator?->name ?? 'System'
-                ],
-                'due_date' => $assignment->due_date,
-                'max_attempts' => $assignment->max_attempts,
-                'instructions' => $assignment->description,
-                'status' => $assignment->is_published ? 'active' : 'draft',
-                'auto_grade' => true,
-                'created_at' => $assignment->created_at,
-                'updated_at' => $assignment->updated_at
-            ];
+            return $this->formatUnifiedAssignment($assignment, $type);
         }
 
-        // Handle legacy assignment system
-        $task = $this->getTask();
+        return $this->formatLegacyAssignment($assignment, $type);
+    }
+
+    private function formatUnifiedAssignment($assignment, string $type): array
+    {
+        
+        $source = null;
+        $sourceType = 'unknown';
+
+        if ($assignment->isTestBased()) {
+            $source = $assignment->test;
+            $sourceType = 'test';
+        } elseif ($assignment->isTaskBased()) {
+            $source = $assignment->getTask();
+            $sourceType = 'task';
+        }
 
         return [
             'id' => $assignment->id,
             'type' => $type,
-            'task' => [
+            'source_type' => $sourceType,
+            'source' => [
+                'id' => $source?->id,
+                'title' => $source?->title ?? $assignment->title,
+                'description' => $source?->description ?? $assignment->description,
+                'difficulty' => $source?->difficulty ?? $source?->difficulty_level ?? null,
+            ],
+            'class' => [
+                'id' => $assignment->class?->id,
+                'name' => $assignment->class?->name ?? 'N/A',
+            ],
+            'assigned_by' => [
+                'id' => $assignment->assignedBy?->id ?? $source?->creator_id ?? null,
+                'name' => $assignment->assignedBy?->name ?? $source?->creator?->name ?? 'System',
+            ],
+            'title' => $assignment->title,
+            'due_date' => $assignment->due_date,
+            'max_attempts' => $assignment->max_attempts,
+            'instructions' => $assignment->instructions ?? $assignment->description,
+            'status' => $assignment->status ?? ($assignment->is_published ? 'active' : 'draft'),
+            'created_at' => $assignment->created_at,
+            'updated_at' => $assignment->updated_at,
+        ];
+    }
+
+    private function formatLegacyAssignment($assignment, string $type): array
+    {
+        $task = $this->getLegacyTask($assignment, $type);
+        $class = $assignment->class ?? $assignment->classroom ?? null;
+
+        return [
+            'id' => $assignment->id,
+            'type' => $type,
+            'source_type' => 'task',
+            'source' => [
                 'id' => $task?->id,
                 'title' => $task?->title ?? 'N/A',
                 'description' => $task?->description ?? 'N/A',
                 'difficulty' => $task?->difficulty_level ?? null,
-                'time_limit_seconds' => $task?->time_limit_seconds ?? null
             ],
             'class' => [
-                'id' => $this->getClassRelation()?->id ?? null,
-                'name' => $this->getClassRelation()?->name ?? 'N/A'
+                'id' => $class?->id ?? null,
+                'name' => $class?->name ?? 'N/A',
             ],
             'assigned_by' => [
                 'id' => $assignment->assignedBy?->id ?? null,
-                'name' => $assignment->assignedBy?->name ?? 'N/A'
+                'name' => $assignment->assignedBy?->name ?? 'N/A',
             ],
+            'title' => $task?->title ?? 'N/A',
             'due_date' => $assignment->due_date,
-            'max_attempts' => $assignment->max_attempts,
-            'instructions' => $assignment->instructions,
-            'status' => $assignment->status,
-            'auto_grade' => $assignment->auto_grade ?? true,
+            'max_attempts' => $assignment->max_attempts ?? null,
+            'instructions' => $assignment->instructions ?? null,
+            'status' => $assignment->status ?? 'active',
             'created_at' => $assignment->created_at,
-            'updated_at' => $assignment->updated_at
+            'updated_at' => $assignment->updated_at,
         ];
     }
 
-    private function getTask()
+    private function getLegacyTask($assignment, string $type)
     {
-        return match ($this->resource['type']) {
-            'writing_task' => $this->resource['assignment']->writingTask,
-            'reading_task' => $this->resource['assignment']->readingTask,
-            'listening_task' => $this->resource['assignment']->listeningTask,
-            'speaking_task' => $this->resource['assignment']->speakingTask,
-            default => null
+        return match ($type) {
+            'writing_task' => $assignment->writingTask ?? null,
+            'reading_task' => $assignment->readingTask ?? null,
+            'listening_task' => $assignment->listeningTask ?? null,
+            'speaking_task' => $assignment->speakingTask ?? null,
+            default => null,
         };
-    }
-
-    private function getClassRelation()
-    {
-        return $this->resource['assignment']->class
-            ?? $this->resource['assignment']->classroom
-            ?? null;
     }
 }
