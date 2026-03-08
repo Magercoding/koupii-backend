@@ -5,17 +5,25 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
 
 /**
  * @property string $id
  * @property string $class_id
  * @property string|null $test_id
+ * @property string|null $task_id
+ * @property string|null $task_type
+ * @property string|null $assigned_by
  * @property string $title
  * @property string|null $description
  * @property \Carbon\Carbon|null $due_date
  * @property \Carbon\Carbon|null $close_date
  * @property bool $is_published
+ * @property int $max_attempts
+ * @property string|null $instructions
+ * @property string $status
  * @property string $source_type
  * @property string|null $source_id
  * @property array|null $assignment_settings
@@ -35,11 +43,17 @@ class Assignment extends Model
     protected $fillable = [
         'class_id',
         'test_id',
+        'task_id',
+        'task_type',
+        'assigned_by',
         'title',
         'description',
         'due_date',
         'close_date',
         'is_published',
+        'max_attempts',
+        'instructions',
+        'status',
         'source_type',
         'source_id',
         'assignment_settings',
@@ -56,28 +70,68 @@ class Assignment extends Model
     ];
 
     // Relationships
-    public function class()
+    public function class(): BelongsTo
     {
         return $this->belongsTo(Classes::class, 'class_id');
     }
 
-    public function test()
+    public function test(): BelongsTo
     {
         return $this->belongsTo(Test::class, 'test_id');
     }
 
-    public function studentAssignments()
+    public function assignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
+    }
+
+    public function studentAssignments(): HasMany
     {
         return $this->hasMany(StudentAssignment::class, 'assignment_id');
     }
 
-    public function sourceTest()
+    public function sourceTest(): BelongsTo
     {
         return $this->belongsTo(Test::class, 'source_id')
             ->where('source_type', 'auto_test');
     }
 
-    // Enhanced methods for automatic assignment system
+    /**
+     * Get the related task model based on task_type.
+     */
+    public function getTask()
+    {
+        if (!$this->task_id || !$this->task_type) {
+            return null;
+        }
+
+        $model = match ($this->task_type) {
+            'writing_task' => WritingTask::class,
+            'reading_task' => ReadingTask::class,
+            'listening_task' => ListeningTask::class,
+            'speaking_task' => SpeakingTask::class,
+            default => null
+        };
+
+        return $model ? $model::find($this->task_id) : null;
+    }
+
+    /**
+     * Check if this assignment is test-based.
+     */
+    public function isTestBased(): bool
+    {
+        return $this->test_id !== null;
+    }
+
+    /**
+     * Check if this assignment is task-based.
+     */
+    public function isTaskBased(): bool
+    {
+        return $this->task_id !== null && $this->task_type !== null;
+    }
+
     public function isAutoCreated(): bool
     {
         return $this->source_type === 'auto_test';
@@ -90,12 +144,21 @@ class Assignment extends Model
 
     public function getAssignmentTitle(): string
     {
-        return $this->title ?: ($this->test ? $this->test->title : 'Untitled Assignment');
+        if ($this->title) {
+            return $this->title;
+        }
+
+        if ($this->isTestBased() && $this->test) {
+            return $this->test->title;
+        }
+
+        $task = $this->getTask();
+        return $task?->title ?? 'Untitled Assignment';
     }
 
     public function getDefaultDueDate(): Carbon
     {
-        return now()->addDays(7); // Default 7 days from creation
+        return now()->addDays(7);
     }
 
     // Scopes
@@ -122,5 +185,10 @@ class Assignment extends Model
     public function scopePublished($query)
     {
         return $query->where('is_published', true);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
     }
 }

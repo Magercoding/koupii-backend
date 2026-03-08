@@ -33,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
                 SecurityScheme::http('bearer')
             );
         });
+        
         Gate::define('viewApiDocs', function ($user = null) {
             if (app()->environment('local')) {
                 return true;

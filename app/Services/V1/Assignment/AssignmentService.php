@@ -2,56 +2,86 @@
 
 namespace App\Services\V1\Assignment;
 
+use App\Models\Assignment;
 use App\Models\WritingTaskAssignment;
 use App\Models\ReadingTaskAssignment;
 use App\Models\ListeningTaskAssignment;
 use App\Models\SpeakingTaskAssignment;
 use App\Models\ClassEnrollment;
 use App\Models\StudentAssignment;
+use App\Models\Test;
 use App\Models\WritingTask;
 use App\Models\ReadingTask;
 use App\Models\ListeningTask;
 use App\Models\SpeakingTask;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
 
 class AssignmentService
 {
+    private const TASK_TYPES = ['writing_task', 'reading_task', 'listening_task', 'speaking_task'];
+
     /**
-     * Assign a task to a class
+     * Assign a task or test to a class (creates unified Assignment)
      */
     public function assignTaskToClass(array $data): array
     {
-        // Verify teacher owns the class
         if (!$this->verifyTeacherOwnsClass($data['class_id'])) {
             throw new \Exception('You do not have permission to assign tasks to this class');
         }
 
-        // Verify task exists and belongs to teacher
-        $task = $this->getAndVerifyTask($data['task_type'], $data['task_id']);
-        if (!$task) {
-            throw new \Exception('Task not found or you do not have permission to assign it');
+        $sourceType = $data['source_type'] ?? 'task';
+        $isTest = $sourceType === 'test';
+
+        if ($isTest) {
+            $source = $this->getAndVerifyTest($data['test_id']);
+            if (!$source) {
+                throw new \Exception('Test not found or you do not have permission to assign it');
+            }
+
+            $assignment = Assignment::create([
+                'class_id' => $data['class_id'],
+                'test_id' => $data['test_id'],
+                'assigned_by' => Auth::id(),
+                'title' => $data['title'] ?? $source->title . ' - Assignment',
+                'description' => $data['description'] ?? $source->description,
+                'due_date' => $data['due_date'],
+                'is_published' => true,
+                'max_attempts' => $data['max_attempts'] ?? 3,
+                'instructions' => $data['instructions'] ?? null,
+                'status' => 'active',
+                'source_type' => 'manual',
+                'type' => $source->type,
+            ]);
+        } else {
+            $source = $this->getAndVerifyTask($data['task_type'], $data['task_id']);
+            if (!$source) {
+                throw new \Exception('Task not found or you do not have permission to assign it');
+            }
+
+            $assignment = Assignment::create([
+                'class_id' => $data['class_id'],
+                'task_id' => $data['task_id'],
+                'task_type' => $data['task_type'],
+                'assigned_by' => Auth::id(),
+                'title' => $data['title'] ?? $source->title . ' - Assignment',
+                'description' => $data['description'] ?? ($source->description ?? null),
+                'due_date' => $data['due_date'],
+                'is_published' => true,
+                'max_attempts' => $data['max_attempts'] ?? 3,
+                'instructions' => $data['instructions'] ?? null,
+                'status' => 'active',
+                'source_type' => 'manual',
+                'type' => $data['task_type'],
+            ]);
         }
 
-        // Create assignment
-        $assignment = $this->createAssignmentByType($data['task_type'], [
-            'task_id' => $data['task_id'],
-            'class_id' => $data['class_id'],
-            'assigned_by' => Auth::id(),
-            'due_date' => $data['due_date'],
-            'max_attempts' => $data['max_attempts'] ?? 3,
-            'instructions' => $data['instructions'] ?? null,
-            'auto_grade' => $data['auto_grade'] ?? true,
-            'status' => 'active'
-        ]);
-
-        // Create student assignments
-        $studentCount = $this->createStudentAssignments($assignment, $data['task_type'], $data['class_id']);
+        $studentCount = $this->createStudentAssignments($assignment);
 
         return [
-            'assignment' => $assignment,
-            'task' => $task,
-            'student_count' => $studentCount
+            'assignment' => $assignment->load(['class', 'assignedBy']),
+            'source' => $source,
+            'student_count' => $studentCount,
         ];
     }
 
@@ -69,49 +99,30 @@ class AssignmentService
             return collect();
         }
 
-        $assignments = collect();
-
-        // Get new unified assignments (from automatic assignment system)
-        $unifiedAssignments = \App\Models\Assignment::where('class_id', $classId)
-            ->with(['test', 'class'])
+        // Get unified assignments (both test-based and task-based)
+        $unifiedAssignments = Assignment::where('class_id', $classId)
+            ->with(['test', 'class', 'assignedBy'])
             ->get()
-            ->map(function($assignment) {
+            ->map(function ($assignment) {
                 return [
                     'assignment' => $assignment,
-                    'type' => $assignment->type,
-                    'unified' => true
+                    'type' => $assignment->type ?? 'general',
+                    'unified' => true,
                 ];
             });
 
-        // Get legacy assignment types for backward compatibility
-        $writingAssignments = WritingTaskAssignment::where('class_id', $classId)
-            ->with(['writingTask', 'class', 'assignedBy'])
-            ->get()
-            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'writing_task', 'unified' => false]);
+        // Get legacy task assignments for backward compatibility
+        $legacyAssignments = collect();
 
-        $readingAssignments = ReadingTaskAssignment::where('class_id', $classId)
-            ->with(['readingTask', 'class', 'assignedBy'])
-            ->get()
-            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'reading_task', 'unified' => false]);
+        $legacyAssignments = $legacyAssignments
+            ->merge($this->getLegacyAssignments(WritingTaskAssignment::class, $classId, 'writing_task', ['writingTask', 'class', 'assignedBy']))
+            ->merge($this->getLegacyAssignments(ReadingTaskAssignment::class, $classId, 'reading_task', ['readingTask', 'class', 'assignedBy']))
+            ->merge($this->getLegacyAssignments(ListeningTaskAssignment::class, $classId, 'listening_task', ['listeningTask', 'class', 'assignedBy']))
+            ->merge($this->getLegacyAssignments(SpeakingTaskAssignment::class, $classId, 'speaking_task', ['speakingTask', 'class', 'assignedBy']));
 
-        $listeningAssignments = ListeningTaskAssignment::where('class_id', $classId)
-            ->with(['listeningTask', 'class', 'assignedBy'])
-            ->get()
-            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'listening_task', 'unified' => false]);
-
-        $speakingAssignments = SpeakingTaskAssignment::where('class_id', $classId)
-            ->with(['speakingTask', 'class', 'assignedBy'])
-            ->get()
-            ->map(fn($assignment) => ['assignment' => $assignment, 'type' => 'speaking_task', 'unified' => false]);
-
-        return $assignments->merge($unifiedAssignments)
-            ->merge($writingAssignments)
-            ->merge($readingAssignments)
-            ->merge($listeningAssignments)
-            ->merge($speakingAssignments)
-            ->sortByDesc(function($item) {
-                return $item['assignment']->created_at;
-            });
+        return $unifiedAssignments
+            ->merge($legacyAssignments)
+            ->sortByDesc(fn($item) => $item['assignment']->created_at);
     }
 
     /**
@@ -119,38 +130,46 @@ class AssignmentService
      */
     public function getAssignmentStatistics(string $assignmentId, string $type): array
     {
-        $assignment = $this->getAssignmentByType($type, $assignmentId);
+        $assignment = $this->findAssignment($assignmentId, $type);
 
-        if (!$assignment || $assignment->assigned_by !== Auth::id()) {
+        if (!$assignment || !$this->verifyAssignmentOwnership($assignment)) {
             throw new \Exception('Assignment not found or access denied');
         }
 
-        $studentAssignments = StudentAssignment::where([
-            'assignment_id' => $assignmentId,
-            'assignment_type' => $type
-        ])->with('student')->get();
+        $isUnified = $assignment instanceof Assignment;
+
+        $studentAssignments = StudentAssignment::where('assignment_id', $assignmentId)
+            ->when(!$isUnified, fn($q) => $q->where('assignment_type', $type))
+            ->with('student')
+            ->get();
 
         return [
             'assignment' => $assignment,
             'type' => $type,
+            'unified' => $isUnified,
             'statistics' => $this->calculateStatistics($studentAssignments),
-            'student_details' => $studentAssignments
+            'student_details' => $studentAssignments,
         ];
     }
 
     /**
      * Update assignment
      */
-    public function updateAssignment(string $assignmentId, string $type, array $data): mixed
+    public function updateAssignment(string $assignmentId, string $type, array $data): array
     {
-        $assignment = $this->getAssignmentByType($type, $assignmentId);
+        $assignment = $this->findAssignment($assignmentId, $type);
 
-        if (!$assignment || $assignment->assigned_by !== Auth::id()) {
+        if (!$assignment || !$this->verifyAssignmentOwnership($assignment)) {
             throw new \Exception('Assignment not found or access denied');
         }
 
         $assignment->update($data);
-        return ['assignment' => $assignment->fresh(), 'type' => $type];
+
+        return [
+            'assignment' => $assignment->fresh(),
+            'type' => $type,
+            'unified' => $assignment instanceof Assignment,
+        ];
     }
 
     /**
@@ -158,38 +177,47 @@ class AssignmentService
      */
     public function deleteAssignment(string $assignmentId, string $type): void
     {
-        $assignment = $this->getAssignmentByType($type, $assignmentId);
+        $assignment = $this->findAssignment($assignmentId, $type);
 
-        if (!$assignment || $assignment->assigned_by !== Auth::id()) {
+        if (!$assignment || !$this->verifyAssignmentOwnership($assignment)) {
             throw new \Exception('Assignment not found or access denied');
         }
 
-        // Delete related student assignments
-        StudentAssignment::where([
-            'assignment_id' => $assignmentId,
-            'assignment_type' => $type
-        ])->delete();
-
+        StudentAssignment::where('assignment_id', $assignmentId)->delete();
         $assignment->delete();
     }
 
-    /**
-     * Private helper methods
-     */
+    // ─── Private Helpers ─────────────────────────────────────────────
+
     private function verifyTeacherOwnsClass(string $classId): bool
     {
-        return Auth::user()->teacherClasses()
-            ->where('id', $classId)
-            ->exists();
+        return Auth::user()->teacherClasses()->where('id', $classId)->exists();
+    }
+
+    private function verifyAssignmentOwnership($assignment): bool
+    {
+        if ($assignment instanceof Assignment) {
+            if ($assignment->assigned_by === Auth::id()) {
+                return true;
+            }
+            return $this->verifyTeacherOwnsClass($assignment->class_id);
+        }
+        return $assignment->assigned_by === Auth::id();
+    }
+
+    private function getAndVerifyTest(string $testId): ?Test
+    {
+        return Test::where('id', $testId)
+            ->where('creator_id', Auth::id())
+            ->first();
     }
 
     private function getAndVerifyTask(string $type, string $taskId)
     {
-        $taskModel = $this->getTaskModel($type);
-        return $taskModel::where([
-            'id' => $taskId,
-            'creator_id' => Auth::id()
-        ])->first();
+        $model = $this->getTaskModel($type);
+        return $model::where('id', $taskId)
+            ->where('creator_id', Auth::id())
+            ->first();
     }
 
     private function getTaskModel(string $type): string
@@ -198,79 +226,85 @@ class AssignmentService
             'writing_task' => WritingTask::class,
             'reading_task' => ReadingTask::class,
             'listening_task' => ListeningTask::class,
-            'speaking_task' => SpeakingTask::class
+            'speaking_task' => SpeakingTask::class,
+            default => throw new \Exception("Invalid task type: {$type}"),
         };
     }
 
-    private function createAssignmentByType(string $type, array $data)
+    private function createStudentAssignments(Assignment $assignment): int
     {
-        $fieldMapping = [
-            'writing_task' => ['writing_task_id' => 'task_id'],
-            'reading_task' => ['reading_task_id' => 'task_id'],
-            'listening_task' => ['listening_task_id' => 'task_id'],
-            'speaking_task' => ['speaking_task_id' => 'task_id']
-        ];
+        $studentIds = ClassEnrollment::where('class_id', $assignment->class_id)
+            ->where('status', 'active')
+            ->pluck('student_id');
 
-        if (isset($fieldMapping[$type])) {
-            $specificField = array_key_first($fieldMapping[$type]);
-            $data[$specificField] = $data['task_id'];
-            unset($data['task_id']);
+        if ($studentIds->isEmpty()) {
+            return 0;
         }
 
-        return match ($type) {
-            'writing_task' => WritingTaskAssignment::create($data),
-            'reading_task' => ReadingTaskAssignment::create($data),
-            'listening_task' => ListeningTaskAssignment::create($data),
-            'speaking_task' => SpeakingTaskAssignment::create($data)
-        };
+        $now = now();
+        $rows = $studentIds->map(fn($studentId) => [
+            'id' => (string) Str::uuid(),
+            'assignment_id' => $assignment->id,
+            'student_id' => $studentId,
+            'assignment_type' => $assignment->type,
+            'status' => StudentAssignment::STATUS_NOT_STARTED,
+            'attempt_number' => 1,
+            'attempt_count' => 0,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        StudentAssignment::insert($rows);
+
+        return count($rows);
     }
 
-    private function createStudentAssignments($assignment, string $type, string $classId): int
+    private function findAssignment(string $assignmentId, string $type)
     {
-        $students = ClassEnrollment::where([
-            'class_id' => $classId,
-            'status' => 'active'
-        ])->pluck('student_id');
-
-        foreach ($students as $studentId) {
-            StudentAssignment::create([
-                'student_id' => $studentId,
-                'assignment_id' => $assignment->id,
-                'assignment_type' => $type,
-                'status' => 'pending',
-                'attempt_count' => 0
-            ]);
-        }
-
-        return $students->count();
-    }
-
-    private function getAssignmentByType(string $type, string $assignmentId)
-    {
-        return match ($type) {
+        // Try legacy task assignment models first
+        $legacy = match ($type) {
             'writing_task' => WritingTaskAssignment::with(['writingTask', 'class', 'assignedBy'])->find($assignmentId),
             'reading_task' => ReadingTaskAssignment::with(['readingTask', 'class', 'assignedBy'])->find($assignmentId),
             'listening_task' => ListeningTaskAssignment::with(['listeningTask', 'class', 'assignedBy'])->find($assignmentId),
-            'speaking_task' => SpeakingTaskAssignment::with(['speakingTask', 'class', 'assignedBy'])->find($assignmentId)
+            'speaking_task' => SpeakingTaskAssignment::with(['speakingTask', 'class', 'assignedBy'])->find($assignmentId),
+            default => null,
         };
+
+        if ($legacy) {
+            return $legacy;
+        }
+
+        // Fallback to unified Assignment model
+        return Assignment::with(['test', 'class', 'assignedBy'])->find($assignmentId);
+    }
+
+    private function getLegacyAssignments(string $model, string $classId, string $type, array $with): \Illuminate\Support\Collection
+    {
+        return $model::where('class_id', $classId)
+            ->with($with)
+            ->get()
+            ->map(fn($assignment) => [
+                'assignment' => $assignment,
+                'type' => $type,
+                'unified' => false,
+            ]);
     }
 
     private function calculateStatistics($studentAssignments): array
     {
-        $totalStudents = $studentAssignments->count();
+        $total = $studentAssignments->count();
 
         return [
-            'total_students' => $totalStudents,
+            'total_students' => $total,
             'completed' => $studentAssignments->where('status', 'completed')->count(),
             'in_progress' => $studentAssignments->where('status', 'in_progress')->count(),
-            'pending' => $studentAssignments->where('status', 'pending')->count(),
+            'not_started' => $studentAssignments->where('status', 'not_started')->count(),
             'submitted' => $studentAssignments->where('status', 'submitted')->count(),
-            'overdue' => $studentAssignments->where('due_date', '<', now())
-                ->whereNotIn('status', ['completed', 'submitted'])->count(),
+            'overdue' => $studentAssignments->where('status', 'overdue')->count(),
             'average_score' => $studentAssignments->whereNotNull('score')->avg('score'),
-            'completion_rate' => $totalStudents > 0
-                ? round(($studentAssignments->whereIn('status', ['completed', 'submitted'])->count() / $totalStudents) * 100, 2)
-                : 0
+            'completion_rate' => $total > 0
+                ? round(($studentAssignments->whereIn('status', ['completed', 'submitted'])->count() / $total) * 100, 2)
+                : 0,
         ];
     }
 }
