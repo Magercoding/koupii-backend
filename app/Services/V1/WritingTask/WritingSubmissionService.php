@@ -16,43 +16,65 @@ class WritingSubmissionService
     public function submitWriting(WritingTask $task, array $data): WritingSubmission
     {
         return DB::transaction(function () use ($task, $data) {
+            $assignmentId = $data['assignment_id'] ?? null;
+            $studentId = Auth::id();
+
             // Check if student already has a non-submitted submission for this task
             $existingSubmission = WritingSubmission::where('writing_task_id', $task->id)
-                ->where('student_id', Auth::id())
-                ->where('status', 'to_do')
-                ->first();
+                ->where('student_id', $studentId)
+                ->where('status', 'to_do');
+
+            if ($assignmentId) {
+                $existingSubmission->where('assignment_id', $assignmentId);
+            }
+
+            $existingSubmission = $existingSubmission->first();
+
+            $submissionData = [
+                'content' => $data['content'],
+                'files' => $data['files'] ?? null,
+                'word_count' => $this->countWords($data['content']),
+                'status' => 'submitted',
+                'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
+                'submitted_at' => now(),
+                'assignment_id' => $assignmentId,
+            ];
 
             if ($existingSubmission) {
                 // Update existing draft to submitted
-                $existingSubmission->update([
-                    'content' => $data['content'],
-                    'files' => $data['files'] ?? null,
-                    'word_count' => $this->countWords($data['content']),
-                    'status' => 'submitted',
-                    'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
-                    'submitted_at' => now(),
-                ]);
-
-                return $existingSubmission;
+                $existingSubmission->update($submissionData);
+                $submission = $existingSubmission;
             } else {
                 // Create new submission
                 $attemptNumber = WritingSubmission::where('writing_task_id', $task->id)
-                    ->where('student_id', Auth::id())
-                    ->max('attempt_number') + 1;
+                    ->where('student_id', $studentId);
+                
+                if ($assignmentId) {
+                    $attemptNumber->where('assignment_id', $assignmentId);
+                }
+                
+                $attemptNumber = $attemptNumber->max('attempt_number') + 1;
 
-                return WritingSubmission::create([
+                $submission = WritingSubmission::create(array_merge($submissionData, [
                     'id' => Str::uuid(),
                     'writing_task_id' => $task->id,
-                    'student_id' => Auth::id(),
-                    'content' => $data['content'],
-                    'files' => $data['files'] ?? null,
-                    'word_count' => $this->countWords($data['content']),
-                    'status' => 'submitted',
+                    'student_id' => $studentId,
                     'attempt_number' => $attemptNumber,
-                    'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
-                    'submitted_at' => now(),
-                ]);
+                ]));
             }
+
+            // Sync with StudentAssignment
+            if ($assignmentId) {
+                $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                    ->where('student_id', $studentId)
+                    ->first();
+
+                if ($studentAssignment) {
+                    $studentAssignment->submit(); // Uses the model's submission logic
+                }
+            }
+
+            return $submission;
         });
     }
 

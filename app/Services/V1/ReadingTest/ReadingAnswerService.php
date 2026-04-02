@@ -22,8 +22,20 @@ class ReadingAnswerService
 
         return DB::transaction(function () use ($submission, $data) {
             $answer = ReadingQuestionAnswer::where('submission_id', $submission->id)
-                ->where('question_id', $data['question_id'])
+                ->when(isset($data['question_id']), function($query) use ($data) {
+                    return $query->where('question_id', $data['question_id']);
+                })
+                ->when(isset($data['reading_task_question_id']), function($query) use ($data) {
+                    return $query->where('reading_task_question_id', $data['reading_task_question_id']);
+                })
                 ->first();
+
+            if (!$answer) {
+                // Try finding by question_id if it's passed as a fallback
+                $answer = ReadingQuestionAnswer::where('submission_id', $submission->id)
+                    ->where('reading_task_question_id', $data['question_id'] ?? null)
+                    ->first();
+            }
 
             if (!$answer) {
                 throw new Exception('Answer record not found');

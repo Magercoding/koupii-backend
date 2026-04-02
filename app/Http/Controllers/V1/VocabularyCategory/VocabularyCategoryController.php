@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1\VocabularyCategory;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\V1\VocabularyCategory\StoreVocabularyCategoryRequest;
 use App\Http\Requests\V1\VocabularyCategory\UpdateVocabularyCategoryRequest;
 use App\Http\Resources\V1\VocabularyCategory\VocabularyCategoryResource;
 use App\Models\VocabularyCategory;
@@ -23,6 +24,28 @@ class VocabularyCategoryController extends Controller
         $category = VocabularyCategory::findOrFail($id);
 
         return new VocabularyCategoryResource($category);
+    }
+    public function store(StoreVocabularyCategoryRequest $request)
+    {
+        DB::beginTransaction();
+        try {
+            $category = VocabularyCategory::create($request->validated());
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Category created successfully',
+                'data' => new VocabularyCategoryResource($category)
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Server error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
     public function update(UpdateVocabularyCategoryRequest $request, $id)
     {

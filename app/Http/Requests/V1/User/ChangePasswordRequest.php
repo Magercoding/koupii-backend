@@ -12,7 +12,7 @@ class ChangePasswordRequest extends BaseRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -29,7 +29,6 @@ class ChangePasswordRequest extends BaseRequest
                 'string',
                 'min:8',
                 'confirmed',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$/'
             ],
         ];
     }

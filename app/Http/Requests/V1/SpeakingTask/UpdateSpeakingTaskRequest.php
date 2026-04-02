@@ -9,7 +9,23 @@ class UpdateSpeakingTaskRequest extends BaseRequest
     public function authorize(): bool
     {
         $speakingTask = $this->route('speakingTask');
-        return $this->user()->can('update', $speakingTask);
+
+        // If route model binding resolved a SpeakingTask, use policy
+        if ($speakingTask instanceof \App\Models\SpeakingTask) {
+            return $this->user()->can('update', $speakingTask);
+        }
+
+        // If it's a string ID, find the model and check
+        if (is_string($speakingTask)) {
+            $task = \App\Models\SpeakingTask::find($speakingTask);
+            if (!$task) {
+                return false;
+            }
+            return $this->user()->can('update', $task);
+        }
+
+        // Fallback: allow admins and teachers
+        return $this->user() && in_array($this->user()->role, ['admin', 'teacher']);
     }
 
     public function rules(): array

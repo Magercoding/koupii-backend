@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Controllers\V1\WiritingTask\WritingTaskController;
-use App\Http\Controllers\V1\WiritingTask\WritingTaskAssignmentController;
-use App\Http\Controllers\V1\WiritingTask\WritingTaskQuestionController;
-use App\Http\Controllers\V1\WiritingTask\WritingSubmissionController;
-use App\Http\Controllers\V1\WiritingTask\WritingReviewController;
-use App\Http\Controllers\V1\WiritingTask\WritingDashboardController;
+use App\Http\Controllers\V1\WritingTask\WritingTaskController;
+use App\Http\Controllers\V1\WritingTask\WritingTaskAssignmentController;
+use App\Http\Controllers\V1\WritingTask\WritingTaskQuestionController;
+use App\Http\Controllers\V1\WritingTask\WritingSubmissionController;
+use App\Http\Controllers\V1\WritingTask\WritingReviewController;
+use App\Http\Controllers\V1\WritingTask\WritingDashboardController;
 use App\Http\Controllers\V1\WritingTask\WritingAttemptController;
 use App\Http\Controllers\V1\WritingTask\WritingFeedbackController;
 use Illuminate\Support\Facades\Route;

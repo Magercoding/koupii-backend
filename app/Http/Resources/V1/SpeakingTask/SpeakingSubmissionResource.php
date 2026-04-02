@@ -23,19 +23,21 @@ class SpeakingSubmissionResource extends JsonResource
                 : null,
 
             // Assignment information
-            'assignment' => [
-                'id' => $this->assignment->id,
-                'due_date' => $this->assignment->due_date,
-                'test' => [
-                    'id' => $this->assignment->test->id,
-                    'title' => $this->assignment->test->title,
-                    'description' => $this->assignment->test->description,
-                ],
-                'class' => [
-                    'id' => $this->assignment->class->id,
-                    'name' => $this->assignment->class->name,
-                ],
-            ],
+            'assignment' => $this->whenLoaded('assignment', function () {
+                return [
+                    'id' => $this->assignment->id,
+                    'due_date' => $this->assignment->due_date,
+                    'test' => [
+                        'id' => $this->assignment->test->id,
+                        'title' => $this->assignment->test->title,
+                        'description' => $this->assignment->test->description,
+                    ],
+                    'class' => [
+                        'id' => $this->assignment->class->id,
+                        'name' => $this->assignment->class->name,
+                    ],
+                ];
+            }),
 
             // Student information
             'student' => [

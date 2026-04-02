@@ -34,6 +34,10 @@ class ClassInvitation extends Model
         'expires_at',
     ];
 
+    protected $casts = [
+        'expires_at' => 'datetime',
+    ];
+
     public function class()
     {
         return $this->belongsTo(Classes::class, 'class_id');

@@ -99,17 +99,55 @@ class ListeningQuestion extends Model
      */
     public function isCorrectAnswer($answer): bool
     {
+        if (is_null($answer)) {
+            return false;
+        }
+
+        // If it's a comma-separated string from the frontend, split it first
+        if (is_string($answer) && str_contains($answer, ',')) {
+            $answer = array_map('trim', explode(',', $answer));
+        }
+
         if (!is_array($answer)) {
             $answer = [$answer];
         }
 
+        // Normalize student answers: trim, lowercase, and remove excessive whitespace
+        $normalizedStudentAnswers = array_values(array_unique(array_filter(array_map(function ($val) {
+            $s = strtolower(trim((string)$val));
+            return preg_replace('/\s+/', ' ', $s); // replace multiple spaces with single space
+        }, $answer))));
+
+        // Handle case where correct_answers might not be an array despite casting
+        $correctAnswers = $this->correct_answers;
+        if (is_string($correctAnswers)) {
+            $decoded = json_decode($correctAnswers, true);
+            $correctAnswers = is_array($decoded) ? $decoded : [$correctAnswers];
+        }
+
+        if (empty($correctAnswers)) {
+            return false;
+        }
+
+        // Normalize correct answers: trim, lowercase, and remove excessive whitespace
+        $normalizedCorrectAnswers = array_map(function ($val) {
+            $s = strtolower(trim((string)$val));
+            return preg_replace('/\s+/', ' ', $s);
+        }, $correctAnswers);
+
         // For multiple answer questions, check if all correct answers are provided
         if ($this->question_type === 'multiple_answer') {
-            return count(array_intersect($answer, $this->correct_answers)) === count($this->correct_answers);
+            $intersect = array_intersect($normalizedStudentAnswers, $normalizedCorrectAnswers);
+            return count($intersect) >= count($normalizedCorrectAnswers);
         }
 
         // For single answer questions
-        return in_array($answer[0] ?? null, $this->correct_answers);
+        $studentFirstAnswer = $normalizedStudentAnswers[0] ?? null;
+        if (is_null($studentFirstAnswer)) {
+            return false;
+        }
+
+        return in_array($studentFirstAnswer, $normalizedCorrectAnswers);
     }
 
     /**

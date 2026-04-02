@@ -13,6 +13,7 @@ class ReadingSubmissionResource extends JsonResource
             'id' => $this->id,
             'test_id' => $this->test_id,
             'student_id' => $this->student_id,
+            'assignment_id' => $this->assignment_id,
             'attempt_number' => $this->attempt_number,
             'status' => $this->status,
             'started_at' => $this->started_at?->format('Y-m-d H:i:s'),
@@ -39,6 +40,21 @@ class ReadingSubmissionResource extends JsonResource
                     'timer_settings' => $this->test->timer_settings,
                     'allow_repetition' => $this->test->allow_repetition,
                     'max_repetition_count' => $this->test->max_repetition_count,
+                ];
+            }),
+
+            'reading_task' => $this->whenLoaded('readingTask', function () {
+                return [
+                    'id' => $this->readingTask->id,
+                    'title' => $this->readingTask->title,
+                    'description' => $this->readingTask->description,
+                    'difficulty' => $this->readingTask->difficulty,
+                    'task_type' => $this->readingTask->task_type,
+                    'timer_type' => $this->readingTask->timer_type,
+                    'time_limit_seconds' => $this->readingTask->time_limit_seconds,
+                    'allow_retake' => $this->readingTask->allow_retake,
+                    'max_retake_attempts' => $this->readingTask->max_retake_attempts,
+                    'passages' => $this->readingTask->passages,
                 ];
             }),
 

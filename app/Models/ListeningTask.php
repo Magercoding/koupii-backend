@@ -123,7 +123,7 @@ class ListeningTask extends Model
      */
     public function assignments(): HasMany
     {
-        return $this->hasMany(ListeningTaskAssignment::class, 'listening_task_id');
+        return $this->hasMany(Assignment::class, 'task_id');
     }
 
     /**
@@ -171,7 +171,9 @@ class ListeningTask extends Model
      */
     public function allowsRetakes(): bool
     {
-        return $this->allow_retake && $this->max_retake_attempts > 0;
+        // If allow_retake is true, it allows retakes.
+        // If max_retake_attempts is null, it's unlimited.
+        return (bool)$this->allow_retake;
     }
 
     /**

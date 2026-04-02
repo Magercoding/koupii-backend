@@ -11,7 +11,7 @@ class SubmitListeningRequest extends BaseRequest
      */
     public function authorize(): bool
     {
-        return $this->user() && $this->user()->role === 'student';
+        return true;
     }
 
     /**
@@ -20,6 +20,9 @@ class SubmitListeningRequest extends BaseRequest
     public function rules(): array
     {
         return [
+            'task_id' => 'nullable|string',
+            'listening_task_id' => 'nullable|string',
+            'assignment_id' => 'nullable|string',
             'submission_text' => 'nullable|string',
             'file_path' => 'nullable|string|max:500',
             'file_original_name' => 'nullable|string|max:255',
@@ -27,7 +30,7 @@ class SubmitListeningRequest extends BaseRequest
             'file_type' => 'nullable|string|max:100',
             'notes' => 'nullable|string|max:2000',
             'answers' => 'nullable|array',
-            'answers.*.question_id' => 'required|exists:listening_questions,id',
+            'answers.*.question_id' => 'nullable|string',
             'answers.*.answer' => 'nullable|string|max:1000',
             'answers.*.is_correct' => 'nullable|boolean',
             'time_spent_seconds' => 'nullable|integer|min:0',
@@ -71,10 +74,7 @@ class SubmitListeningRequest extends BaseRequest
      */
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'student_id' => $this->user()->id,
-            'submitted_at' => now(),
-            'status' => 'submitted',
-        ]);
+        // Don't force status to 'submitted' here as this request
+        // is also used for starting/resuming submissions
     }
 }

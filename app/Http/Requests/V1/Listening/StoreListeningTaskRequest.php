@@ -85,7 +85,7 @@ class StoreListeningTaskRequest extends BaseRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'creator_id' => $this->user()->id,
+            'created_by' => $this->user()->id,
             'retakes_allowed' => $this->boolean('retakes_allowed'),
             'auto_mark' => $this->boolean('auto_mark'),
             'feedback_enabled' => $this->boolean('feedback_enabled'),

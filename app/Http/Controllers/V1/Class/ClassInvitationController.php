@@ -29,11 +29,11 @@ class ClassInvitationController extends Controller
     {
         Gate::authorize('create', ClassInvitation::class);
 
-        $invitation = $service->create($request->validated(), auth()->user());
+        $result = $service->create($request->validated(), auth()->user());
         
         return response()->json([
-            'message' => 'Invitation sent successfully',
-            'data' => new ClassInvitationResource($invitation)
+            'message' => $result['message'],
+            'data' => new ClassInvitationResource($result['invitation'])
         ], 201);
     }
 

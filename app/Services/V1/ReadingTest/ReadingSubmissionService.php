@@ -3,6 +3,7 @@
 namespace App\Services\V1\ReadingTest;
 
 use App\Models\Test;
+use App\Models\ReadingTask;
 use App\Models\ReadingSubmission;
 use App\Models\TestQuestion;
 use Illuminate\Database\Eloquent\Collection;
@@ -17,31 +18,32 @@ class ReadingSubmissionService
      */
     public function getStudentSubmissions(string $studentId, array $filters = []): LengthAwarePaginator
     {
-        return ReadingSubmission::with(['test:id,title,difficulty,type', 'answers'])
+        return ReadingSubmission::with(['test:id,title,difficulty,type', 'readingTask:id,title,difficulty', 'answers'])
             ->where('student_id', $studentId)
             ->when($filters['status'] ?? null, fn($q, $status) => $q->where('status', $status))
-            ->when($filters['test_type'] ?? null, function($q, $type) {
-                $q->whereHas('test', fn($query) => $query->where('type', $type));
+            ->when($filters['type'] ?? null, function($q, $type) {
+                if ($type === 'reading_task') {
+                    $q->whereNotNull('reading_task_id');
+                } else {
+                    $q->whereNotNull('test_id');
+                }
             })
             ->latest()
             ->paginate($filters['per_page'] ?? 15);
     }
 
     /**
-     * Start a new reading test attempt
+     * Start a new reading test attempt (Legacy Test)
      */
     public function startTest(Test $test, string $studentId, array $data): ReadingSubmission
     {
         return DB::transaction(function () use ($test, $studentId, $data) {
-            // Validate test type
             if ($test->type !== 'reading') {
                 throw new Exception('Invalid test type for reading submission');
             }
 
-            // Check if student can attempt this test
             $this->validateTestAttempt($test, $studentId, $data['attempt_number'] ?? 1);
 
-            // Create submission
             $submission = ReadingSubmission::create([
                 'test_id' => $test->id,
                 'student_id' => $studentId,
@@ -50,10 +52,54 @@ class ReadingSubmissionService
                 'started_at' => now(),
             ]);
 
-            // Initialize answer records for all questions
-            $this->initializeAnswers($submission);
+            $this->initializeAnswersFromTest($submission);
 
             return $submission->load('test', 'answers');
+        });
+    }
+
+    /**
+     * Start a new reading task attempt (New ReadingTask)
+     */
+    public function startReadingTask(ReadingTask $task, string $studentId, array $data): ReadingSubmission
+    {
+        return DB::transaction(function () use ($task, $studentId, $data) {
+            $assignmentId = $data['assignment_id'] ?? null;
+            $attemptNumber = $data['attempt_number'] ?? 1;
+
+            $existing = $this->validateTaskAttempt($task, $studentId, $attemptNumber);
+            if ($existing) {
+                return $existing;
+            }
+
+            $submission = ReadingSubmission::create([
+                'reading_task_id' => $task->id,
+                'assignment_id' => $assignmentId,
+                'student_id' => $studentId,
+                'attempt_number' => $attemptNumber,
+                'status' => 'in_progress',
+                'started_at' => now(),
+            ]);
+
+            $this->initializeAnswersFromTask($submission);
+
+            // Sync with StudentAssignment
+            if ($assignmentId) {
+                $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                    ->where('student_id', $studentId)
+                    ->first();
+
+                if ($studentAssignment && $studentAssignment->status === \App\Models\StudentAssignment::STATUS_NOT_STARTED) {
+                    $studentAssignment->update([
+                        'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
+                        'started_at' => now(),
+                        'attempt_number' => $attemptNumber,
+                        'attempt_count' => $attemptNumber,
+                    ]);
+                }
+            }
+
+            return $submission->load('readingTask', 'answers');
         });
     }
 
@@ -62,7 +108,6 @@ class ReadingSubmissionService
      */
     public function getTestForStudent(Test $test, string $studentId): Test
     {
-        // Check if student has existing submission
         $existingSubmission = ReadingSubmission::where('test_id', $test->id)
             ->where('student_id', $studentId)
             ->latest()
@@ -73,7 +118,6 @@ class ReadingSubmissionService
             'passages.questionGroups.testQuestions.highlightSegments'
         ]);
 
-        // Add student-specific data
         $test->existing_submission = $existingSubmission;
         $test->can_attempt = $this->canStudentAttempt($test, $studentId);
         $test->next_attempt_number = $this->getNextAttemptNumber($test, $studentId);
@@ -82,22 +126,48 @@ class ReadingSubmissionService
     }
 
     /**
+     * Get task details formatted for student
+     */
+    public function getTaskForStudent(ReadingTask $task, string $studentId): ReadingTask
+    {
+        $existingSubmission = ReadingSubmission::where('reading_task_id', $task->id)
+            ->where('student_id', $studentId)
+            ->latest()
+            ->first();
+
+        $task->existing_submission = $existingSubmission;
+        $task->can_attempt = $this->canStudentAttemptTask($task, $studentId);
+        $task->next_attempt_number = $this->getNextTaskAttemptNumber($task, $studentId);
+
+        return $task;
+    }
+
+    /**
      * Get submission with detailed data
      */
     public function getSubmissionWithDetails(ReadingSubmission $submission): ReadingSubmission
     {
-        return $submission->load([
-            'test.passages.questionGroups.testQuestions.questionOptions',
-            'test.passages.questionGroups.testQuestions.highlightSegments',
+        $submission->load([
             'answers.question',
             'vocabularyDiscoveries.vocabulary'
         ]);
+
+        if ($submission->reading_task_id) {
+            $submission->load('readingTask');
+        } else {
+            $submission->load([
+                'test.passages.questionGroups.testQuestions.questionOptions',
+                'test.passages.questionGroups.testQuestions.highlightSegments',
+            ]);
+        }
+
+        return $submission;
     }
 
     /**
-     * Initialize answer records for all questions in the test
+     * Initialize answer records from Legacy Test
      */
-    private function initializeAnswers(ReadingSubmission $submission): void
+    private function initializeAnswersFromTest(ReadingSubmission $submission): void
     {
         $questions = TestQuestion::whereHas('questionGroup.passage', function ($query) use ($submission) {
             $query->where('test_id', $submission->test_id);
@@ -115,21 +185,81 @@ class ReadingSubmissionService
     }
 
     /**
+     * Initialize answer records from New ReadingTask (JSON passages)
+     */
+    private function initializeAnswersFromTask(ReadingSubmission $submission): void
+    {
+        $task = $submission->readingTask;
+        if (!$task || !$task->passages) return;
+
+        foreach ($task->passages as $passage) {
+            foreach ($passage['question_groups'] ?? [] as $group) {
+                foreach ($group['questions'] ?? [] as $question) {
+                    $submission->answers()->create([
+                        'reading_task_question_id' => $question['id'] ?? null,
+                        'question_id' => null, // This is for Legacy Test questions
+                        'student_answer' => null,
+                        'correct_answer' => $question['correct_answers'] ?? [],
+                        'is_correct' => null,
+                        'points_earned' => 0,
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Mark submission as completed
+     */
+    public function completeSubmission(ReadingSubmission $submission): ReadingSubmission
+    {
+        if ($submission->status === 'completed') {
+            return $submission;
+        }
+
+        return DB::transaction(function () use ($submission) {
+            $submission->update([
+                'status' => 'completed',
+                'submitted_at' => now(),
+                'time_taken_seconds' => $submission->time_taken_seconds ?: now()->diffInSeconds($submission->started_at),
+            ]);
+
+            $submission->calculateScore();
+
+            // Sync with StudentAssignment
+            $assignmentId = $submission->assignment_id;
+            if ($assignmentId) {
+                $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                    ->where('student_id', $submission->student_id)
+                    ->first();
+
+                if ($studentAssignment) {
+                    $studentAssignment->update([
+                        'status' => \App\Models\StudentAssignment::STATUS_SUBMITTED,
+                        'score' => $submission->percentage,
+                        'completed_at' => now(),
+                        'last_activity_at' => now(),
+                    ]);
+                }
+            }
+
+            return $submission->load('answers');
+        });
+    }
+
+    /**
      * Validate if student can attempt the test
      */
     private function validateTestAttempt(Test $test, string $studentId, int $attemptNumber): void
     {
-        // Check if test allows repetition
         if ($attemptNumber > 1 && !$test->allow_repetition) {
             throw new Exception('This test does not allow multiple attempts');
         }
 
-        // Check max attempts
         if ($test->max_repetition_count && $attemptNumber > $test->max_repetition_count) {
             throw new Exception("Maximum number of attempts ({$test->max_repetition_count}) exceeded");
         }
 
-        // Check if this specific attempt already exists
         $existingAttempt = ReadingSubmission::where('test_id', $test->id)
             ->where('student_id', $studentId)
             ->where('attempt_number', $attemptNumber)
@@ -141,16 +271,55 @@ class ReadingSubmissionService
     }
 
     /**
+     * Validate if student can attempt the task
+     */
+    private function validateTaskAttempt(ReadingTask $task, string $studentId, int $attemptNumber): ?ReadingSubmission
+    {
+        if ($attemptNumber > 1 && !$task->allow_retake) {
+            // If retakes not allowed, return latest instead of failing
+            $latest = ReadingSubmission::where('reading_task_id', $task->id)
+                ->where('student_id', $studentId)
+                ->latest()
+                ->first();
+            
+            if ($latest) return $latest;
+            
+            throw new \Exception('This task does not allow multiple attempts');
+        }
+
+        if ($task->max_retake_attempts && $attemptNumber > $task->max_retake_attempts) {
+            // If max reached, return latest instead of failing
+            $latest = ReadingSubmission::where('reading_task_id', $task->id)
+                ->where('student_id', $studentId)
+                ->latest()
+                ->first();
+            
+            if ($latest) return $latest;
+
+            throw new \Exception("Maximum number of attempts ({$task->max_retake_attempts}) exceeded");
+        }
+
+        $existingAttempt = ReadingSubmission::where('reading_task_id', $task->id)
+            ->where('student_id', $studentId)
+            ->where('attempt_number', $attemptNumber)
+            ->first();
+
+        if ($existingAttempt) {
+            return $existingAttempt; // Resume existing
+        }
+
+        return null;
+    }
+
+    /**
      * Check if student can attempt the test
      */
     private function canStudentAttempt(Test $test, string $studentId): bool
     {
         if (!$test->allow_repetition) {
-            $existingSubmission = ReadingSubmission::where('test_id', $test->id)
+            return !ReadingSubmission::where('test_id', $test->id)
                 ->where('student_id', $studentId)
                 ->exists();
-            
-            return !$existingSubmission;
         }
 
         if ($test->max_repetition_count) {
@@ -165,11 +334,45 @@ class ReadingSubmissionService
     }
 
     /**
+     * Check if student can attempt the task
+     */
+    private function canStudentAttemptTask(ReadingTask $task, string $studentId): bool
+    {
+        if (!$task->allow_retake) {
+            return !ReadingSubmission::where('reading_task_id', $task->id)
+                ->where('student_id', $studentId)
+                ->exists();
+        }
+
+        if ($task->max_retake_attempts) {
+            $attemptCount = ReadingSubmission::where('reading_task_id', $task->id)
+                ->where('student_id', $studentId)
+                ->count();
+            
+            return $attemptCount < $task->max_retake_attempts;
+        }
+
+        return true;
+    }
+
+    /**
      * Get next attempt number for student
      */
     private function getNextAttemptNumber(Test $test, string $studentId): int
     {
         $lastAttempt = ReadingSubmission::where('test_id', $test->id)
+            ->where('student_id', $studentId)
+            ->max('attempt_number');
+
+        return ($lastAttempt ?? 0) + 1;
+    }
+
+    /**
+     * Get next attempt number for student (Task)
+     */
+    private function getNextTaskAttemptNumber(ReadingTask $task, string $studentId): int
+    {
+        $lastAttempt = ReadingSubmission::where('reading_task_id', $task->id)
             ->where('student_id', $studentId)
             ->max('attempt_number');
 

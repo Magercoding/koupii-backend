@@ -28,6 +28,7 @@ class SubmitWritingRequest extends BaseRequest
             'files' => 'nullable|array|max:5',
             'files.*' => 'file|mimes:pdf,doc,docx,txt|max:10240', // 10MB max per file
             'time_taken_seconds' => 'nullable|integer|min:0',
+            'assignment_id' => 'nullable|string|exists:student_assignments,assignment_id',
         ];
     }
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\V1\WiritingTask;
+namespace App\Http\Controllers\V1\WritingTask;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\WritingTask\StoreWritingTaskRequest;
@@ -40,10 +40,11 @@ class WritingTaskController extends Controller implements HasMiddleware
         if ($user->role === 'admin') {
             // Admin sees all tasks
         } elseif ($user->role === 'student') {
-            // Students see only published tasks assigned to their classrooms
+            // Students see only published tasks assigned to their classrooms and where they are active members
             $query->where('is_published', true)
                 ->whereHas('assignments.classroom.students', function ($q) use ($user) {
-                    $q->where('student_id', $user->id);
+                    $q->where('users.id', $user->id)
+                      ->where('class_enrollments.status', 'active');
                 })
                 ->with([
                     'submissions' => function ($q) use ($user) {
@@ -103,7 +104,8 @@ class WritingTaskController extends Controller implements HasMiddleware
         if ($user->role === 'student') {
             $query->where('is_published', true)
                 ->whereHas('assignments.classroom.students', function ($q) use ($user) {
-                    $q->where('student_id', $user->id);
+                    $q->where('users.id', $user->id)
+                      ->where('class_enrollments.status', 'active');
                 });
         } elseif ($user->role !== 'admin') {
             $query->where('creator_id', $user->id);

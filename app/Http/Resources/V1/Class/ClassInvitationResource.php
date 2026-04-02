@@ -24,10 +24,14 @@ class ClassInvitationResource extends JsonResource
                 'name' => $this->class->name,
             ],
 
-            'student' => [
+            'student' => $this->student ? [
                 'id' => $this->student->id,
                 'name' => $this->student->name,
                 'avatar' => $this->student->avatar ? url($this->student->avatar) : null,
+            ] : [
+                'id' => null,
+                'name' => $this->email, // Use email as name for unregistered users
+                'avatar' => null,
             ],
 
             'teacher' => $this->teacher ? [

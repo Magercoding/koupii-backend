@@ -14,6 +14,8 @@ class ReadingSubmission extends Model
 
     protected $fillable = [
         'test_id',
+        'reading_task_id',
+        'assignment_id',
         'student_id',
         'attempt_number',
         'status',
@@ -34,9 +36,25 @@ class ReadingSubmission extends Model
         'percentage' => 'decimal:2'
     ];
 
+    public function assignment(): BelongsTo
+    {
+        return $this->belongsTo(Assignment::class);
+    }
+
+    public function studentAssignment(): BelongsTo
+    {
+        return $this->belongsTo(StudentAssignment::class, 'assignment_id', 'assignment_id')
+            ->where('student_id', $this->student_id);
+    }
+
     public function test(): BelongsTo
     {
         return $this->belongsTo(Test::class);
+    }
+
+    public function readingTask(): BelongsTo
+    {
+        return $this->belongsTo(ReadingTask::class, 'reading_task_id');
     }
 
     public function student(): BelongsTo
@@ -64,7 +82,23 @@ class ReadingSubmission extends Model
         $unanswered = $totalQuestions - $correctAnswers - $incorrectAnswers;
 
         $totalPoints = $this->answers()->sum('points_earned');
-        $maxPossiblePoints = $this->test->testQuestions()->sum('points_value');
+        
+        // Handle max points calculation based on test type (legacy Test vs new ReadingTask)
+        $maxPossiblePoints = 0;
+        if ($this->reading_task_id && $this->readingTask) {
+            // New ReadingTask: calculate points from JSON passages
+            $passages = $this->readingTask->passages ?? [];
+            foreach ($passages as $passage) {
+                foreach ($passage['question_groups'] ?? [] as $group) {
+                    foreach ($group['questions'] ?? [] as $question) {
+                        $maxPossiblePoints += ($question['points'] ?? 1);
+                    }
+                }
+            }
+        } elseif ($this->test_id && $this->test) {
+            // Legacy Test: calculate from related tables
+            $maxPossiblePoints = $this->test->testQuestions()->sum('points_value');
+        }
         
         $percentage = $maxPossiblePoints > 0 ? ($totalPoints / $maxPossiblePoints) * 100 : 0;
 
@@ -102,8 +136,18 @@ class ReadingSubmission extends Model
     // Check if student can retake
     public function canRetake(): bool
     {
-        return $this->test->allow_repetition && 
-               ($this->test->max_repetition_count === null || 
-                $this->attempt_number < $this->test->max_repetition_count);
+        if ($this->reading_task_id && $this->readingTask) {
+            return $this->readingTask->allow_retake && 
+                   ($this->readingTask->max_retake_attempts === null || 
+                    $this->attempt_number < $this->readingTask->max_retake_attempts);
+        }
+
+        if ($this->test_id && $this->test) {
+            return $this->test->allow_repetition && 
+                   ($this->test->max_repetition_count === null || 
+                    $this->attempt_number < $this->test->max_repetition_count);
+        }
+
+        return false;
     }
 }

@@ -42,6 +42,8 @@ class VocabularyResource extends JsonResource
                 isset($this->is_bookmarked),
                 $this->is_bookmarked ?? false
             ),
+            
+            'class_ids' => $this->classes->pluck('id'),
 
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

@@ -24,8 +24,11 @@ class ClassResource extends JsonResource
 
             'students' => ClassStudentResource::collection($this->students),
 
+            'can_edit' => $user->can('update', $this->resource),
+            'can_delete' => $user->can('delete', $this->resource),
+
             $this->mergeWhen($showCode, [
-                'class_code' => $this->class_code,
+                'class_code' => $this->resource->class_code,
             ]),
         ];
     }

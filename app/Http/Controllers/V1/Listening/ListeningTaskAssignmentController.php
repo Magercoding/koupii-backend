@@ -27,7 +27,7 @@ class ListeningTaskAssignmentController extends Controller implements HasMiddlew
         $task = ListeningTask::findOrFail($id);
 
         // Check authorization
-        if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $task->created_by !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -61,7 +61,7 @@ class ListeningTaskAssignmentController extends Controller implements HasMiddlew
         $task = ListeningTask::findOrFail($taskId);
 
         // Check authorization
-        if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $task->created_by !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -94,7 +94,7 @@ class ListeningTaskAssignmentController extends Controller implements HasMiddlew
         $task = ListeningTask::with(['assignments.classroom'])->findOrFail($taskId);
 
         // Check authorization
-        if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $task->created_by !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

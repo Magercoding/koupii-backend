@@ -14,27 +14,34 @@ class SpeakingTaskResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $user = $request->user();
+
         return [
-            'id' => $this->id,
-            'title' => $this->title,
-            'description' => $this->description,
-            'instructions' => $this->instructions,
-            'test_type' => $this->test_type,
-            'difficulty' => $this->difficulty,
-            'allow_repetition' => $this->allow_repetition,
-            'max_repetition_count' => $this->max_repetition_count,
-            'timer_type' => $this->timer_type,
+            'id'                 => $this->id,
+            'title'              => $this->title,
+            'description'        => $this->description,
+            'instructions'       => $this->instructions,
+            'difficulty_level'   => $this->difficulty_level,
             'time_limit_seconds' => $this->time_limit_seconds,
-            'is_published' => $this->is_published,
-            'creator' => $this->whenLoaded('creator', function () {
+            'topic'              => $this->topic,
+            'situation_context'  => $this->situation_context,
+            'questions'          => $this->questions,
+            'sample_audio'       => $this->sample_audio,
+            'rubric'             => $this->rubric,
+            'is_published'       => $this->is_published,
+            'creator_id'         => $this->created_by,
+            'creator'            => $this->whenLoaded('creator', function () {
                 return [
-                    'id' => $this->creator->id,
-                    'name' => $this->creator->name,
+                    'id'    => $this->creator->id,
+                    'name'  => $this->creator->name,
                     'email' => $this->creator->email,
                 ];
             }),
-            'sections' => SpeakingSectionResource::collection($this->whenLoaded('speakingSections')),
-            'assignments' => SpeakingTaskAssignmentResource::collection($this->whenLoaded('speakingTaskAssignments')),
+
+            // CRUD permission flags for frontend
+            'can_edit'   => $user && ($user->role === 'admin' || ($user->role === 'teacher' && $this->created_by === $user->id)),
+            'can_delete' => $user && ($user->role === 'admin' || ($user->role === 'teacher' && $this->created_by === $user->id)),
+
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];

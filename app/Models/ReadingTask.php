@@ -84,6 +84,7 @@ class ReadingTask extends Model
         'suggest_time_minutes',
         'difficulty_level',
         'question_types',
+        'vocabularies',
     ];
 
     protected $casts = [
@@ -94,6 +95,7 @@ class ReadingTask extends Model
         'passages' => 'array',
         'passage_images' => 'array',
         'question_types' => 'array',
+        'vocabularies' => 'array',
     ];
 
     /**
@@ -117,7 +119,7 @@ class ReadingTask extends Model
      */
     public function assignments(): HasMany
     {
-        return $this->hasMany(ReadingTaskAssignment::class, 'reading_task_id');
+        return $this->hasMany(Assignment::class, 'task_id');
     }
 
     /**

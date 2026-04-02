@@ -14,6 +14,7 @@ class ReadingQuestionAnswer extends Model
     protected $fillable = [
         'submission_id',
         'question_id',
+        'reading_task_question_id',
         'student_answer',
         'correct_answer',
         'is_correct',
@@ -42,17 +43,59 @@ class ReadingQuestionAnswer extends Model
     public function checkAnswer(): void
     {
         $studentAnswer = $this->student_answer;
-        $correctAnswer = $this->correct_answer ?? $this->question->correct_answers;
+        $correctAnswer = $this->correct_answer;
+        $questionType = null;
+        $pointsValue = 1;
 
-        $isCorrect = $this->compareAnswers($studentAnswer, $correctAnswer, $this->question->question_type);
-        
-        $pointsEarned = $isCorrect ? $this->question->points_value : 0;
+        if ($this->submission->reading_task_id) {
+            // Support for new ReadingTask JSON questions
+            $task = $this->submission->readingTask;
+            $questionData = $this->findQuestionInTask($task, $this->reading_task_question_id);
+            
+            if ($questionData) {
+                $correctAnswer = $correctAnswer ?? ($questionData['correct_answers'] ?? null);
+                $questionType = $questionData['question_type'] ?? null;
+                $pointsValue = $questionData['points'] ?? 1;
+            }
+        } else {
+            // Support for legacy Test model
+            $question = $this->question;
+            if ($question) {
+                $correctAnswer = $correctAnswer ?? $question->correct_answers;
+                $questionType = $question->question_type;
+                $pointsValue = $question->points_value;
+            }
+        }
+
+        if (!$questionType) {
+            return;
+        }
+
+        $isCorrect = $this->compareAnswers($studentAnswer, $correctAnswer, $questionType);
+        $pointsEarned = $isCorrect ? $pointsValue : 0;
 
         $this->update([
             'is_correct' => $isCorrect,
             'points_earned' => $pointsEarned,
             'correct_answer' => $correctAnswer
         ]);
+    }
+
+    private function findQuestionInTask($task, $questionId): ?array
+    {
+        if (!$task || !$task->passages) return null;
+
+        foreach ($task->passages as $passage) {
+            foreach ($passage['question_groups'] ?? [] as $group) {
+                foreach ($group['questions'] ?? [] as $question) {
+                    if (($question['id'] ?? '') === $questionId) {
+                        return $question;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     // Compare answers based on question type

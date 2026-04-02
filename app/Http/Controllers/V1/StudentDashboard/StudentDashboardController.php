@@ -32,19 +32,21 @@ class StudentDashboardController extends Controller
             $classId = $enrollment->class_id;
             $className = $enrollment->class->name;
 
-            // Get Writing Task Assignments
-            $writingAssignments = WritingTaskAssignment::where('class_id', $classId)
-                ->with(['writingTask', 'studentAssignments' => function($query) use ($studentId) {
+            // Get assignments from the unified Assignment model
+            $classAssignments = \App\Models\Assignment::where('class_id', $classId)
+                ->with(['studentAssignments' => function($query) use ($studentId) {
                     $query->where('student_id', $studentId);
                 }])
                 ->get()
                 ->map(function($assignment) use ($className) {
                     $studentAssignment = $assignment->studentAssignments->first();
+                    $task = $assignment->getTask();
+                    
                     return [
                         'id' => $assignment->id,
-                        'type' => 'writing_task',
-                        'title' => $assignment->writingTask->title,
-                        'description' => $assignment->writingTask->description,
+                        'type' => $assignment->type ?? $assignment->task_type,
+                        'title' => $assignment->title ?? $task?->title,
+                        'description' => $assignment->description ?? $task?->description,
                         'class_name' => $className,
                         'due_date' => $assignment->due_date,
                         'assigned_date' => $assignment->created_at,
@@ -53,94 +55,14 @@ class StudentDashboardController extends Controller
                         'completion_date' => $studentAssignment?->completed_at,
                         'attempt_count' => $studentAssignment?->attempt_count ?? 0,
                         'max_attempts' => $assignment->max_attempts,
-                        'word_limit' => $assignment->writingTask->word_limit,
-                        'difficulty' => $assignment->writingTask->difficulty_level,
-                    ];
-                });
-
-            // Get Reading Task Assignments
-            $readingAssignments = ReadingTaskAssignment::where('class_id', $classId)
-                ->with(['readingTask', 'studentAssignments' => function($query) use ($studentId) {
-                    $query->where('student_id', $studentId);
-                }])
-                ->get()
-                ->map(function($assignment) use ($className) {
-                    $studentAssignment = $assignment->studentAssignments->first();
-                    return [
-                        'id' => $assignment->id,
-                        'type' => 'reading_task',
-                        'title' => $assignment->readingTask->title,
-                        'description' => $assignment->readingTask->description,
-                        'class_name' => $className,
-                        'due_date' => $assignment->due_date,
-                        'assigned_date' => $assignment->created_at,
-                        'status' => $studentAssignment?->status ?? 'pending',
-                        'score' => $studentAssignment?->score,
-                        'completion_date' => $studentAssignment?->completed_at,
-                        'attempt_count' => $studentAssignment?->attempt_count ?? 0,
-                        'max_attempts' => $assignment->max_attempts,
-                        'time_limit' => $assignment->readingTask->time_limit_seconds,
-                        'difficulty' => $assignment->readingTask->difficulty_level,
-                    ];
-                });
-
-            // Get Listening Task Assignments
-            $listeningAssignments = ListeningTaskAssignment::where('class_id', $classId)
-                ->with(['listeningTask', 'studentAssignments' => function($query) use ($studentId) {
-                    $query->where('student_id', $studentId);
-                }])
-                ->get()
-                ->map(function($assignment) use ($className) {
-                    $studentAssignment = $assignment->studentAssignments->first();
-                    return [
-                        'id' => $assignment->id,
-                        'type' => 'listening_task',
-                        'title' => $assignment->listeningTask->title,
-                        'description' => $assignment->listeningTask->description,
-                        'class_name' => $className,
-                        'due_date' => $assignment->due_date,
-                        'assigned_date' => $assignment->created_at,
-                        'status' => $studentAssignment?->status ?? 'pending',
-                        'score' => $studentAssignment?->score,
-                        'completion_date' => $studentAssignment?->completed_at,
-                        'attempt_count' => $studentAssignment?->attempt_count ?? 0,
-                        'max_attempts' => $assignment->max_attempts,
-                        'time_limit' => $assignment->listeningTask->time_limit_seconds,
-                        'difficulty' => $assignment->listeningTask->difficulty_level,
-                    ];
-                });
-
-            // Get Speaking Task Assignments
-            $speakingAssignments = SpeakingTaskAssignment::where('class_id', $classId)
-                ->with(['speakingTask', 'studentAssignments' => function($query) use ($studentId) {
-                    $query->where('student_id', $studentId);
-                }])
-                ->get()
-                ->map(function($assignment) use ($className) {
-                    $studentAssignment = $assignment->studentAssignments->first();
-                    return [
-                        'id' => $assignment->id,
-                        'type' => 'speaking_task',
-                        'title' => $assignment->speakingTask->title,
-                        'description' => $assignment->speakingTask->description,
-                        'class_name' => $className,
-                        'due_date' => $assignment->due_date,
-                        'assigned_date' => $assignment->created_at,
-                        'status' => $studentAssignment?->status ?? 'pending',
-                        'score' => $studentAssignment?->score,
-                        'completion_date' => $studentAssignment?->completed_at,
-                        'attempt_count' => $studentAssignment?->attempt_count ?? 0,
-                        'max_attempts' => $assignment->max_attempts,
-                        'time_limit' => $assignment->speakingTask->time_limit_seconds,
-                        'difficulty' => $assignment->speakingTask->difficulty_level,
+                        'time_limit' => $task->time_limit_seconds ?? null,
+                        'word_limit' => $task->word_limit ?? $task->min_word_count ?? null,
+                        'difficulty' => $task->difficulty ?? $task->difficulty_level ?? null,
                     ];
                 });
 
             // Merge all assignments
-            $assignments = $assignments->merge($writingAssignments)
-                ->merge($readingAssignments)
-                ->merge($listeningAssignments)
-                ->merge($speakingAssignments);
+            $assignments = $assignments->merge($classAssignments);
         }
 
         // Sort assignments by due date
@@ -167,6 +89,7 @@ class StudentDashboardController extends Controller
     public function getAssignmentDetails(string $assignmentId, string $type): JsonResponse
     {
         $studentId = auth()->id();
+        $type = $this->normalizeType($type);
 
         // Check if student has access to this assignment
         $hasAccess = $this->checkStudentAccess($assignmentId, $type, $studentId);
@@ -192,20 +115,23 @@ class StudentDashboardController extends Controller
             'assignment_id' => $assignmentId,
             'assignment_type' => $type
         ], [
-            'status' => 'started',
+            'status' => StudentAssignment::STATUS_NOT_STARTED,
             'attempt_count' => 0
         ]);
 
         return response()->json([
             'message' => 'Assignment details retrieved successfully',
             'data' => [
-                'assignment' => $assignmentData,
+                'assignment' => $assignmentData->getAssignmentTitle(),
+                'task_id' => $assignmentData->task_id,
+                'max_attempts' => $assignmentData->max_attempts ?? 3,
                 'student_progress' => [
                     'status' => $studentAssignment->status,
                     'attempt_count' => $studentAssignment->attempt_count,
                     'score' => $studentAssignment->score,
-                    'started_at' => $studentAssignment->started_at,
-                    'completed_at' => $studentAssignment->completed_at
+                    'started_at' => $studentAssignment->started_at?->toIso8601String(),
+                    'completed_at' => $studentAssignment->completed_at?->toIso8601String(),
+                    'attempt_number' => $studentAssignment->attempt_number,
                 ]
             ]
         ]);
@@ -217,6 +143,7 @@ class StudentDashboardController extends Controller
     public function startAssignment(Request $request, string $assignmentId, string $type): JsonResponse
     {
         $studentId = auth()->id();
+        $type = $this->normalizeType($type);
 
         // Check access
         if (!$this->checkStudentAccess($assignmentId, $type, $studentId)) {
@@ -231,17 +158,18 @@ class StudentDashboardController extends Controller
             'assignment_id' => $assignmentId,
             'assignment_type' => $type
         ], [
-            'status' => 'in_progress',
-            'attempt_count' => 1,
+            'status' => StudentAssignment::STATUS_IN_PROGRESS,
+            'attempt_count' => 0,
             'started_at' => now()
         ]);
 
-        // If already exists, update status and increment attempt if needed
-        if (!$studentAssignment->wasRecentlyCreated && $studentAssignment->status !== 'in_progress') {
+        // If already exists, just update status to in_progress (don't increment attempts here;
+        // the specific submission service like ListeningSubmissionService handles attempt tracking)
+        if (!$studentAssignment->wasRecentlyCreated && $studentAssignment->status !== StudentAssignment::STATUS_IN_PROGRESS) {
             $studentAssignment->update([
-                'status' => 'in_progress',
-                'attempt_count' => $studentAssignment->attempt_count + 1,
-                'started_at' => now()
+                'status' => StudentAssignment::STATUS_IN_PROGRESS,
+                'started_at' => $studentAssignment->started_at ?? now(),
+                'last_activity_at' => now(),
             ]);
         }
 
@@ -261,12 +189,14 @@ class StudentDashboardController extends Controller
     public function submitAssignment(Request $request, string $assignmentId, string $type): JsonResponse
     {
         $studentId = auth()->id();
+        $type = $this->normalizeType($type);
 
+        // Find the student assignment regardless of status (the listening service may have already
+        // updated it to 'submitted' with a score before this generic endpoint is called)
         $studentAssignment = StudentAssignment::where([
             'student_id' => $studentId,
             'assignment_id' => $assignmentId,
             'assignment_type' => $type,
-            'status' => 'in_progress'
         ])->first();
 
         if (!$studentAssignment) {
@@ -275,19 +205,27 @@ class StudentDashboardController extends Controller
             ], 404);
         }
 
-        // Update assignment as completed
-        $studentAssignment->update([
-            'status' => 'submitted',
-            'completed_at' => now(),
-            'submission_data' => $request->input('submission_data', [])
-        ]);
+        // Only update if not already submitted (avoid overwriting score set by grading service)
+        if ($studentAssignment->status === StudentAssignment::STATUS_IN_PROGRESS) {
+            $studentAssignment->update([
+                'status' => StudentAssignment::STATUS_SUBMITTED,
+                'completed_at' => now(),
+                'last_activity_at' => now(),
+                'submission_data' => $request->input('submission_data', [])
+            ]);
+        }
+
+        // Refresh to get latest data (may have been updated by grading service)
+        $studentAssignment->refresh();
 
         return response()->json([
             'message' => 'Assignment submitted successfully',
             'data' => [
                 'student_assignment_id' => $studentAssignment->id,
                 'completed_at' => $studentAssignment->completed_at,
-                'submission_status' => 'submitted'
+                'submission_status' => $studentAssignment->status,
+                'score' => $studentAssignment->score,
+                'attempt_count' => $studentAssignment->attempt_count,
             ]
         ]);
     }
@@ -295,28 +233,24 @@ class StudentDashboardController extends Controller
     /**
      * Check if student has access to assignment
      */
-    private function checkStudentAccess(string $assignmentId, string $type, string $studentId): bool
+    private function checkStudentAccess(string $assignmentId, string $type, string $userId): bool
     {
-        $modelClass = match($type) {
-            'writing_task' => WritingTaskAssignment::class,
-            'reading_task' => ReadingTaskAssignment::class,
-            'listening_task' => ListeningTaskAssignment::class,
-            'speaking_task' => SpeakingTaskAssignment::class,
-            default => null
-        };
-
-        if (!$modelClass) {
-            return false;
-        }
-
-        $assignment = $modelClass::find($assignmentId);
+        $assignment = \App\Models\Assignment::find($assignmentId);
         if (!$assignment) {
             return false;
         }
 
+        $user = auth()->user();
+        
+        // Allow teachers to preview the assignment if they own the class or created it
+        if ($user->role === 'teacher' || $user->role === 'admin') {
+            return $user->teacherClasses()->where('id', $assignment->class_id)->exists()
+                || $assignment->assigned_by === $user->id;
+        }
+
         // Check if student is enrolled in the class
         return ClassEnrollment::where([
-            'student_id' => $studentId,
+            'student_id' => $userId,
             'class_id' => $assignment->class_id,
             'status' => 'active'
         ])->exists();
@@ -327,12 +261,26 @@ class StudentDashboardController extends Controller
      */
     private function getTaskByType(string $assignmentId, string $type)
     {
+        $assignment = \App\Models\Assignment::find($assignmentId);
+        if (!$assignment) {
+            return null;
+        }
+        
+        $task = $assignment->getTask();
+        return $assignment;
+    }
+
+    /**
+     * Normalize task type string
+     */
+    private function normalizeType(string $type): string
+    {
         return match($type) {
-            'writing_task' => WritingTaskAssignment::with('writingTask')->find($assignmentId),
-            'reading_task' => ReadingTaskAssignment::with('readingTask')->find($assignmentId),
-            'listening_task' => ListeningTaskAssignment::with('listeningTask')->find($assignmentId),
-            'speaking_task' => SpeakingTaskAssignment::with('speakingTask')->find($assignmentId),
-            default => null
+            'writing', 'writing_task' => 'writing_task',
+            'reading', 'reading_task' => 'reading_task',
+            'listening', 'listening_task' => 'listening_task',
+            'speaking', 'speaking_task' => 'speaking_task',
+            default => $type
         };
     }
 }

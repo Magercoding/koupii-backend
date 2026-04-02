@@ -46,12 +46,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     // Reading Submissions Routes
-    Route::prefix('reading/submissions')->name('reading.submissions.')->group(function () {
+    Route::prefix('reading-submissions')->name('reading.submissions.')->group(function () {
         Route::get('/', [ReadingSubmissionController::class, 'index'])->name('index');
         Route::post('/', [ReadingSubmissionController::class, 'store'])->name('store');
         Route::get('/{id}', [ReadingSubmissionController::class, 'show'])->name('show');
         Route::put('/{id}', [ReadingSubmissionController::class, 'update'])->name('update');
         Route::delete('/{id}', [ReadingSubmissionController::class, 'destroy'])->name('destroy');
+        Route::post('/{submissionId}/complete', [ReadingSubmissionController::class, 'complete'])->name('complete');
+        Route::post('/{submission}/answers', [ReadingAnswerController::class, 'submitAnswer'])->name('answers.store');
     });
 
     // Reading Answers Routes

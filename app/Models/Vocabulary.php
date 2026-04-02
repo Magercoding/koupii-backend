@@ -77,7 +77,12 @@ class Vocabulary extends Model
 
     public function scopeForStudent($query, $userId)
     {
-        return $query->where('is_public', 1)
+        return $query->where(function ($q) use ($userId) {
+                $q->where('is_public', true)
+                  ->orWhereHas('classes.students', function ($sq) use ($userId) {
+                      $sq->where('users.id', $userId);
+                  });
+            })
             ->with([
                 'teacher:id,name',
                 'category:id,name,color_code',

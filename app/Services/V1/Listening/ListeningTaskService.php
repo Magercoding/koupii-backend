@@ -72,8 +72,8 @@ class ListeningTaskService
      */
     public function create(array $taskData, $request = null): ListeningTask
     {
-        // Add creator_id from authenticated user
-        $taskData['creator_id'] = Auth::id();
+        // Add created_by from authenticated user (listening_tasks uses created_by column)
+        $taskData['created_by'] = Auth::id();
         $taskData['is_published'] = $taskData['is_published'] ?? false;
         
         return $this->createListeningTask($taskData);
@@ -106,10 +106,123 @@ class ListeningTaskService
 
     /**
      * Update a listening task (controller interface)
+     * Handles nested passages structure from the frontend form.
      */
     public function updateTask(ListeningTask $task, array $taskData, $request = null): ListeningTask
     {
-        return $this->updateListeningTask($task, $taskData);
+        return DB::transaction(function () use ($task, $taskData, $request) {
+            // 1. Update basic task fields
+            $updateFields = array_filter([
+                'title' => $taskData['title'] ?? null,
+                'description' => $taskData['description'] ?? null,
+                'difficulty_level' => $taskData['difficulty'] ?? $taskData['difficulty_level'] ?? null,
+                'timer_type' => $taskData['timer_mode'] ?? null,
+                'is_published' => isset($taskData['is_published']) ? (bool) $taskData['is_published'] : null,
+            ], fn ($v) => $v !== null);
+
+            // Handle timer settings -> time_limit_seconds conversion
+            if (!empty($taskData['timer_settings'])) {
+                $hours = (int) ($taskData['timer_settings']['hours'] ?? 0);
+                $minutes = (int) ($taskData['timer_settings']['minutes'] ?? 0);
+                $seconds = (int) ($taskData['timer_settings']['seconds'] ?? 0);
+                $totalSeconds = ($hours * 3600) + ($minutes * 60) + $seconds;
+                if ($totalSeconds > 0) {
+                    $updateFields['time_limit_seconds'] = $totalSeconds;
+                }
+            }
+
+            // Handle allow_repetition -> allow_retake
+            if (isset($taskData['allow_repetition'])) {
+                $updateFields['allow_retake'] = in_array($taskData['allow_repetition'], ['on', true, 1, '1'], true);
+            }
+            if (isset($taskData['max_repetition_count'])) {
+                $updateFields['max_retake_attempts'] = (int) $taskData['max_repetition_count'];
+            }
+
+            if (!empty($updateFields)) {
+                $task->update($updateFields);
+            }
+
+            // 2. Handle passages (nested data with questions)
+            if (!empty($taskData['passages']) && is_array($taskData['passages'])) {
+                // Delete existing questions and recreate (atomic replace)
+                $task->questions()->delete();
+
+                $questionOrder = 0;
+                foreach ($taskData['passages'] as $pIndex => $passage) {
+                    // Handle audio file upload
+                    if ($request && $request->hasFile("passages.{$pIndex}.audio_file")) {
+                        $audioFile = $request->file("passages.{$pIndex}.audio_file");
+                        $audioPath = $audioFile->store("listening/audio/{$task->id}", 'public');
+                        $task->update(['audio_url' => $audioPath]);
+                    }
+
+                    // Handle question groups
+                    if (!empty($passage['question_groups']) && is_array($passage['question_groups'])) {
+                        foreach ($passage['question_groups'] as $gIndex => $group) {
+                            // Store transcript and instruction as task-level metadata
+                            if (!empty($group['transcript'])) {
+                                $task->update(['transcript' => json_encode($group['transcript'])]);
+                            }
+
+                            // Handle image uploads
+                            if ($request && $request->hasFile("passages.{$pIndex}.question_groups.{$gIndex}.image.file")) {
+                                $imageFile = $request->file("passages.{$pIndex}.question_groups.{$gIndex}.image.file");
+                                $imagePath = $imageFile->store("listening/images/{$task->id}", 'public');
+                                // Could store in audio_segments or separate field depending on schema
+                            }
+
+                            // Create questions
+                            if (!empty($group['questions']) && is_array($group['questions'])) {
+                                foreach ($group['questions'] as $qIndex => $question) {
+                                    $questionOrder++;
+
+                                    \App\Models\ListeningQuestion::create([
+                                        'listening_task_id' => $task->id,
+                                        'question_type' => $question['question_type'] ?? 'multiple_choice',
+                                        'question_text' => $question['question_text'] ?? '',
+                                        'options' => $question['options'] ?? null,
+                                        'correct_answers' => $this->normalizeCorrectAnswer($question['correct_answer'] ?? null),
+                                        'points' => (int) ($question['points'] ?? $question['points_value'] ?? 1),
+                                        'order_index' => $question['question_number'] ?? $questionOrder,
+                                        'explanation' => $question['breakdown']['explanation'] ?? null,
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return $task->fresh(['creator', 'questions']);
+        });
+    }
+
+    /**
+     * Normalize correct_answer from frontend format to array format
+     */
+    private function normalizeCorrectAnswer($answer): ?array
+    {
+        if ($answer === null) {
+            return null;
+        }
+
+        // Already an array of answer objects [{option_key, option_text}]
+        if (is_array($answer) && isset($answer[0])) {
+            return $answer;
+        }
+
+        // Single answer object {option_key, option_text}
+        if (is_array($answer) && isset($answer['option_key'])) {
+            return [$answer['option_key']];
+        }
+
+        // String answer
+        if (is_string($answer)) {
+            return [$answer];
+        }
+
+        return null;
     }
 
     /**

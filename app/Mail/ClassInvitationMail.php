@@ -19,7 +19,7 @@ class ClassInvitationMail extends Mailable implements ShouldQueue
     public ClassInvitation $invitation;
     public Classes $class;
     public User $teacher;
-    public User $student;
+    public ?User $student;
 
     /**
      * Create a new message instance.

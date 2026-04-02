@@ -32,14 +32,14 @@ class ListeningTaskController extends Controller implements HasMiddleware
     {
         $user = $request->user();
 
-        $query = ListeningTask::with(['creator', 'assignments.classroom']);
+        $query = ListeningTask::query()->with(['creator', 'assignments.classroom']);
 
         // Role-based access control
         if ($user->role === 'admin') {
             // Admin sees all tasks
         } elseif ($user->role === 'student') {
             // Students see only published tasks assigned to their classrooms
-            $query->where('is_published', true)
+            $query->where('is_published', '=', true)
                 ->whereHas('assignments.classroom.students', function ($q) use ($user) {
                     $q->where('student_id', $user->id);
                 })
@@ -50,7 +50,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
                 ]);
         } else {
             // Teachers see only their own tasks
-            $query->where('creator_id', $user->id)
+            $query->where('created_by', '=', $user->id)
                 ->with(['submissions.review', 'assignments']);
         }
 
@@ -89,29 +89,40 @@ class ListeningTaskController extends Controller implements HasMiddleware
     {
         $user = $request->user();
 
-        $query = ListeningTask::with([
+        $task = ListeningTask::with([
             'creator',
-            'assignments.classroom',
-            'submissions.student',
-            'submissions.review'
-        ])->where('id', $id);
+            'questions',
+            'submissions' => function ($q) use ($user) {
+                if ($user->role === 'student') {
+                    $q->where('student_id', $user->id);
+                }
+            }
+        ])->findOrFail($id);
 
         // Role-based access control
         if ($user->role === 'student') {
-            $query->where('is_published', true)
-                ->whereHas('assignments.classroom.students', function ($q) use ($user) {
-                    $q->where('student_id', $user->id);
-                });
+            // Allow if task is published AND the student has an assignment for this task
+            $hasAccess = $task->is_published && \App\Models\Assignment::where('task_id', $id)
+                ->whereHas('class', function ($q) use ($user) {
+                    $q->whereHas('enrollments', function ($e) use ($user) {
+                        $e->where('student_id', $user->id)->where('status', 'active');
+                    });
+                })->exists();
+
+            if (!$hasAccess) {
+                return response()->json([
+                    'message' => 'Task not found or unauthorized access',
+                ], 404);
+            }
         } elseif ($user->role !== 'admin') {
-            $query->where('creator_id', $user->id);
-        }
-
-        $task = $query->first();
-
-        if (!$task) {
-            return response()->json([
-                'message' => 'Task not found or unauthorized access',
-            ], 404);
+            // Teachers can view their own tasks, or published tasks created by admin
+            $isAdminTask = $task->is_published && $task->creator && $task->creator->role === 'admin';
+            
+            if ($task->created_by !== $user->id && !$isAdminTask) {
+                return response()->json([
+                    'message' => 'Task not found or unauthorized access',
+                ], 403);
+            }
         }
 
         return response()->json([
@@ -128,7 +139,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
         $task = ListeningTask::findOrFail($id);
 
         // Check authorization
-        if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $task->created_by !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -160,7 +171,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
         $task = ListeningTask::findOrFail($id);
 
         // Check authorization
-        if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $task->created_by !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

@@ -68,8 +68,49 @@ class ClassController extends Controller
         return new ClassResource($class);
     }
 
+    public function students(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        $class = Classes::visibleTo($user)->find($id);
+
+        if (!$class) {
+            return response()->json(['message' => 'Class not found'], 404);
+        }
+
+        $query = $class->students();
+
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('users.name', 'like', "%{$search}%")
+                  ->orWhere('users.email', 'like', "%{$search}%");
+            });
+        }
+
+        $paginated = $query->paginate($request->input('per_page', 15));
+
+        return response()->json([
+            'data' => $paginated->items(),
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+            ]
+        ]);
+    }
+
     public function update(ClassRequest $request, ClassService $service, $id)
     {
+        $class = Classes::find($id);
+
+        if (!$class) {
+            return response()->json(['message' => 'Class not found'], 404);
+        }
+
+        Gate::authorize('update', $class);
+
         $result = $service->update($id, $request->validated());
 
         if (isset($result['error'])) {

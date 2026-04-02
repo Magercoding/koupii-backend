@@ -46,11 +46,6 @@ class ClassService
 
         $user = Auth::user();
 
-        if ($user->role !== 'admin' && $class->teacher_id !== $user->id) {
-            return ['error' => 'Unauthorized', 'code' => 403];
-        }
-
-   
         if (isset($data['name'])) {
             $exists = Classes::where('teacher_id', $user->id)
                 ->where('name', $data['name'])

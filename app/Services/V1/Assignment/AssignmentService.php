@@ -103,12 +103,27 @@ class AssignmentService
         $unifiedAssignments = Assignment::where('class_id', $classId)
             ->with(['test', 'class', 'assignedBy'])
             ->get()
-            ->map(function ($assignment) {
-                return [
+            ->map(function ($assignment) use ($isStudent, $user) {
+                $item = [
                     'assignment' => $assignment,
                     'type' => $assignment->type ?? 'general',
                     'unified' => true,
                 ];
+
+                // Include student progress if user is a student
+                if ($isStudent) {
+                    $studentAssignment = StudentAssignment::where('assignment_id', $assignment->id)
+                        ->where('student_id', $user->id)
+                        ->first();
+
+                    $item['student_progress'] = $studentAssignment ? [
+                        'status' => $studentAssignment->status,
+                        'attempt_count' => $studentAssignment->attempt_count ?? 0,
+                        'score' => $studentAssignment->score,
+                    ] : null;
+                }
+
+                return $item;
             });
 
         // Get legacy task assignments for backward compatibility
@@ -215,9 +230,19 @@ class AssignmentService
     private function getAndVerifyTask(string $type, string $taskId)
     {
         $model = $this->getTaskModel($type);
+        $column = $this->getCreatorColumn($type);
+
         return $model::where('id', $taskId)
-            ->where('creator_id', Auth::id())
+            ->where($column, Auth::id())
             ->first();
+    }
+
+    private function getCreatorColumn(string $type): string
+    {
+        return match ($type) {
+            'listening_task', 'speaking_task', 'reading_task' => 'created_by',
+            default => 'creator_id',
+        };
     }
 
     private function getTaskModel(string $type): string

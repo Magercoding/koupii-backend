@@ -7,7 +7,8 @@ use App\Http\Requests\V1\SpeakingTask\StoreSpeakingTaskRequest;
 use App\Http\Requests\V1\SpeakingTask\UpdateSpeakingTaskRequest;
 use App\Http\Resources\V1\SpeakingTask\SpeakingTaskResource;
 use App\Http\Resources\V1\SpeakingTask\SpeakingTaskCollection;
-use App\Models\Test;
+use App\Models\SpeakingTask;
+
 use App\Services\V1\SpeakingTask\SpeakingTaskService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -72,10 +73,46 @@ class SpeakingTaskController extends Controller
     /**
      * Display the specified speaking task
      */
-    public function show(Test $speakingTask): JsonResponse
+    public function show(Request $request, string $speakingTask): JsonResponse
     {
         try {
-            $task = $this->speakingTaskService->getSpeakingTaskDetails($speakingTask);
+            $user = $request->user();
+            $task = \App\Models\SpeakingTask::find($speakingTask);
+
+            if (!$task) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Speaking task not found',
+                ], 404);
+            }
+
+            // Role-based access control
+            if ($user->role === 'student') {
+                // Allow if task is published AND student is enrolled in a class that has this task assigned
+                $hasAccess = $task->is_published && \App\Models\Assignment::where('task_id', $speakingTask)
+                    ->whereHas('class', function ($q) use ($user) {
+                        $q->whereHas('enrollments', function ($e) use ($user) {
+                            $e->where('student_id', $user->id)->where('status', 'active');
+                        });
+                    })->exists();
+
+                if (!$hasAccess) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Task not found or unauthorized access',
+                    ], 404);
+                }
+            } elseif ($user->role !== 'admin') {
+                // Teachers can view their own tasks, or published tasks created by admin
+                $isAdminTask = $task->is_published && $task->creator && $task->creator->role === 'admin';
+                
+                if ($task->created_by !== $user->id && !$isAdminTask) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Task not found or unauthorized access',
+                    ], 403);
+                }
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -93,7 +130,7 @@ class SpeakingTaskController extends Controller
     /**
      * Update the specified speaking task
      */
-    public function update(UpdateSpeakingTaskRequest $request, Test $speakingTask): JsonResponse
+    public function update(UpdateSpeakingTaskRequest $request, SpeakingTask $speakingTask): JsonResponse
     {
         try {
             $taskData = $request->validated();
@@ -115,7 +152,7 @@ class SpeakingTaskController extends Controller
     /**
      * Remove the specified speaking task
      */
-    public function destroy(Test $speakingTask): JsonResponse
+    public function destroy(SpeakingTask $speakingTask): JsonResponse
     {
         try {
             $this->speakingTaskService->deleteSpeakingTask($speakingTask);
@@ -135,7 +172,7 @@ class SpeakingTaskController extends Controller
     /**
      * Duplicate a speaking task
      */
-    public function duplicate(Request $request, Test $speakingTask): JsonResponse
+    public function duplicate(Request $request, SpeakingTask $speakingTask): JsonResponse
     {
         try {
             $duplicateData = $request->validate([
@@ -161,7 +198,7 @@ class SpeakingTaskController extends Controller
     /**
      * Publish a speaking task
      */
-    public function publish(Test $speakingTask): JsonResponse
+    public function publish(SpeakingTask $speakingTask): JsonResponse
     {
         try {
             $publishedTask = $this->speakingTaskService->publishSpeakingTask($speakingTask);
@@ -182,7 +219,7 @@ class SpeakingTaskController extends Controller
     /**
      * Unpublish a speaking task
      */
-    public function unpublish(Test $speakingTask): JsonResponse
+    public function unpublish(SpeakingTask $speakingTask): JsonResponse
     {
         try {
             $unpublishedTask = $this->speakingTaskService->unpublishSpeakingTask($speakingTask);
@@ -203,7 +240,7 @@ class SpeakingTaskController extends Controller
     /**
      * Assign a speaking task to students/classes
      */
-    public function assign(Request $request, Test $speakingTask): JsonResponse
+    public function assign(Request $request, SpeakingTask $speakingTask): JsonResponse
     {
         try {
             $assignmentData = $request->validate([

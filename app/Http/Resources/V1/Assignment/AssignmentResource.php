@@ -58,6 +58,7 @@ class AssignmentResource extends JsonResource
             'max_attempts' => $assignment->max_attempts,
             'instructions' => $assignment->instructions ?? $assignment->description,
             'status' => $assignment->status ?? ($assignment->is_published ? 'active' : 'draft'),
+            'student_progress' => $this->resource['student_progress'] ?? null,
             'created_at' => $assignment->created_at,
             'updated_at' => $assignment->updated_at,
         ];
@@ -91,6 +92,7 @@ class AssignmentResource extends JsonResource
             'max_attempts' => $assignment->max_attempts ?? null,
             'instructions' => $assignment->instructions ?? null,
             'status' => $assignment->status ?? 'active',
+            'student_progress' => $this->resource['student_progress'] ?? null,
             'created_at' => $assignment->created_at,
             'updated_at' => $assignment->updated_at,
         ];

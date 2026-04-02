@@ -7,12 +7,17 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')
     ->prefix('vocab')
     ->group(function () {
-        Route::middleware('role:admin,teacher')->prefix('categories')->group(function () {
-            Route::get('/', [VocabularyCategoryController::class, 'index']);
-            Route::get('/{id}', [VocabularyCategoryController::class, 'show']);
-            Route::post('/create', [VocabularyCategoryController::class, 'store']);
-            Route::patch('/update/{id}', [VocabularyCategoryController::class, 'update']);
-            Route::delete('/delete/{id}', [VocabularyCategoryController::class, 'destroy']);
+        Route::prefix('categories')->group(function () {
+            Route::middleware('role:admin,teacher,student')->group(function () {
+                Route::get('/', [VocabularyCategoryController::class, 'index']);
+                Route::get('/{id}', [VocabularyCategoryController::class, 'show']);
+            });
+
+            Route::middleware('role:admin,teacher')->group(function () {
+                Route::post('/create', [VocabularyCategoryController::class, 'store']);
+                Route::patch('/update/{id}', [VocabularyCategoryController::class, 'update']);
+                Route::delete('/delete/{id}', [VocabularyCategoryController::class, 'destroy']);
+            });
         });
 
         Route::middleware('role:admin,teacher,student')->group(function () {
@@ -23,6 +28,7 @@ Route::middleware('auth:sanctum')
         Route::middleware('role:admin,teacher')->group(function () {
             Route::get('/{id}', [VocabularyController::class, 'show']);
             Route::post('/create', [VocabularyController::class, 'store']);
+            Route::post('/bulk-assign', [VocabularyController::class, 'bulkAssign']);
             Route::patch('/update/{id}', [VocabularyController::class, 'update']);
             Route::delete('/delete/{id}', [VocabularyController::class, 'destroy']);
         });

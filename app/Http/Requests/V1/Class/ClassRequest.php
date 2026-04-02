@@ -49,7 +49,7 @@ class ClassRequest extends BaseRequest
 
             'class_code'  => 'nullable|string|max:50|unique:classes,class_code,' . ($id ?? 'NULL'),
 
-            'cover_image' => 'file|mimes:jpg,jpeg,png', 
+            'cover_image' => 'file|mimes:jpg,jpeg,png|max:2048', 
 
             'is_active'   => 'nullable|boolean',
         ];
@@ -60,7 +60,7 @@ class ClassRequest extends BaseRequest
             'name.required' => 'Class name is required.',
             'class_code.unique' => 'Class code already exists.',
             'cover_image.mimetypes' => 'Cover must be an image (jpg, png).',
-            'cover_image.max' => 'Cover max size is 10MB.',
+            'cover_image.max' => 'Cover max size is 2MB.',
             'is_active.boolean' => 'The is active field must be true or false.',
         ];
     }

@@ -40,6 +40,8 @@ class UpdateVocabularyRequest extends FormRequest
             ],
 
             'is_public' => 'boolean',
+            'class_ids' => 'sometimes|array',
+            'class_ids.*' => 'exists:classes,id',
         ];
     }
 

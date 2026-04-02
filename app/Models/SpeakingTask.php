@@ -52,7 +52,7 @@ class SpeakingTask extends Model
      */
     public function assignments(): HasMany
     {
-        return $this->hasMany(SpeakingTaskAssignment::class);
+        return $this->hasMany(Assignment::class, 'task_id');
     }
 
     /**

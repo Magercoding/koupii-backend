@@ -16,6 +16,7 @@ class SpeakingSubmission extends Model
     protected $fillable = [
         'test_id',
         'student_id',
+        'assignment_id',
         'attempt_number',
         'status',
         'started_at',
@@ -28,9 +29,24 @@ class SpeakingSubmission extends Model
         'submitted_at' => 'datetime'
     ];
 
+    public function assignment(): BelongsTo
+    {
+        return $this->belongsTo(Assignment::class);
+    }
+
+    public function studentAssignment(): BelongsTo
+    {
+        return $this->belongsTo(StudentAssignment::class, 'assignment_id');
+    }
+
     public function test(): BelongsTo
     {
         return $this->belongsTo(Test::class);
+    }
+
+    public function speakingTask(): BelongsTo
+    {
+        return $this->belongsTo(SpeakingTask::class, 'test_id');
     }
 
     public function student(): BelongsTo

@@ -17,11 +17,10 @@ class UserSeeder extends Seeder
     {
         // Admin
         User::updateOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'admin@koupii.com'],
             [
-                'id' => (string) Str::uuid(),
                 'name' => 'Admin User',
-                'password' => Hash::make('Password123!'),
+                'password' => Hash::make('password'),
                 'role' => 'admin',
                 'avatar' => null,
                 'bio' => 'Administrator account'
@@ -30,11 +29,10 @@ class UserSeeder extends Seeder
 
         // Teacher 1
         User::updateOrCreate(
-            ['email' => 'teacher1@example.com'],
+            ['email' => 'teacher@koupii.com'],
             [
-                'id' => (string) Str::uuid(),
                 'name' => 'Teacher User 1',
-                'password' => Hash::make('Password123!'),
+                'password' => Hash::make('password'),
                 'role' => 'teacher',
                 'avatar' => null,
                 'bio' => 'Teacher account 1'
@@ -43,11 +41,10 @@ class UserSeeder extends Seeder
 
         // Teacher 2
         User::updateOrCreate(
-            ['email' => 'teacher2@example.com'],
+            ['email' => 'teacher2@koupii.com'],
             [
-                'id' => (string) Str::uuid(),
                 'name' => 'Teacher User 2',
-                'password' => Hash::make('Password123!'),
+                'password' => Hash::make('password'),
                 'role' => 'teacher',
                 'avatar' => null,
                 'bio' => 'Teacher account 2'
@@ -56,11 +53,10 @@ class UserSeeder extends Seeder
 
         // Student 1
         User::updateOrCreate(
-            ['email' => 'student1@example.com'],
+            ['email' => 'student1@koupii.com'],
             [
-                'id' => (string) Str::uuid(),
                 'name' => 'Student User 1',
-                'password' => Hash::make('Password123!'),
+                'password' => Hash::make('password'),
                 'role' => 'student',
                 'avatar' => null,
                 'bio' => 'Student account 1'
@@ -69,11 +65,10 @@ class UserSeeder extends Seeder
 
         // Student 2
         User::updateOrCreate(
-            ['email' => 'student2@example.com'],
+            ['email' => 'student2@koupii.com'],
             [
-                'id' => (string) Str::uuid(),
                 'name' => 'Student User 2',
-                'password' => Hash::make('Password123!'),
+                'password' => Hash::make('password'),
                 'role' => 'student',
                 'avatar' => null,
                 'bio' => 'Student account 2'

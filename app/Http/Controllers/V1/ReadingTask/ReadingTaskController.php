@@ -105,23 +105,43 @@ class ReadingTaskController extends Controller implements HasMiddleware
     public function show(Request $request, string $id)
     {
         $user = $request->user();
+        
+        \Illuminate\Support\Facades\Log::info('ReadingTaskController@show: Fetching task', [
+            'task_id' => $id,
+            'user_id' => $user->id ?? 'anonymous',
+            'role' => $user->role ?? 'none'
+        ]);
 
         $task = ReadingTask::with([
             'creator',
             'assignments.classroom',
             'submissions' => function ($query) use ($user) {
-                if ($user->role === 'student') {
+                if ($user && $user->role === 'student') {
                     $query->where('student_id', $user->id);
                 }
             }
         ])->findOrFail($id);
 
         // Check permissions
-        if ($user->role === 'student' && (!$task->is_published || !$this->isStudentAssigned($task, $user))) {
-            return response()->json(['message' => 'Access denied'], 403);
+        if ($user->role === 'student') {
+            $isAssigned = $this->isStudentAssigned($task, $user);
+            
+            if (!$task->is_published || !$isAssigned) {
+                \Illuminate\Support\Facades\Log::warning('ReadingTask: Access Denied for student', [
+                    'user_id' => $user->id,
+                    'task_id' => $task->id,
+                    'is_published' => $task->is_published,
+                    'is_assigned' => $isAssigned
+                ]);
+                return response()->json(['message' => 'Access denied'], 403);
+            }
         }
 
         if ($user->role === 'teacher' && $task->created_by !== $user->id && !$task->is_published) {
+            \Illuminate\Support\Facades\Log::warning('ReadingTask: Access Denied for teacher', [
+                'user_id' => $user->id,
+                'task_id' => $task->id
+            ]);
             return response()->json(['message' => 'Access denied'], 403);
         }
 
@@ -206,9 +226,34 @@ class ReadingTaskController extends Controller implements HasMiddleware
      */
     private function isStudentAssigned(ReadingTask $task, $user): bool
     {
+        // 1. Check newer generic StudentAssignment system (Direct student link)
+        $hasStudentAssignment = \Illuminate\Support\Facades\DB::table('student_assignments')
+            ->join('assignments', 'student_assignments.assignment_id', '=', 'assignments.id')
+            ->where('student_assignments.student_id', $user->id)
+            ->where('assignments.task_id', $task->id)
+            ->where('assignments.task_type', 'reading_task')
+            ->exists();
+
+        if ($hasStudentAssignment) {
+            return true;
+        }
+
+        // 2. Check newer generic Assignment system (Class-based link)
+        $hasGlobalAssignment = \Illuminate\Support\Facades\DB::table('assignments')
+            ->join('class_enrollments', 'assignments.class_id', '=', 'class_enrollments.class_id')
+            ->where('assignments.task_id', $task->id)
+            ->where('assignments.task_type', 'reading_task')
+            ->where('class_enrollments.student_id', $user->id)
+            ->exists();
+
+        if ($hasGlobalAssignment) {
+            return true;
+        }
+
+        // 3. Check legacy task-specific assignments
         return $task->assignments()
             ->whereHas('classroom.students', function ($query) use ($user) {
-                $query->where('student_id', $user->id);
+                $query->where('users.id', $user->id);
             })
             ->exists();
     }

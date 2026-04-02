@@ -33,6 +33,7 @@ class WritingTaskService
                 'allow_submission_files' => $data['allow_submission_files'] ?? false,
                 'is_published' => $data['is_published'] ?? false,
                 'due_date' => $data['due_date'] ?? null,
+                'questions' => $data['questions'] ?? null,
             ]);
 
             return $task->load('creator');
@@ -45,21 +46,23 @@ class WritingTaskService
     public function updateTask(WritingTask $task, array $data, Request $request): WritingTask
     {
         return DB::transaction(function () use ($task, $data, $request) {
-            $task->update(array_filter([
-                'title' => $data['title'] ?? $task->title,
-                'description' => $data['description'] ?? $task->description,
-                'instructions' => $data['instructions'] ?? $task->instructions,
-                'sample_answer' => $data['sample_answer'] ?? $task->sample_answer,
-                'word_limit' => $data['word_limit'] ?? $task->word_limit,
-                'allow_retake' => $data['allow_retake'] ?? $task->allow_retake,
-                'max_retake_attempts' => $data['max_retake_attempts'] ?? $task->max_retake_attempts,
-                'retake_options' => $data['retake_options'] ?? $task->retake_options,
-                'timer_type' => $data['timer_type'] ?? $task->timer_type,
-                'time_limit_seconds' => $data['time_limit_seconds'] ?? $task->time_limit_seconds,
-                'allow_submission_files' => $data['allow_submission_files'] ?? $task->allow_submission_files,
-                'is_published' => $data['is_published'] ?? $task->is_published,
-                'due_date' => $data['due_date'] ?? $task->due_date,
-            ]));
+            $updateData = [];
+            $fields = [
+                'title', 'description', 'instructions', 'sample_answer', 
+                'word_limit', 'allow_retake', 'max_retake_attempts', 
+                'retake_options', 'timer_type', 'time_limit_seconds', 
+                'allow_submission_files', 'is_published', 'due_date', 'questions'
+            ];
+
+            foreach ($fields as $field) {
+                if (array_key_exists($field, $data)) {
+                    $updateData[$field] = $data[$field];
+                }
+            }
+
+            if (!empty($updateData)) {
+                $task->update($updateData);
+            }
 
             return $task->load('creator');
         });

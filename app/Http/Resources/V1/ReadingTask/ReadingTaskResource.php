@@ -34,7 +34,37 @@ class ReadingTaskResource extends JsonResource
             'retake_options' => $this->retake_options,
             'allow_submission_files' => $this->allow_submission_files,
             'is_published' => $this->is_published,
-            'passages' => $this->passages,
+            'passages' => collect($this->passages)->map(function ($passage) use ($isStudent, $user) {
+                // If it's a student, check if they have a completed submission to allow seeing answers
+                $canSeeAnswers = !$isStudent;
+                if ($isStudent && $this->relationLoaded('submissions')) {
+                    $canSeeAnswers = $this->submissions
+                        ->where('student_id', $user->id)
+                        ->whereIn('status', ['submitted', 'completed', 'reviewed'])
+                        ->isNotEmpty();
+                }
+
+                if (isset($passage['question_groups'])) {
+                    $groups = collect($passage['question_groups'])->map(function ($group) use ($canSeeAnswers) {
+                        if (isset($group['questions'])) {
+                            $group['questions'] = collect($group['questions'])->map(function ($q) use ($canSeeAnswers) {
+                                // If not authorized, remove correct answers
+                                if (!$canSeeAnswers) {
+                                    unset($q['correct_answers']);
+                                    unset($q['correct_answer']);
+                                }
+                                return $q;
+                            })->toArray();
+                        }
+                        return $group;
+                    })->toArray();
+                    
+                    $passage['questionGroups'] = $groups;
+                    unset($passage['question_groups']);
+                }
+                return $passage;
+            })->toArray(),
+            'vocabularies' => $this->vocabularies,
             'passage_images' => $this->passage_images,
             'suggest_time_minutes' => $this->suggest_time_minutes,
             'difficulty_level' => $this->difficulty_level,

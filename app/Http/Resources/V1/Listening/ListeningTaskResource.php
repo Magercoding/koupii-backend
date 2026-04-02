@@ -17,97 +17,97 @@ class ListeningTaskResource extends JsonResource
         $user = $request->user();
         $isStudent = $user && $user->role === 'student';
         $isTeacher = $user && $user->role === 'teacher';
+        $isAdmin   = $user && $user->role === 'admin';
 
         return [
-            'id' => $this->id,
-            'creator_id' => $this->creator_id,
-            'creator_name' => optional($this->creator)->name,
-            'title' => $this->title,
-            'description' => $this->description,
-            'instructions' => $this->instructions,
-            'timer_type' => $this->timer_type,
+            'id'                 => $this->id,
+            'creator_id'         => $this->created_by,
+            'creator_name'       => optional($this->creator)->name,
+            'title'              => $this->title,
+            'description'        => $this->description,
+            'instructions'       => $this->instructions,
+            'timer_type'         => $this->timer_type,
             'time_limit_seconds' => $this->time_limit_seconds,
-            'difficulty_level' => $this->difficulty_level,
-            'retakes_allowed' => $this->retakes_allowed,
-            'max_retakes' => $this->max_retakes,
-            'auto_mark' => $this->auto_mark,
-            'feedback_enabled' => $this->feedback_enabled,
-            'is_published' => $this->is_published,
-            'audio_file_url' => $this->audio_file_url,
-            'transcript' => $this->transcript,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'difficulty_level'   => $this->difficulty_level ?? $this->difficulty,
+            'is_published'       => $this->is_published,
+            // Support both column names
+            'audio_url'          => $this->audio_url ?? $this->audio_file_url,
+            'audio_file_url'     => $this->audio_file_url ?? $this->audio_url,
+            'max_plays'          => $this->max_plays ?? null,
+            'allow_replay'       => $this->allow_replay ?? true,
+            'transcript'         => $this->transcript,
+            'created_at'         => $this->created_at,
+            'updated_at'         => $this->updated_at,
 
-            // Student-specific data
+            // CRUD permission flags for frontend
+            'can_edit'   => $user && ($user->role === 'admin' || ($user->role === 'teacher' && $this->created_by === $user->id)),
+            'can_delete' => $user && ($user->role === 'admin' || ($user->role === 'teacher' && $this->created_by === $user->id)),
+
+            // Questions — exposed to ALL authenticated users
+            'questions' => $this->whenLoaded('questions', function () use ($isStudent, $user) {
+                // If it's a student, check if they have a completed submission to allow seeing answers
+                $canSeeAnswers = !$isStudent;
+                if ($isStudent && $this->relationLoaded('submissions')) {
+                    $canSeeAnswers = $this->submissions
+                        ->where('student_id', $user->id)
+                        ->whereIn('status', ['submitted', 'reviewed'])
+                        ->isNotEmpty();
+                }
+
+                return $this->questions->sortBy(fn($q) => $q->order_index ?? $q->order ?? 0)
+                    ->map(function ($q) use ($canSeeAnswers) {
+                        $data = [
+                            'id'            => $q->id,
+                            'question_type' => $q->question_type,
+                            'question_text' => $q->question_text,
+                            'order'         => $q->order_index ?? $q->order ?? 0,
+                            'points'        => $q->points,
+                            'options'       => collect($q->options ?? [])->map(function ($opt, $idx) {
+                                if (is_string($opt)) {
+                                    return ['id' => (string) $idx, 'text' => $opt];
+                                }
+                                return $opt;
+                            })->values()->all(),
+                        ];
+
+                        // Expose correct answers if authorized
+                        if ($canSeeAnswers) {
+                            $data['correct_answers'] = $q->correct_answers;
+                            $data['correct_answer']  = $q->correct_answer;
+                        }
+
+                        return $data;
+                    })->values()->all();
+            }),
+
+            // Counts (always useful)
+            'total_questions' => $this->whenLoaded('questions', fn() => $this->questions->count()),
+            'total_points'    => $this->whenLoaded('questions', fn() => $this->questions->sum('points')),
+
+            // Student-specific
             'my_submissions' => $this->when($isStudent, function () use ($user) {
                 return $this->whenLoaded('submissions', function () use ($user) {
-                    return $this->submissions->where('student_id', $user->id)->map(function ($submission) {
-                        return [
-                            'id' => $submission->id,
-                            'status' => $submission->status,
-                            'score' => $submission->score,
-                            'submitted_at' => $submission->submitted_at,
-                            'has_review' => $submission->review !== null,
-                        ];
-                    });
+                    return $this->submissions->where('student_id', $user->id)->map(fn($s) => [
+                        'id'           => $s->id,
+                        'status'       => $s->status,
+                        'score'        => $s->score,
+                        'submitted_at' => $s->submitted_at,
+                    ]);
                 });
             }),
 
-            'current_submission_status' => $this->when($isStudent, function () use ($user) {
-                return $this->whenLoaded('submissions', function () use ($user) {
-                    $latestSubmission = $this->submissions->where('student_id', $user->id)->first();
-                    return $latestSubmission ? $latestSubmission->status : 'to_do';
-                });
-            }),
-
-            // Teacher/Admin data
-            'assignments' => $this->when($isTeacher || ($user && $user->role === 'admin'), function () {
-                return $this->whenLoaded('assignments', function () {
-                    return $this->assignments->map(function ($assignment) {
-                        return [
-                            'id' => $assignment->id,
-                            'classroom_id' => $assignment->classroom_id,
-                            'classroom_name' => optional($assignment->classroom)->name,
-                            'assigned_at' => $assignment->created_at,
-                        ];
-                    });
-                });
-            }),
-
-            'submissions_summary' => $this->when($isTeacher || ($user && $user->role === 'admin'), function () {
+            // Teacher/Admin only
+            'submissions_summary' => $this->when($isTeacher || $isAdmin, function () {
                 return $this->whenLoaded('submissions', function () {
-                    $submissions = $this->submissions;
+                    $subs = $this->submissions;
                     return [
-                        'total' => $submissions->count(),
-                        'submitted' => $submissions->where('status', 'submitted')->count(),
-                        'reviewed' => $submissions->where('status', 'reviewed')->count(),
-                        'done' => $submissions->where('status', 'done')->count(),
-                        'average_score' => $submissions->where('score', '>', 0)->avg('score'),
+                        'total'         => $subs->count(),
+                        'submitted'     => $subs->where('status', 'submitted')->count(),
+                        'reviewed'      => $subs->where('status', 'reviewed')->count(),
+                        'average_score' => $subs->where('score', '>', 0)->avg('score'),
                     ];
                 });
             }),
-
-            // Questions (for task creation/editing)
-            'questions' => $this->when($user && in_array($user->role, ['admin', 'teacher']), function () {
-                return $this->whenLoaded('questions', function () {
-                    return $this->questions->map(function ($question) {
-                        return [
-                            'id' => $question->id,
-                            'question_type' => $question->question_type,
-                            'question_text' => $question->question_text,
-                            'options' => $question->options,
-                            'correct_answer' => $question->correct_answer,
-                            'points' => $question->points,
-                            'order' => $question->order,
-                        ];
-                    });
-                });
-            }),
-
-            // Computed fields
-            'total_questions' => $this->whenLoaded('questions', fn() => $this->questions->count()),
-            'total_points' => $this->whenLoaded('questions', fn() => $this->questions->sum('points')),
-            'assigned_classrooms_count' => $this->whenLoaded('assignments', fn() => $this->assignments->count()),
         ];
     }
 }

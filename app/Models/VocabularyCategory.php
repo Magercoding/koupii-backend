@@ -22,7 +22,13 @@ class VocabularyCategory extends Model
     protected $fillable = [
         'name',
         'color_code',
+        'teacher_id',
     ];
+
+    public function teacher()
+    {
+        return $this->belongsTo(User::class, 'teacher_id');
+    }
 
     public function vocabularies()
     {

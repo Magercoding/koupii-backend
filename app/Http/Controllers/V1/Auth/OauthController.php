@@ -67,12 +67,8 @@ class OauthController extends Controller
 
         $plainToken = $user->createToken('api-token')->plainTextToken;
 
-        return response()->json([
-            'status' => 'ok',
-            'user' => $user,
-            'access_token' => $plainToken,
-            'token_type' => 'Bearer',
-        ], 200);
+        $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+        return redirect()->to($frontendUrl . '/auth/oauth-callback?token=' . $plainToken);
     }
 
     /**
@@ -126,12 +122,8 @@ class OauthController extends Controller
 
         $plainToken = $user->createToken('api-token')->plainTextToken;
 
-        return response()->json([
-            'status' => 'ok',
-            'user' => $user,
-            'access_token' => $plainToken,
-            'token_type' => 'Bearer',
-        ], 200);
+        $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+        return redirect()->to($frontendUrl . '/auth/oauth-callback?token=' . $plainToken);
     }
 }
  

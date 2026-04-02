@@ -29,6 +29,8 @@ class StoreVocabularyRequest extends FormRequest
             'explanation' => 'nullable|string',
             'audio_file_path' => 'nullable|file|max:2048|mimetypes:audio/mpeg,audio/wav,audio/ogg',
             'is_public' => 'boolean',
+            'class_ids' => 'nullable|array',
+            'class_ids.*' => 'exists:classes,id',
         ];
     }
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\V1\WiritingTask;
+namespace App\Http\Controllers\V1\WritingTask;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\WritingTask\ReviewSubmissionRequest;

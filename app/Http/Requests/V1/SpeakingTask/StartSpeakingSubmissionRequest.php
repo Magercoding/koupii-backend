@@ -3,6 +3,8 @@
 namespace App\Http\Requests\V1\SpeakingTask;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use App\Models\StudentAssignment;
 
 class StartSpeakingSubmissionRequest extends FormRequest
 {
@@ -11,8 +13,8 @@ class StartSpeakingSubmissionRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Check if user can access the speaking task assignment
-        return $this->user()->can('view', $this->route('assignment'));
+        // Route doesn't have an assignment parameter, we rely on service layer validation
+        return true;
     }
 
     /**
@@ -21,6 +23,11 @@ class StartSpeakingSubmissionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'assignment_id' => [
+                'sometimes',
+                'nullable',
+                'uuid'
+            ],
             'attempt_number' => [
                 'sometimes',
                 'integer',

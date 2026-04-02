@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\V1\WiritingTask;
+namespace App\Http\Controllers\V1\WritingTask;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\WritingTask\SubmitWritingRequest;
@@ -28,16 +28,32 @@ class WritingSubmissionController extends Controller implements HasMiddleware
      */
     public function submit(SubmitWritingRequest $request, string $taskId)
     {
-        $task = WritingTask::findOrFail($taskId);
+        // Resolve task if the ID provided is an assignment_id
+        $task = WritingTask::find($taskId);
+        if (!$task) {
+            $assignment = \App\Models\Assignment::find($taskId);
+            if ($assignment && $assignment->task_type === 'writing_task') {
+                $task = WritingTask::find($assignment->task_id);
+            }
+        }
+
+        if (!$task) {
+            $task = WritingTask::findOrFail($taskId); // Fallback to 404 with error if not found
+        }
+
+        $assignmentId = $request->input('assignment_id') ?? ($task->id !== $taskId ? $taskId : null);
 
         // Check if student can access this task
-        if (!$this->studentCanAccessTask($task, Auth::user())) {
+        if (!$this->studentCanAccessTask($task, Auth::user(), $assignmentId)) {
             return response()->json(['message' => 'Task not found or unauthorized'], 404);
         }
 
         try {
             $service = new WritingSubmissionService();
-            $submission = $service->submitWriting($task, $request->validated());
+            // Pass assignment_id to the service
+            $submission = $service->submitWriting($task, array_merge($request->validated(), [
+                'assignment_id' => $assignmentId
+            ]));
 
             return response()->json([
                 'message' => 'Writing submitted successfully',
@@ -57,9 +73,10 @@ class WritingSubmissionController extends Controller implements HasMiddleware
     public function saveDraft(Request $request, string $taskId)
     {
         $task = WritingTask::findOrFail($taskId);
+        $assignmentId = $request->input('assignment_id');
 
         // Check if student can access this task
-        if (!$this->studentCanAccessTask($task, Auth::user())) {
+        if (!$this->studentCanAccessTask($task, Auth::user(), $assignmentId)) {
             return response()->json(['message' => 'Task not found or unauthorized'], 404);
         }
 
@@ -91,9 +108,10 @@ class WritingSubmissionController extends Controller implements HasMiddleware
     public function createRetake(Request $request, string $taskId)
     {
         $task = WritingTask::findOrFail($taskId);
+        $assignmentId = $request->input('assignment_id');
 
         // Check if student can access this task
-        if (!$this->studentCanAccessTask($task, Auth::user())) {
+        if (!$this->studentCanAccessTask($task, Auth::user(), $assignmentId)) {
             return response()->json(['message' => 'Task not found or unauthorized'], 404);
         }
 
@@ -199,16 +217,35 @@ class WritingSubmissionController extends Controller implements HasMiddleware
     /**
      * Check if student can access a task.
      */
-    private function studentCanAccessTask(WritingTask $task, $user): bool
+    private function studentCanAccessTask(WritingTask $task, $user, ?string $assignmentId = null): bool
     {
         if ($user->role !== 'student') {
-            return false;
+            return true;
         }
 
-        return $task->is_published &&
-            $task->assignments()
-                ->whereHas('classroom.students', function ($q) use ($user) {
-                    $q->where('student_id', $user->id);
-                })->exists();
+        // 1. Check if specific assignment_id is provided and valid
+        if ($assignmentId) {
+            $hasAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                ->where('student_id', $user->id)
+                ->exists();
+            if ($hasAssignment) return true;
+        }
+
+        // 2. Check if the task is linked to any of student's assignments (indirect check)
+        $hasAnyAssignment = \App\Models\StudentAssignment::where('student_id', $user->id)
+            ->whereHas('assignment', function ($q) use ($task) {
+                $q->where('task_id', $task->id)
+                  ->where('task_type', 'writing_task');
+            })->exists();
+            
+        if ($hasAnyAssignment) return true;
+
+        // 3. Fallback: Check classroom-based assignments (Legacy)
+        $hasLegacyAssignment = $task->assignments()
+            ->whereHas('classroom.students', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            })->exists();
+
+        return $hasLegacyAssignment || $task->is_published;
     }
 }

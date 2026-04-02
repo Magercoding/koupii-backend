@@ -59,7 +59,8 @@ class ListeningSubmission extends Model
         'total_correct',
         'total_incorrect',
         'total_unanswered',
-        'audio_play_counts'
+        'audio_play_counts',
+        'assignment_id'
     ];
 
     protected $casts = [
@@ -75,6 +76,31 @@ class ListeningSubmission extends Model
      * Get the listening task for this submission
      */
     public function listeningTask(): BelongsTo
+    {
+        return $this->belongsTo(ListeningTask::class, 'listening_task_id');
+    }
+
+    /**
+     * Get the assignment this submission belongs to
+     */
+    public function assignment(): BelongsTo
+    {
+        return $this->belongsTo(Assignment::class, 'assignment_id');
+    }
+
+    /**
+     * Get the student assignment record for sync
+     */
+    public function studentAssignment(): BelongsTo
+    {
+        return $this->belongsTo(StudentAssignment::class, 'assignment_id', 'assignment_id')
+            ->where('student_id', $this->student_id);
+    }
+
+    /**
+     * Alias for listeningTask() — used by controllers and resources
+     */
+    public function task(): BelongsTo
     {
         return $this->belongsTo(ListeningTask::class, 'listening_task_id');
     }

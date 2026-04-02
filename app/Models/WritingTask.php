@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property string $id
@@ -77,9 +79,9 @@ class WritingTask extends Model
         return $this->belongsTo(User::class, 'creator_id');
     }
 
-    public function assignments()
+    public function assignments(): HasMany
     {
-        return $this->hasMany(WritingTaskAssignment::class, 'writing_task_id');
+        return $this->hasMany(Assignment::class, 'task_id');
     }
 
     public function submissions()

@@ -43,6 +43,11 @@ class SpeakingTaskAssignment extends Model
         return $this->belongsTo(Classes::class, 'class_id');
     }
 
+    public function classroom(): BelongsTo
+    {
+        return $this->belongsTo(Classes::class, 'class_id');
+    }
+
     public function assignedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_by');

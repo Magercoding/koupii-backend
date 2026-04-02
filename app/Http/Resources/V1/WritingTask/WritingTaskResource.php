@@ -4,6 +4,7 @@ namespace App\Http\Resources\V1\WritingTask;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\V1\WritingTask\WritingTaskQuestionResource;
 
 class WritingTaskResource extends JsonResource
 {
@@ -17,6 +18,7 @@ class WritingTaskResource extends JsonResource
         $user = $request->user();
         $isStudent = $user && $user->role === 'student';
         $isTeacher = $user && $user->role === 'teacher';
+        $isAdmin = $user && $user->role === 'admin';
 
         return [
             'id' => $this->id,
@@ -37,9 +39,15 @@ class WritingTaskResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
 
-            // Questions
-            'questions' => $this->questions ?? [],
-            'questions_count' => is_array($this->questions) ? count($this->questions) : 0,
+            // Questions - Handle relationship vs JSON column naming collision
+            'prompt' => $this->prompt,
+            'task_prompt' => $this->prompt, // Alias just in case
+            'questions' => $this->relationLoaded('questions') 
+                ? WritingTaskQuestionResource::collection($this->getRelation('questions')) 
+                : ($this->questions ?? []),
+            'questions_count' => $this->relationLoaded('questions') 
+                ? $this->getRelation('questions')->count() 
+                : (is_array($this->questions) ? count($this->questions) : 0),
 
             // Retake settings
             'allow_retake' => $this->allow_retake,
@@ -51,25 +59,27 @@ class WritingTaskResource extends JsonResource
 
             // Include assignments for teachers/admins
             'assignments' => $this->when(
-                ($isTeacher || $user->role === 'admin') && $this->relationLoaded('assignments'),
-                $this->assignments->map(function($assignment) {
-                    return [
-                        'id' => $assignment->id,
-                        'classroom_id' => $assignment->classroom_id,
-                        'due_date' => $assignment->due_date,
-                        'assigned_at' => $assignment->assigned_at
-                    ];
-                })
+                ($isTeacher || $isAdmin) && $this->relationLoaded('assignments'),
+                function() {
+                    return $this->assignments->map(function($assignment) {
+                        return [
+                            'id' => $assignment->id,
+                            'classroom_id' => $assignment->classroom_id,
+                            'due_date' => $assignment->due_date,
+                            'assigned_at' => $assignment->assigned_at
+                        ];
+                    });
+                }
             ),
 
             // Include submissions summary
             'submissions_count' => $this->when(
                 $this->relationLoaded('submissions'),
-                $this->submissions->count()
+                fn() => $this->submissions->count()
             ),
 
          
-            'statistics' => $this->when($isTeacher || $user->role === 'admin', function () {
+            'statistics' => $this->when(($isTeacher || $isAdmin) && $this->relationLoaded('submissions'), function () {
                 $submissions = $this->submissions;
                 return [
                     'total_submissions' => $submissions->count(),
@@ -82,7 +92,7 @@ class WritingTaskResource extends JsonResource
             }),
 
        
-            'student_status' => $this->when($isStudent, function () use ($user) {
+            'student_status' => $this->when($isStudent && $this->relationLoaded('submissions'), function () use ($user) {
                 $latestSubmission = $this->submissions
                     ->where('student_id', $user->id)
                     ->sortByDesc('attempt_number')

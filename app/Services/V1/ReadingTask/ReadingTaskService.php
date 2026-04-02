@@ -57,6 +57,9 @@ class ReadingTaskService
             $fileData = $this->handleFileUploads($taskData);
 
             // Prepare task data
+            $passages = $this->parsePassages($taskData['passages']);
+            $normalizedPassages = $this->normalizePassages($passages);
+
             $readingTaskData = [
                 'id' => Str::uuid(),
                 'title' => $taskData['title'],
@@ -71,11 +74,12 @@ class ReadingTaskService
                 'allow_submission_files' => false,
                 'is_published' => $taskData['is_published'] ?? false,
                 'created_by' => $taskData['created_by'] ?? Auth::id(),
-                'passages' => $this->parsePassages($taskData['passages']),
+                'passages' => $normalizedPassages,
+                'vocabularies' => isset($taskData['vocabularies']) ? $this->parseVocabularies($taskData['vocabularies']) : null,
                 'passage_images' => $fileData['passage_images'] ?? null,
-                'suggest_time_minutes' => $this->calculateSuggestedTime($taskData['passages']),
+                'suggest_time_minutes' => $this->calculateSuggestedTimeFromNormalized($normalizedPassages),
                 'difficulty_level' => $taskData['difficulty'],
-                'question_types' => $this->extractQuestionTypes($taskData['passages']),
+                'question_types' => $this->extractQuestionTypesFromNormalized($normalizedPassages),
             ];
 
             $task = ReadingTask::create($readingTaskData);
@@ -170,9 +174,15 @@ class ReadingTaskService
             }
 
             if (isset($taskData['passages'])) {
-                $updateData['passages'] = $this->parsePassages($taskData['passages']);
-                $updateData['suggest_time_minutes'] = $this->calculateSuggestedTime($taskData['passages']);
-                $updateData['question_types'] = $this->extractQuestionTypes($taskData['passages']);
+                $passages = $this->parsePassages($taskData['passages']);
+                $normalizedPassages = $this->normalizePassages($passages);
+                $updateData['passages'] = $normalizedPassages;
+                $updateData['suggest_time_minutes'] = $this->calculateSuggestedTimeFromNormalized($normalizedPassages);
+                $updateData['question_types'] = $this->extractQuestionTypesFromNormalized($normalizedPassages);
+            }
+
+            if (isset($taskData['vocabularies'])) {
+                $updateData['vocabularies'] = $this->parseVocabularies($taskData['vocabularies']);
             }
 
             if (!empty($fileData['passage_images'])) {
@@ -275,57 +285,68 @@ class ReadingTaskService
     }
 
     /**
-     * Calculate suggested time based on passages
+     * Normalize passages data (camelCase to snake_case)
      */
-    private function calculateSuggestedTime(string $passagesJson): int
+    private function normalizePassages(array $passages): array
     {
-        try {
-            $passages = json_decode($passagesJson, true);
-            $totalQuestions = 0;
-
-            foreach ($passages as $passage) {
-                if (isset($passage['question_groups']) && is_array($passage['question_groups'])) {
-                    foreach ($passage['question_groups'] as $group) {
-                        if (isset($group['questions']) && is_array($group['questions'])) {
-                            $totalQuestions += count($group['questions']);
-                        }
-                    }
-                }
+        return array_map(function ($passage) {
+            $normalized = $passage;
+            if (isset($passage['questionGroups'])) {
+                $normalized['question_groups'] = $passage['questionGroups'];
+                unset($normalized['questionGroups']);
             }
-
-            // 2 minutes per question as base estimate
-            return max(1, $totalQuestions * 2);
-        } catch (\Exception $e) {
-            return 20; // Default 20 minutes
-        }
+            return $normalized;
+        }, $passages);
     }
 
     /**
-     * Extract question types from passages
+     * Parse vocabularies JSON
      */
-    private function extractQuestionTypes(string $passagesJson): array
+    private function parseVocabularies($vocabulariesData): array
     {
-        try {
-            $passages = json_decode($passagesJson, true);
-            $questionTypes = [];
+        if (is_string($vocabulariesData)) {
+            return json_decode($vocabulariesData, true) ?: [];
+        }
+        return is_array($vocabulariesData) ? $vocabulariesData : [];
+    }
 
-            foreach ($passages as $passage) {
-                if (isset($passage['question_groups']) && is_array($passage['question_groups'])) {
-                    foreach ($passage['question_groups'] as $group) {
-                        if (isset($group['questions']) && is_array($group['questions'])) {
-                            foreach ($group['questions'] as $question) {
-                                if (isset($question['question_type'])) {
-                                    $questionTypes[] = $question['question_type'];
-                                }
+    /**
+     * Calculate suggested time from normalized passages
+     */
+    private function calculateSuggestedTimeFromNormalized(array $passages): int
+    {
+        $totalQuestions = 0;
+        foreach ($passages as $passage) {
+            if (isset($passage['question_groups']) && is_array($passage['question_groups'])) {
+                foreach ($passage['question_groups'] as $group) {
+                    if (isset($group['questions']) && is_array($group['questions'])) {
+                        $totalQuestions += count($group['questions']);
+                    }
+                }
+            }
+        }
+        return max(1, $totalQuestions * 2);
+    }
+
+    /**
+     * Extract question types from normalized passages
+     */
+    private function extractQuestionTypesFromNormalized(array $passages): array
+    {
+        $questionTypes = [];
+        foreach ($passages as $passage) {
+            if (isset($passage['question_groups']) && is_array($passage['question_groups'])) {
+                foreach ($passage['question_groups'] as $group) {
+                    if (isset($group['questions']) && is_array($group['questions'])) {
+                        foreach ($group['questions'] as $question) {
+                            if (isset($question['question_type'])) {
+                                $questionTypes[] = $question['question_type'];
                             }
                         }
                     }
                 }
             }
-
-            return array_unique($questionTypes);
-        } catch (\Exception $e) {
-            return [];
         }
+        return array_unique($questionTypes);
     }
 }

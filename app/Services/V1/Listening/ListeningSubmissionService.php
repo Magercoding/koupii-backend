@@ -3,6 +3,7 @@
 namespace App\Services\V1\Listening;
 
 use App\Models\ListeningTask;
+use App\Models\ListeningQuestion;
 use App\Models\ListeningSubmission;
 use App\Models\ListeningQuestionAnswer;
 use App\Models\User;
@@ -15,87 +16,135 @@ use Illuminate\Support\Str;
 class ListeningSubmissionService
 {
     /**
-     * Submit student listening task.
+     * Start or resume a listening submission.
      */
-    public function submit(ListeningTask $task, User $student, array $data, Request $request): ListeningSubmission
+    public function startSubmission(ListeningTask $task, User $student, array $data = []): ListeningSubmission
     {
-        return DB::transaction(function () use ($task, $student, $data, $request) {
-            // Check if student already has a non-submitted submission for this task
-            $existingSubmission = ListeningSubmission::where('listening_task_id', $task->id)
-                ->where('student_id', $student->id)
-                ->where('status', ListeningSubmission::STATUS_TO_DO)
-                ->first();
+        $assignmentId = $data['assignment_id'] ?? null;
 
-            if ($existingSubmission) {
-                // Update existing draft to submitted
-                $existingSubmission->update([
-                    'status' => ListeningSubmission::STATUS_SUBMITTED,
-                    'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
-                    'audio_play_counts' => $data['audio_play_counts'] ?? null,
-                    'submitted_at' => now(),
-                ]);
+        // 1. Check for existing "to_do" submission to resume
+        $existing = ListeningSubmission::where('listening_task_id', $task->id)
+            ->where('student_id', $student->id)
+            ->where('status', ListeningSubmission::STATUS_TO_DO)
+            ->first();
 
-                // Save answers
-                if (isset($data['answers'])) {
-                    $this->saveAnswers($existingSubmission, $data['answers']);
-                }
-
-                // Calculate score
-                $this->calculateScore($existingSubmission);
-
-                return $existingSubmission->fresh();
-            } else {
-                // Create new submission
-                $attemptNumber = ListeningSubmission::where('listening_task_id', $task->id)
-                    ->where('student_id', $student->id)
-                    ->max('attempt_number') + 1;
-
-                $submission = ListeningSubmission::create([
-                    'id' => Str::uuid(),
-                    'listening_task_id' => $task->id,
-                    'student_id' => $student->id,
-                    'status' => ListeningSubmission::STATUS_SUBMITTED,
-                    'attempt_number' => $attemptNumber,
-                    'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
-                    'audio_play_counts' => $data['audio_play_counts'] ?? null,
-                    'submitted_at' => now(),
-                    'started_at' => $data['started_at'] ?? now(),
-                ]);
-
-                // Save answers
-                if (isset($data['answers'])) {
-                    $this->saveAnswers($submission, $data['answers']);
-                }
-
-                // Calculate score
-                $this->calculateScore($submission);
-
-                return $submission->fresh();
+        if ($existing) {
+            $updates = [];
+            if (!$existing->started_at) {
+                $updates['started_at'] = now();
             }
-        });
+            if ($assignmentId && $existing->assignment_id !== $assignmentId) {
+                $updates['assignment_id'] = $assignmentId;
+            }
+            
+            if (!empty($updates)) {
+                $existing->update($updates);
+            }
+            
+            // Sync status to StudentAssignment
+            if ($assignmentId) {
+                $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                    ->where('student_id', $student->id)
+                    ->first();
+                if ($studentAssignment && $studentAssignment->status === \App\Models\StudentAssignment::STATUS_NOT_STARTED) {
+                    $studentAssignment->update(['status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS]);
+                }
+            }
+            
+            return $existing->load(['answers', 'task', 'review']);
+        }
+
+        // 2. Check retake limits for new attempt
+        // Attempt number is globally unique per task/student, so do not filter by assignment_id
+        $queryAttempt = ListeningSubmission::where('listening_task_id', $task->id)
+            ->where('student_id', $student->id);
+
+        $lastSubmission = $queryAttempt->orderBy('attempt_number', 'desc')->first();
+
+        $nextAttemptNumber = ($lastSubmission ? $lastSubmission->attempt_number : 0) + 1;
+
+        if ($nextAttemptNumber > 1) {
+            if (!$task->allowsRetakes()) {
+                // If retakes are not allowed, return the last submission instead of failing
+                if ($lastSubmission) {
+                    return $lastSubmission->load(['answers', 'task', 'review']);
+                }
+                throw new \Exception("Retakes are not allowed for this task.");
+            }
+            if ($task->max_retake_attempts && $nextAttemptNumber > $task->max_retake_attempts) {
+                // If max attempts reached, return the last submission instead of failing
+                if ($lastSubmission) {
+                    return $lastSubmission->load(['answers', 'task', 'review']);
+                }
+                throw new \Exception("Maximum retake attempts reached.");
+            }
+        }
+
+        // 3. Create new "to_do" submission
+        $submission = ListeningSubmission::create([
+            'listening_task_id' => $task->id,
+            'student_id' => $student->id,
+            'assignment_id' => $assignmentId,
+            'status' => ListeningSubmission::STATUS_TO_DO,
+            'attempt_number' => $nextAttemptNumber,
+            'started_at' => now(),
+            'total_correct' => 0,
+            'total_incorrect' => 0,
+            'total_unanswered' => $task->questions()->count(),
+            'percentage' => 0,
+            'total_score' => 0,
+        ]);
+
+        // Sync with StudentAssignment
+        if ($assignmentId) {
+            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                ->where('student_id', $student->id)
+                ->first();
+            
+            if ($studentAssignment) {
+                // If it's a new attempt or the status is not in_progress, update it
+                $studentAssignment->update([
+                    'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
+                    'started_at' => $studentAssignment->started_at ?? now(),
+                    'last_activity_at' => now(),
+                    'attempt_number' => $nextAttemptNumber,
+                    'attempt_count' => max($studentAssignment->attempt_count, $nextAttemptNumber),
+                ]);
+            }
+        }
+
+        return $submission->load(['answers', 'task', 'review']);
     }
 
     /**
-     * Save draft (auto-save functionality).
+     * Save/Auto-save a draft of the listening submission.
      */
     public function saveDraft(ListeningTask $task, User $student, array $data): ListeningSubmission
     {
-        $submission = ListeningSubmission::updateOrCreate(
-            [
-                'listening_task_id' => $task->id,
-                'student_id' => $student->id,
-                'status' => ListeningSubmission::STATUS_TO_DO
-            ],
-            [
-                'id' => Str::uuid(),
-                'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
-                'audio_play_counts' => $data['audio_play_counts'] ?? null,
-                'started_at' => $data['started_at'] ?? now(),
-            ]
-        );
+        $assignmentId = $data['assignment_id'] ?? null;
 
-        // Save partial answers
-        if (isset($data['answers'])) {
+        $query = ListeningSubmission::where('listening_task_id', $task->id)
+            ->where('student_id', $student->id)
+            ->where('status', ListeningSubmission::STATUS_TO_DO);
+
+        if ($assignmentId) {
+            $query->where('assignment_id', $assignmentId);
+        }
+
+        $submission = $query->first();
+
+        if (!$submission) {
+            $submission = $this->startSubmission($task, $student, $data);
+        }
+
+        $timeSpent = $data['time_spent_seconds'] ?? $data['time_taken_seconds'] ?? $submission->time_taken_seconds ?? 0;
+        
+        $submission->update([
+            'time_taken_seconds' => $timeSpent,
+            'audio_play_counts' => $data['audio_play_counts'] ?? $submission->audio_play_counts,
+        ]);
+
+        if (isset($data['answers']) && is_array($data['answers'])) {
             $this->saveAnswers($submission, $data['answers']);
         }
 
@@ -103,157 +152,176 @@ class ListeningSubmissionService
     }
 
     /**
-     * Save answers for a submission.
+     * Finalize and submit a listening task.
      */
-    private function saveAnswers(ListeningSubmission $submission, array $answers): void
+    public function submit(ListeningTask $task, User $student, array $data, ?Request $request = null): ListeningSubmission
     {
-        // Delete existing answers for this submission
-        ListeningQuestionAnswer::where('listening_submission_id', $submission->id)->delete();
+        return DB::transaction(function () use ($task, $student, $data) {
+            $assignmentId = $data['assignment_id'] ?? null;
 
-        // Save new answers
-        foreach ($answers as $answerData) {
-            ListeningQuestionAnswer::create([
-                'id' => Str::uuid(),
-                'listening_submission_id' => $submission->id,
-                'listening_question_id' => $answerData['question_id'],
-                'answer' => $answerData['answer'] ?? null,
-                'selected_option' => $answerData['selected_option'] ?? null,
-                'is_correct' => $answerData['is_correct'] ?? null,
-            ]);
-        }
-    }
-
-    /**
-     * Calculate score for a submission.
-     */
-    private function calculateScore(ListeningSubmission $submission): void
-    {
-        $answers = $submission->answers;
-        $totalQuestions = $answers->count();
-        
-        if ($totalQuestions === 0) {
-            $submission->update([
-                'total_score' => 0,
-                'percentage' => 0,
-                'total_correct' => 0,
-                'total_incorrect' => 0,
-                'total_unanswered' => 0,
-            ]);
-            return;
-        }
-
-        $correctCount = $answers->where('is_correct', true)->count();
-        $incorrectCount = $answers->where('is_correct', false)->count();
-        $unansweredCount = $answers->whereNull('is_correct')->count();
-
-        $percentage = ($correctCount / $totalQuestions) * 100;
-        $totalScore = ($correctCount / $totalQuestions) * ($submission->task->points ?? 100);
-
-        $submission->update([
-            'total_score' => round($totalScore, 2),
-            'percentage' => round($percentage, 2),
-            'total_correct' => $correctCount,
-            'total_incorrect' => $incorrectCount,
-            'total_unanswered' => $unansweredCount,
-        ]);
-    }
-
-    /**
-     * Create retake submission.
-     */
-    public function createRetakeSubmission(ListeningTask $task, User $student, string $retakeOption, array $data = []): ListeningSubmission
-    {
-        return DB::transaction(function () use ($task, $student, $retakeOption, $data) {
-            $attemptNumber = ListeningSubmission::where('listening_task_id', $task->id)
+            // Find current active effort
+            $query = ListeningSubmission::where('listening_task_id', $task->id)
                 ->where('student_id', $student->id)
-                ->max('attempt_number') + 1;
+                ->where('status', ListeningSubmission::STATUS_TO_DO);
 
-            // Check if retakes are allowed
-            if (!$task->allow_retake || ($task->max_retake_attempts && $attemptNumber > $task->max_retake_attempts)) {
-                throw new \Exception('Retakes not allowed or maximum attempts exceeded');
+            if ($assignmentId) {
+                $query->where('assignment_id', $assignmentId);
             }
 
-            $previousSubmission = ListeningSubmission::where('listening_task_id', $task->id)
-                ->where('student_id', $student->id)
-                ->orderBy('attempt_number', 'desc')
-                ->first();
+            $submission = $query->first();
 
-            $newSubmission = ListeningSubmission::create([
-                'id' => Str::uuid(),
-                'listening_task_id' => $task->id,
-                'student_id' => $student->id,
-                'status' => ListeningSubmission::STATUS_TO_DO,
-                'attempt_number' => $attemptNumber,
-                'time_taken_seconds' => null,
-                'audio_play_counts' => null,
-                'started_at' => now(),
+            // Handle edge case where student tries to submit without starting
+            if (!$submission) {
+                $submission = $this->startSubmission($task, $student, $data);
+            }
+
+            $timeTaken = $data['time_taken_seconds'] ?? $data['time_spent_seconds'] ?? $submission->time_taken_seconds ?? 0;
+
+            // Save final answers before grading
+            if (isset($data['answers']) && is_array($data['answers'])) {
+                $this->saveAnswers($submission, $data['answers']);
+            }
+
+            // Grade and finalize
+            $this->gradeSubmission($submission);
+
+            $submission->update([
+                'status' => ListeningSubmission::STATUS_SUBMITTED,
+                'submitted_at' => now(),
+                'time_taken_seconds' => $timeTaken,
+                'audio_play_counts' => $data['audio_play_counts'] ?? $submission->audio_play_counts,
             ]);
 
-            // Handle retake options
-            if ($retakeOption === 'fresh_start') {
-                // Start fresh - no copied data
-            } elseif ($retakeOption === 'continue_from_previous' && $previousSubmission) {
-                // Copy previous answers as starting point
-                $previousAnswers = $previousSubmission->answers;
-                foreach ($previousAnswers as $answer) {
-                    ListeningQuestionAnswer::create([
-                        'id' => Str::uuid(),
-                        'listening_submission_id' => $newSubmission->id,
-                        'listening_question_id' => $answer->listening_question_id,
-                        'answer' => $answer->answer,
-                        'selected_option' => $answer->selected_option,
-                        'is_correct' => null, // Reset correctness to allow re-evaluation
+            // Sync with StudentAssignment
+            $assignmentId = $submission->assignment_id;
+            if ($assignmentId) {
+                $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                    ->where('student_id', $student->id)
+                    ->first();
+
+                if ($studentAssignment) {
+                    $studentAssignment->update([
+                        'status' => \App\Models\StudentAssignment::STATUS_SUBMITTED,
+                        'score' => max($studentAssignment->score ?? 0, $submission->percentage),
+                        'completed_at' => now(),
+                        'last_activity_at' => now(),
                     ]);
                 }
             }
 
-            return $newSubmission;
+            return $submission->fresh(['answers', 'task', 'review']);
         });
     }
 
     /**
-     * Get submission statistics for a task.
+     * Save answers for a submission.
      */
-    public function getSubmissionStats(ListeningTask $task): array
+    protected function saveAnswers(ListeningSubmission $submission, array $answersData): void
     {
-        $submissions = ListeningSubmission::where('listening_task_id', $task->id)->get();
+        foreach ($answersData as $key => $answer) {
+            $qId = null;
+            $ansValue = null;
+            $ansTime = 0;
+            $ansAudio = 0;
 
-        return [
-            'total_submissions' => $submissions->count(),
-            'submitted_count' => $submissions->where('status', ListeningSubmission::STATUS_SUBMITTED)->count(),
-            'reviewed_count' => $submissions->where('status', ListeningSubmission::STATUS_REVIEWED)->count(),
-            'done_count' => $submissions->where('status', ListeningSubmission::STATUS_DONE)->count(),
-            'average_score' => $submissions->where('total_score', '>', 0)->avg('total_score'),
-            'highest_score' => $submissions->max('total_score'),
-            'lowest_score' => $submissions->where('total_score', '>', 0)->min('total_score'),
-            'average_time' => $submissions->whereNotNull('time_taken_seconds')->avg('time_taken_seconds'),
-        ];
+            if (is_array($answer)) {
+                $qId = $answer['question_id'] ?? $answer['questionId'] ?? null;
+                $ansValue = $answer['answer'] ?? $answer['answer_text'] ?? $answer['answerText'] ?? null;
+                $ansTime = $answer['time_spent_seconds'] ?? $answer['timeSpentSeconds'] ?? 0;
+                $ansAudio = $answer['audio_play_count'] ?? $answer['audioPlayCount'] ?? 0;
+            } else {
+                // If it's a simple key-value pair, check if key looks like a UUID
+                if (is_string($key) && strlen($key) > 30) {
+                    $qId = $key;
+                    $ansValue = $answer;
+                }
+            }
+
+            if (!$qId || !is_string($qId) || strlen($qId) < 30) continue;
+
+            try {
+                ListeningQuestionAnswer::updateOrCreate(
+                    [
+                        'submission_id' => $submission->id,
+                        'question_id' => $qId,
+                    ],
+                    [
+                        'answer' => $ansValue,
+                        'time_spent_seconds' => $ansTime,
+                        'audio_play_count' => $ansAudio,
+                    ]
+                );
+            } catch (\Exception $e) {
+                \Log::error("Failed to save answer for submission {$submission->id}, question {$qId}: " . $e->getMessage());
+                // Continue to next answer instead of failing the whole request
+            }
+        }
     }
 
     /**
-     * Upload files for submission.
+     * Grade all answers in a submission and update totals.
      */
-    public function uploadFiles(ListeningSubmission $submission, array $files): array
+    protected function gradeSubmission(ListeningSubmission $submission): void
     {
-        $uploadedFiles = [];
+        $answers = $submission->answers()->get();
+        $questions = $submission->task->questions()->get()->keyBy('id');
 
-        foreach ($files as $file) {
-            $path = Storage::putFile('listening_submissions/' . $submission->id, $file);
-            $uploadedFiles[] = [
-                'original_name' => $file->getClientOriginalName(),
-                'path' => $path,
-                'size' => $file->getSize(),
-                'type' => $file->getClientMimeType(),
-            ];
+        $totalCorrect = 0;
+        $earnedPoints = 0;
+
+        foreach ($answers as $answer) {
+            $question = $questions->get($answer->question_id);
+            if (!$question) continue;
+
+            $isCorrect = $question->isCorrectAnswer($answer->answer);
+            $points = $isCorrect ? $question->calculatePoints($answer->answer) : 0;
+
+            $answer->update([
+                'is_correct' => $isCorrect,
+                'points_earned' => $points,
+            ]);
+
+            if ($isCorrect) {
+                $totalCorrect++;
+                $earnedPoints += $points;
+            }
         }
 
-        $submission->update(['files' => $uploadedFiles]);
+        $totalQuestions = $questions->count();
+        $totalIncorrect = max(0, $answers->where('is_correct', false)->count());
+        $totalUnanswered = max(0, $totalQuestions - $answers->count());
+        $totalPossiblePoints = $submission->task->getTotalPoints();
+        $percentage = $totalPossiblePoints > 0 ? ($earnedPoints / $totalPossiblePoints) * 100 : 0;
 
-        return $uploadedFiles;
+        $submission->update([
+            'total_score' => $earnedPoints,
+            'percentage' => $percentage,
+            'total_correct' => $totalCorrect,
+            'total_incorrect' => $totalIncorrect, // Better calculation
+            'total_unanswered' => $totalUnanswered,
+        ]);
+
+        // Sync to StudentAssignment (important for dashboard list view)
+        if ($submission->assignment_id) {
+            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $submission->assignment_id)
+                ->where('student_id', $submission->student_id)
+                ->first();
+
+            if ($studentAssignment) {
+                $studentAssignment->update([
+                    'score' => max($studentAssignment->score ?? 0, $percentage),
+                    'status' => \App\Models\StudentAssignment::STATUS_SUBMITTED,
+                    'completed_at' => now(),
+                    'last_activity_at' => now(),
+                    'attempt_number' => $submission->attempt_number,
+                    'attempt_count' => max($studentAssignment->attempt_count, $submission->attempt_number),
+                ]);
+            }
+        }
     }
 
     /**
-     * Check if student can retake the task.
+     * Check if a student can retake the task.
      */
     public function canRetake(ListeningTask $task, User $student): array
     {
@@ -262,18 +330,19 @@ class ListeningSubmissionService
             ->orderBy('attempt_number', 'desc')
             ->get();
 
-        $lastAttempt = $submissions->first();
         $attemptCount = $submissions->count();
+        $canRetake = $task->allowsRetakes() && 
+                    (!$task->max_retake_attempts || $attemptCount < $task->max_retake_attempts);
 
         return [
-            'can_retake' => $task->allow_retake && 
-                          (!$task->max_retake_attempts || $attemptCount < $task->max_retake_attempts) &&
-                          $lastAttempt && 
-                          in_array($lastAttempt->status, [ListeningSubmission::STATUS_SUBMITTED, ListeningSubmission::STATUS_REVIEWED]),
-            'attempts_used' => $attemptCount,
-            'max_attempts' => $task->max_retake_attempts,
-            'last_score' => $lastAttempt?->total_score,
-            'last_percentage' => $lastAttempt?->percentage,
+            'canRetake' => $canRetake,
+            'attemptsUsed' => $attemptCount,
+            'maxAttempts' => $task->max_retake_attempts,
+            'lastAttempt' => $submissions->first() ? [
+                'status' => $submissions->first()->status,
+                'totalScore' => $submissions->first()->total_score,
+                'percentage' => $submissions->first()->percentage,
+            ] : null,
         ];
     }
 }

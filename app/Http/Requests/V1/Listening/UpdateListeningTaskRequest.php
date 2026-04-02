@@ -12,7 +12,25 @@ class UpdateListeningTaskRequest extends FormRequest
     public function authorize(): bool
     {
         $listeningTask = $this->route('listeningTask');
-        return $this->user()->can('update', $listeningTask);
+
+        // If route model binding resolved a ListeningTask, use policy
+        if ($listeningTask instanceof \App\Models\ListeningTask) {
+            $user = $this->user();
+            return $user && ($user->role === 'admin' || ($user->role === 'teacher' && $listeningTask->created_by === $user->id));
+        }
+
+        // If it's a string ID, find the model and check
+        if (is_string($listeningTask)) {
+            $task = \App\Models\ListeningTask::find($listeningTask);
+            if (!$task) {
+                return false;
+            }
+            $user = $this->user();
+            return $user && ($user->role === 'admin' || ($user->role === 'teacher' && $task->created_by === $user->id));
+        }
+
+        // Fallback: allow admins and teachers
+        return $this->user() && in_array($this->user()->role, ['admin', 'teacher']);
     }
 
     /**
@@ -21,29 +39,57 @@ class UpdateListeningTaskRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'task_type' => 'sometimes|string|in:conversation,monologue,lecture,discussion,interview,news,announcement,story',
+            // Basic task info
             'title' => 'sometimes|string|max:255',
             'description' => 'nullable|string|max:1000',
+            'type' => 'nullable|string|in:listening',
+            'difficulty' => 'nullable|string|in:beginner,elementary,intermediate,upper_intermediate,advanced,proficiency',
+            'test_type' => 'nullable|string|in:single,multiple',
+            'timer_mode' => 'nullable|string|in:none,timer,countdown',
+            'timer_settings' => 'nullable|array',
+            'timer_settings.hours' => 'nullable|integer|min:0',
+            'timer_settings.minutes' => 'nullable|integer|min:0',
+            'timer_settings.seconds' => 'nullable|integer|min:0',
+            'allow_repetition' => 'nullable',
+            'max_repetition_count' => 'nullable|integer|min:1|max:10',
+            'is_public' => 'nullable',
+            'is_published' => 'nullable',
+            'settings' => 'nullable|array',
+            'settings.shuffle_questions' => 'nullable',
+            'class_id' => 'nullable|string|uuid',
+
+            // Passages structure (nested data from frontend)
+            'passages' => 'sometimes|array',
+            'passages.*.audio_file' => 'nullable|file|mimes:mp3,wav,ogg,m4a|max:51200', // 50MB
+            'passages.*.question_groups' => 'nullable|array',
+            'passages.*.question_groups.*.instruction' => 'nullable|string|max:2000',
+            'passages.*.question_groups.*.transcript' => 'nullable|array',
+            'passages.*.question_groups.*.transcript.type' => 'nullable|string|in:descriptive,transcript,conversation',
+            'passages.*.question_groups.*.transcript.title' => 'nullable|string|max:500',
+            'passages.*.question_groups.*.transcript.text' => 'nullable|string',
+            'passages.*.question_groups.*.transcript.speakers' => 'nullable|array',
+            'passages.*.question_groups.*.image' => 'nullable|array',
+            'passages.*.question_groups.*.image.file' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:5120', // 5MB
+            'passages.*.question_groups.*.image.title' => 'nullable|string|max:255',
+            'passages.*.question_groups.*.questions' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.question_type' => 'required_with:passages|string',
+            'passages.*.question_groups.*.questions.*.question_number' => 'nullable|integer',
+            'passages.*.question_groups.*.questions.*.question_text' => 'nullable|string',
+            'passages.*.question_groups.*.questions.*.points' => 'nullable|numeric|min:0',
+            'passages.*.question_groups.*.questions.*.options' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.correct_answer' => 'nullable',
+            'passages.*.question_groups.*.questions.*.breakdown' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.items' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.question_data' => 'nullable|array',
+
+            // Legacy flat fields (kept for backward compatibility)
+            'task_type' => 'nullable|string',
             'audio_url' => 'nullable|string|url',
             'audio_duration_seconds' => 'nullable|integer|min:1|max:3600',
             'transcript' => 'nullable|string',
             'audio_segments' => 'nullable|array',
-            'audio_segments.*.segment_name' => 'required|string|max:100',
-            'audio_segments.*.start_time' => 'required|numeric|min:0',
-            'audio_segments.*.end_time' => 'required|numeric|gt:audio_segments.*.start_time',
-            'audio_segments.*.description' => 'nullable|string|max:500',
-            'audio_segments.*.speaker' => 'nullable|string|max:100',
-            'audio_segments.*.accent' => 'nullable|string|max:50',
-            'suggest_time_minutes' => 'nullable|integer|min:1|max:180',
-            'max_attempts_per_audio' => 'nullable|integer|min:1|max:10',
-            'show_transcript' => 'boolean',
-            'allow_replay' => 'boolean',
-            'replay_settings' => 'nullable|array',
-            'replay_settings.max_attempts' => 'nullable|integer|min:1|max:10',
-            'replay_settings.replay_delay_seconds' => 'nullable|integer|min:0|max:60',
             'difficulty_level' => 'nullable|string|in:beginner,elementary,intermediate,upper_intermediate,advanced,proficiency',
             'question_types' => 'nullable|array',
-            'question_types.*' => 'string|in:QT1,QT2,QT3,QT4,QT5,QT6,QT7,QT8,QT9,QT10,QT11,QT12,QT13,QT14,QT15'
         ];
     }
 
@@ -53,14 +99,11 @@ class UpdateListeningTaskRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'task_type.in' => 'Invalid task type selected',
             'title.max' => 'Title must not exceed 255 characters',
-            'audio_duration_seconds.max' => 'Audio duration cannot exceed 1 hour',
-            'audio_segments.*.end_time.gt' => 'End time must be greater than start time',
-            'suggest_time_minutes.max' => 'Suggested time cannot exceed 3 hours',
-            'max_attempts_per_audio.max' => 'Maximum attempts cannot exceed 10',
-            'difficulty_level.in' => 'Invalid difficulty level selected',
-            'question_types.*.in' => 'Invalid question type provided'
+            'passages.*.audio_file.max' => 'Audio file size cannot exceed 50MB',
+            'passages.*.audio_file.mimes' => 'Audio file must be in MP3, WAV, OGG, or M4A format',
+            'passages.*.question_groups.*.image.file.max' => 'Image size cannot exceed 5MB',
+            'passages.*.question_groups.*.image.file.mimes' => 'Image must be JPEG, PNG, or WEBP',
         ];
     }
 }

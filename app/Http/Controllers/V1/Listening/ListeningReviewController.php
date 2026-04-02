@@ -30,7 +30,7 @@ class ListeningReviewController extends Controller implements HasMiddleware
         $submission = ListeningSubmission::with('task')->findOrFail($submissionId);
 
         // Check authorization - only task creator or admin can review
-        if (Auth::user()->role !== 'admin' && $submission->task->creator_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $submission->task->created_by !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -70,7 +70,7 @@ class ListeningReviewController extends Controller implements HasMiddleware
         // Check authorization
         if ($user->role === 'student' && $review->submission->student_id !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
-        } elseif ($user->role === 'teacher' && $review->submission->task->creator_id !== $user->id) {
+        } elseif ($user->role === 'teacher' && $review->submission->task->created_by !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -146,7 +146,7 @@ class ListeningReviewController extends Controller implements HasMiddleware
         // Check authorization
         if ($user->role === 'student' && $submission->student_id !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
-        } elseif ($user->role === 'teacher' && $submission->task->creator_id !== $user->id) {
+        } elseif ($user->role === 'teacher' && $submission->task->created_by !== $user->id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

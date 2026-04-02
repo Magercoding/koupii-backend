@@ -18,7 +18,8 @@ class SpeakingSubmissionRequest extends FormRequest
             'assignment_id' => [
                 'required',
                 'uuid',
-                'exists:student_assignments,id'
+                Rule::exists('student_assignments', 'assignment_id')
+                    ->where('student_id', $this->user()->id)
             ],
         ];
     }

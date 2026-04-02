@@ -10,7 +10,7 @@ use App\Http\Requests\V1\SpeakingTask\ReviewSpeakingRequest;
 use App\Http\Resources\V1\SpeakingTask\SpeakingSubmissionResource;
 use App\Http\Resources\V1\SpeakingTask\SpeakingSubmissionCollection;
 use App\Services\V1\SpeakingTask\SpeakingSubmissionService;
-use App\Models\Test;
+use App\Models\SpeakingTask;
 use App\Models\SpeakingSubmission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,10 +33,34 @@ class SpeakingSubmissionController extends Controller
         ]);
     }
 
-    public function start(StartSpeakingSubmissionRequest $request, Test $test): JsonResponse
+    public function startSubmission(StartSpeakingSubmissionRequest $request): JsonResponse
     {
+        $taskId = $request->input('task_id');
+        if (!$taskId) {
+            return response()->json(['message' => 'task_id is required'], 400);
+        }
+        
+        // Resolve task id
+        $speakingTask = SpeakingTask::find($taskId);
+        if (!$speakingTask) {
+             $assignment = \App\Models\Assignment::find($taskId);
+             if ($assignment && $assignment->task_type === 'speaking_task') {
+                 $speakingTask = SpeakingTask::find($assignment->task_id);
+             }
+        }
+        
+        if (!$speakingTask) {
+            $speakingTask = SpeakingTask::findOrFail($taskId); // Fallback to 404
+        }
+        
+        // Handle assignment_id sync
+        $assignmentId = $request->input('assignment_id') ?? ($speakingTask->id !== $taskId ? $taskId : null);
+        if ($assignmentId && !$request->has('assignment_id')) {
+            $request->merge(['assignment_id' => $assignmentId]);
+        }
+
         $submission = $this->speakingSubmissionService->startSubmission(
-            $test,
+            $speakingTask,
             auth()->id(),
             $request->validated()
         );
@@ -52,10 +76,10 @@ class SpeakingSubmissionController extends Controller
     {
        Gate::authorize('update', $submission);
 
-        $recording = $this->speakingSubmissionService->uploadRecording(
-            $submission,
-            $request->validated()
-        );
+        $recording = $this->speakingSubmissionService->uploadRecording(array_merge(
+            $request->validated(),
+            ['submission_id' => $submission->id]
+        ));
 
         return response()->json([
             'success' => true,
@@ -64,7 +88,7 @@ class SpeakingSubmissionController extends Controller
         ]);
     }
 
-    public function submit(SubmitSpeakingRequest $request, SpeakingSubmission $submission): JsonResponse
+    public function submitForReview(SubmitSpeakingRequest $request, SpeakingSubmission $submission): JsonResponse
     {
        Gate::authorize('update', $submission);
 
@@ -94,8 +118,8 @@ class SpeakingSubmissionController extends Controller
 
         $review = $this->speakingSubmissionService->reviewSubmission(
             $submission,
-            auth()->id(),
-            $request->validated()
+            $request->validated(),
+            auth()->id()
         );
 
         return response()->json([

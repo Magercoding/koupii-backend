@@ -16,22 +16,33 @@ use Illuminate\Support\Facades\Gate;
 
 class VocabularyController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
+        $classId = $request->query('class_id');
 
-        $vocabularies = match ($user->role) {
-
-            'admin' => Vocabulary::forAdmin()->get(),
-
-            'teacher' => Vocabulary::forTeacher($user->id)->get(),
-
-            'student' => Vocabulary::forStudent($user->id)
-                ->get()
-                ->each(fn($v) => $v->is_bookmarked = $v->bookmarks->first()->is_bookmarked ?? false),
-
+        $query = match ($user->role) {
+            'admin' => Vocabulary::forAdmin(),
+            'teacher' => Vocabulary::forTeacher($user->id),
+            'student' => Vocabulary::forStudent($user->id),
             default => null,
         };
+
+        if (!$query) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if ($classId) {
+            $query->whereHas('classes', function ($q) use ($classId) {
+                $q->where('classes.id', $classId);
+            });
+        }
+
+        $vocabularies = $query->get();
+
+        if ($user->role === 'student') {
+            $vocabularies->each(fn($v) => $v->is_bookmarked = $v->bookmarks->first()->is_bookmarked ?? false);
+        }
 
         if (!$vocabularies) {
             return response()->json(['error' => 'Unauthorized'], 403);
@@ -57,6 +68,10 @@ class VocabularyController extends Controller
             $data['teacher_id'] = auth()->user()->id;
 
             $vocabulary = Vocabulary::create($data);
+            
+            if ($request->has('class_ids')) {
+                $vocabulary->classes()->sync($request->class_ids);
+            }
 
             DB::commit();
 
@@ -125,6 +140,10 @@ class VocabularyController extends Controller
             }
 
             $vocabulary->update($data);
+            
+            if ($request->has('class_ids')) {
+                $vocabulary->classes()->sync($request->class_ids);
+            }
 
             DB::commit();
 
@@ -195,4 +214,25 @@ class VocabularyController extends Controller
         ]);
     }
 
+
+    public function bulkAssign(Request $request)
+    {
+        $request->validate([
+            'vocabulary_ids' => 'required|array',
+            'vocabulary_ids.*' => 'exists:vocabularies,id',
+            'class_ids' => 'required|array',
+            'class_ids.*' => 'exists:classes,id',
+        ]);
+
+        foreach ($request->vocabulary_ids as $vocabId) {
+            $vocabulary = Vocabulary::find($vocabId);
+            if ($vocabulary) {
+                $vocabulary->classes()->syncWithoutDetaching($request->class_ids);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Vocabularies assigned successfully'
+        ]);
+    }
 }

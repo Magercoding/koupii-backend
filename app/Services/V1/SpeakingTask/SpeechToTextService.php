@@ -12,14 +12,22 @@ use Illuminate\Support\Facades\Storage;
 
 class SpeechToTextService
 {
-    private SpeechClient $speechClient;
+    private $speechClient;
 
     public function __construct()
     {
-        // Initialize Google Speech client
-        $this->speechClient = new SpeechClient([
-            'credentials' => config('services.google.speech_credentials_path')
-        ]);
+        // Initialize Google Speech client if available
+        try {
+            if (class_exists(SpeechClient::class)) {
+                $this->speechClient = new SpeechClient([
+                    'credentials' => config('services.google.speech_credentials_path')
+                ]);
+            } else {
+                Log::warning('Google Cloud Speech library is not installed.');
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Failed to initialize Google Cloud Speech client: ' . $e->getMessage());
+        }
     }
 
     /**

@@ -15,9 +15,18 @@ class CreateListeningSubmissionRequest extends FormRequest
     {
         return [
             'test_id' => [
-                'required',
+                'nullable',
                 'string',
                 'exists:tests,id'
+            ],
+            'task_id' => [
+                'nullable',
+                'string',
+                'exists:listening_tasks,id'
+            ],
+            'assignment_id' => [
+                'nullable',
+                'string'
             ]
         ];
     }
