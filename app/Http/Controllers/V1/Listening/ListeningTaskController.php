@@ -32,7 +32,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
     {
         $user = $request->user();
 
-        $query = ListeningTask::query()->with(['creator', 'assignments.classroom']);
+        $query = ListeningTask::query()->with(['creator', 'class']);
 
         // Role-based access control
         if ($user->role === 'admin') {
@@ -40,7 +40,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
         } elseif ($user->role === 'student') {
             // Students see only published tasks assigned to their classrooms
             $query->where('is_published', '=', true)
-                ->whereHas('assignments.classroom.students', function ($q) use ($user) {
+                ->whereHas('class.enrollments', function ($q) use ($user) {
                     $q->where('student_id', $user->id);
                 })
                 ->with([

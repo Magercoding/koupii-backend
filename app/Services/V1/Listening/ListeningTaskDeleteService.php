@@ -4,7 +4,7 @@ namespace App\Services\V1\Listening;
 
 use App\Models\ListeningTask;
 use App\Models\ListeningSubmission;
-use App\Models\ListeningTaskAssignment;
+use App\Models\Assignment;
 use App\Models\ListeningQuestionAnswer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -104,7 +104,7 @@ class ListeningTaskDeleteService
         ]);
 
         // Remove all assignments to prevent new submissions
-        ListeningTaskAssignment::where('listening_task_id', $task->id)->delete();
+        Assignment::where('task_id', $task->id)->where('task_type', 'listening_task')->delete();
     }
 
     /**
@@ -113,7 +113,7 @@ class ListeningTaskDeleteService
     private function hardDeleteTask(ListeningTask $task): void
     {
         // Delete assignments first
-        ListeningTaskAssignment::where('listening_task_id', $task->id)->delete();
+        Assignment::where('task_id', $task->id)->where('task_type', 'listening_task')->delete();
 
         // Delete any orphaned question answers (shouldn't exist without submissions)
         ListeningQuestionAnswer::where('listening_task_id', $task->id)->delete();
@@ -163,7 +163,7 @@ class ListeningTaskDeleteService
                 }
 
                 // Delete assignments
-                ListeningTaskAssignment::where('listening_task_id', $task->id)->delete();
+                Assignment::where('task_id', $task->id)->where('task_type', 'listening_task')->delete();
 
                 // Delete the task
                 $task->delete();
@@ -195,7 +195,7 @@ class ListeningTaskDeleteService
         }
 
         $submissionsCount = ListeningSubmission::where('listening_task_id', $task->id)->count();
-        $assignmentsCount = ListeningTaskAssignment::where('listening_task_id', $task->id)->count();
+        $assignmentsCount = Assignment::where('task_id', $task->id)->where('task_type', 'listening_task')->count();
         $studentsAffected = ListeningSubmission::where('listening_task_id', $task->id)
             ->distinct('student_id')
             ->count();

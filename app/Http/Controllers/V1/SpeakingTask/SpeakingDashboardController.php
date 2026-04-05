@@ -5,8 +5,8 @@ namespace App\Http\Controllers\V1\SpeakingTask;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\SpeakingTask\SpeakingDashboardResource;
 use App\Http\Resources\V1\SpeakingTask\SpeakingSubmissionResource;
+use App\Models\Assignment;
 use App\Models\SpeakingTask;
-use App\Models\SpeakingTaskAssignment;
 use App\Models\SpeakingSubmission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,15 +28,13 @@ class SpeakingDashboardController extends Controller
         }
 
         // Get assigned speaking tasks for student's classes
-        $assignments = SpeakingTaskAssignment::with([
-            'speakingTask:id,title,description,difficulty_level,instructions,time_limit_seconds',
-            'classroom:id,name',
-        ])
-        ->whereHas('classroom.students', function ($query) use ($user) {
-            $query->where('users.id', $user->id);
-        })
-        ->latest()
-        ->paginate(15);
+        $assignments = Assignment::where('type', 'speaking')
+            ->whereHas('class.enrollments', function ($query) use ($user) {
+                $query->where('student_id', $user->id)->where('status', 'active');
+            })
+            ->with(['class:id,name'])
+            ->latest()
+            ->paginate(15);
 
         return response()->json([
             'success' => true,
@@ -107,20 +105,21 @@ class SpeakingDashboardController extends Controller
     {
         $user = auth()->user();
 
-        $assignment = SpeakingTaskAssignment::where('id', $assignmentId)
-            ->whereHas('classroom.students', function ($query) use ($user) {
-                $query->where('users.id', $user->id);
+        $assignment = Assignment::where('id', $assignmentId)
+            ->where('type', 'speaking')
+            ->whereHas('class.enrollments', function ($query) use ($user) {
+                $query->where('student_id', $user->id)->where('status', 'active');
             })
-            ->with([
-                'speakingTask',
-                'classroom:id,name'
-            ])
+            ->with(['class:id,name'])
             ->firstOrFail();
+
+        $task = $assignment->getTask();
 
         return response()->json([
             'success' => true,
             'data' => [
                 'assignment' => $assignment,
+                'task'       => $task,
             ]
         ]);
     }

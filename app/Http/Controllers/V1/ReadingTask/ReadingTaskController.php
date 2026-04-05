@@ -32,16 +32,18 @@ class ReadingTaskController extends Controller implements HasMiddleware
     {
         $user = $request->user();
 
-        $query = ReadingTask::with(['creator', 'assignments.classroom']);
+        $query = ReadingTask::with(['creator', 'assignments']);
 
         // Role-based access control
         if ($user->role === 'admin') {
             // Admin sees all tasks
         } elseif ($user->role === 'student') {
-            // Students see only published tasks assigned to their classrooms
+            // Students see only published tasks assigned to their classes
             $query->where('is_published', true)
-                ->whereHas('assignments.classroom.students', function ($q) use ($user) {
-                    $q->where('student_id', $user->id);
+                ->whereHas('assignments', function ($q) use ($user) {
+                    $q->whereHas('class.enrollments', function ($e) use ($user) {
+                        $e->where('student_id', $user->id)->where('status', 'active');
+                    });
                 })
                 ->with([
                     'submissions' => function ($q) use ($user) {
@@ -90,7 +92,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
             $service = app(ReadingTaskService::class);
             $task = $service->create($validated);
 
-            return new ReadingTaskResource($task->load(['creator', 'assignments.classroom']));
+            return new ReadingTaskResource($task->load(['creator', 'assignments']));
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to create reading task',
@@ -114,7 +116,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
 
         $task = ReadingTask::with([
             'creator',
-            'assignments.classroom',
+            'class',
             'submissions' => function ($query) use ($user) {
                 if ($user && $user->role === 'student') {
                     $query->where('student_id', $user->id);
@@ -166,7 +168,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
             $service = app(ReadingTaskService::class);
             $task = $service->update($task, $request->validated());
 
-            return new ReadingTaskResource($task->load(['creator', 'assignments.classroom']));
+            return new ReadingTaskResource($task->load(['creator', 'assignments']));
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update reading task',
@@ -218,7 +220,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
 
         $task->update(['is_published' => !$task->is_published]);
 
-        return new ReadingTaskResource($task->load(['creator', 'assignments.classroom']));
+        return new ReadingTaskResource($task->load(['creator', 'assignments']));
     }
 
     /**
@@ -250,11 +252,14 @@ class ReadingTaskController extends Controller implements HasMiddleware
             return true;
         }
 
-        // 3. Check legacy task-specific assignments
-        return $task->assignments()
-            ->whereHas('classroom.students', function ($query) use ($user) {
-                $query->where('users.id', $user->id);
-            })
+        // 3. Check class-based assignment (student enrolled in class that has this task assigned)
+        return \Illuminate\Support\Facades\DB::table('assignments')
+            ->join('class_enrollments', 'assignments.class_id', '=', 'class_enrollments.class_id')
+            ->where('assignments.task_id', $task->id)
+            ->where('assignments.task_type', 'reading_task')
+            ->where('class_enrollments.student_id', $user->id)
+            ->where('class_enrollments.status', 'active')
             ->exists();
     }
 }
+

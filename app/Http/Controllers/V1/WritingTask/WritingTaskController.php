@@ -34,7 +34,7 @@ class WritingTaskController extends Controller implements HasMiddleware
     {
         $user = $request->user();
 
-        $query = WritingTask::with(['creator', 'assignments.classroom']);
+        $query = WritingTask::with(['creator', 'class']);
 
         // Role-based access control
         if ($user->role === 'admin') {
@@ -42,7 +42,7 @@ class WritingTaskController extends Controller implements HasMiddleware
         } elseif ($user->role === 'student') {
             // Students see only published tasks assigned to their classrooms and where they are active members
             $query->where('is_published', true)
-                ->whereHas('assignments.classroom.students', function ($q) use ($user) {
+                ->whereHas('class.enrollments', function ($q) use ($user) {
                     $q->where('users.id', $user->id)
                       ->where('class_enrollments.status', 'active');
                 })
@@ -94,7 +94,7 @@ class WritingTaskController extends Controller implements HasMiddleware
 
         $query = WritingTask::with([
             'creator',
-            'assignments.classroom',
+            'class',
             'submissions.student',
             'submissions.review',
             'questions.resources'
@@ -103,7 +103,7 @@ class WritingTaskController extends Controller implements HasMiddleware
         // Role-based access control
         if ($user->role === 'student') {
             $query->where('is_published', true)
-                ->whereHas('assignments.classroom.students', function ($q) use ($user) {
+                ->whereHas('class.enrollments', function ($q) use ($user) {
                     $q->where('users.id', $user->id)
                       ->where('class_enrollments.status', 'active');
                 });

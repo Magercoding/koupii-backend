@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\V1\ReadingTask;
 
 use App\Http\Controllers\Controller;
+use App\Models\Assignment;
 use App\Models\ReadingTask;
-use App\Models\ReadingTaskAssignment;
-use App\Models\Classes;
-use App\Http\Resources\V1\ReadingTask\ReadingTaskAssignmentResource;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 
 class ReadingTaskAssignmentController extends Controller implements HasMiddleware
 {
@@ -22,110 +21,96 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
         ];
     }
 
-    /**
-     * Get assignments for a reading task.
-     */
     public function getAssignments(Request $request, string $id)
     {
         $user = $request->user();
         $task = ReadingTask::findOrFail($id);
 
-        // Check permissions
         if ($user->role === 'student') {
             return response()->json(['message' => 'Access denied'], 403);
         }
-
         if ($user->role === 'teacher' && $task->created_by !== $user->id) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
-        $assignments = ReadingTaskAssignment::with(['classroom', 'assignedBy'])
-            ->where('reading_task_id', $id)
+        $assignments = Assignment::where('task_id', $id)
+            ->where('task_type', 'reading_task')
+            ->with(['class', 'assignedBy'])
             ->get();
 
-        return ReadingTaskAssignmentResource::collection($assignments);
+        return response()->json(['data' => $assignments]);
     }
 
-    /**
-     * Assign task to classrooms.
-     */
     public function assignToClassrooms(Request $request, string $id)
     {
         $user = $request->user();
         $task = ReadingTask::findOrFail($id);
 
-        // Check permissions
         if ($user->role === 'teacher' && $task->created_by !== $user->id) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
         $request->validate([
-            'classroom_ids' => 'required|array',
+            'classroom_ids'   => 'required|array',
             'classroom_ids.*' => 'exists:classes,id',
-            'due_date' => 'nullable|date|after:now',
+            'due_date'        => 'nullable|date|after:now',
         ]);
 
         $assignments = [];
         foreach ($request->classroom_ids as $classroomId) {
-            // Check if already assigned
-            $existingAssignment = ReadingTaskAssignment::where('reading_task_id', $id)
-                ->where('classroom_id', $classroomId)
+            $existing = Assignment::where('task_id', $id)
+                ->where('task_type', 'reading_task')
+                ->where('class_id', $classroomId)
                 ->first();
 
-            if (!$existingAssignment) {
-                $assignment = ReadingTaskAssignment::create([
-                    'reading_task_id' => $id,
-                    'classroom_id' => $classroomId,
+            if (!$existing) {
+                $assignments[] = Assignment::create([
+                    'id'          => Str::uuid(),
+                    'class_id'    => $classroomId,
+                    'task_id'     => $id,
+                    'task_type'   => 'reading_task',
                     'assigned_by' => $user->id,
-                    'due_date' => $request->due_date,
-                    'assigned_at' => now(),
+                    'title'       => $task->title . ' - Assignment',
+                    'due_date'    => $request->due_date,
+                    'is_published'=> true,
+                    'status'      => 'active',
+                    'source_type' => 'manual',
+                    'type'        => 'reading',
+                    'max_attempts'=> 3,
                 ]);
-
-                $assignments[] = $assignment->load(['classroom', 'assignedBy']);
             }
         }
 
-        return response()->json([
-            'message' => 'Task assigned successfully',
-            'assignments' => ReadingTaskAssignmentResource::collection(collect($assignments))
-        ]);
+        return response()->json(['message' => 'Task assigned successfully', 'assignments' => $assignments]);
     }
 
-    /**
-     * Remove task assignment from classroom.
-     */
     public function removeFromClassroom(Request $request, string $id, string $classroomId)
     {
         $user = $request->user();
         $task = ReadingTask::findOrFail($id);
 
-        // Check permissions
         if ($user->role === 'teacher' && $task->created_by !== $user->id) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
-        $assignment = ReadingTaskAssignment::where('reading_task_id', $id)
-            ->where('classroom_id', $classroomId)
-            ->firstOrFail();
-
-        $assignment->delete();
+        Assignment::where('task_id', $id)
+            ->where('task_type', 'reading_task')
+            ->where('class_id', $classroomId)
+            ->delete();
 
         return response()->json(['message' => 'Assignment removed successfully']);
     }
 
-    /**
-     * Bulk assign tasks to classrooms.
-     */
     public function bulkAssign(Request $request)
     {
         $user = $request->user();
 
         $request->validate([
-            'task_ids' => 'required|array',
-            'task_ids.*' => 'exists:reading_tasks,id',
-            'classroom_ids' => 'required|array',
+            'task_ids'        => 'required|array',
+            'task_ids.*'      => 'exists:reading_tasks,id',
+            'classroom_ids'   => 'required|array',
             'classroom_ids.*' => 'exists:classes,id',
-            'due_date' => 'nullable|date|after:now',
+            'due_date'        => 'nullable|date|after:now',
         ]);
 
         $assignments = [];
@@ -133,37 +118,36 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
 
         foreach ($request->task_ids as $taskId) {
             $task = ReadingTask::find($taskId);
-
-            // Check permissions for each task
             if ($user->role === 'teacher' && $task->created_by !== $user->id) {
                 $errors[] = "Access denied for task: {$task->title}";
                 continue;
             }
 
             foreach ($request->classroom_ids as $classroomId) {
-                // Check if already assigned
-                $existingAssignment = ReadingTaskAssignment::where('reading_task_id', $taskId)
-                    ->where('classroom_id', $classroomId)
+                $existing = Assignment::where('task_id', $taskId)
+                    ->where('task_type', 'reading_task')
+                    ->where('class_id', $classroomId)
                     ->first();
 
-                if (!$existingAssignment) {
-                    $assignment = ReadingTaskAssignment::create([
-                        'reading_task_id' => $taskId,
-                        'classroom_id' => $classroomId,
+                if (!$existing) {
+                    $assignments[] = Assignment::create([
+                        'id'          => Str::uuid(),
+                        'class_id'    => $classroomId,
+                        'task_id'     => $taskId,
+                        'task_type'   => 'reading_task',
                         'assigned_by' => $user->id,
-                        'due_date' => $request->due_date,
-                        'assigned_at' => now(),
+                        'title'       => $task->title . ' - Assignment',
+                        'due_date'    => $request->due_date,
+                        'is_published'=> true,
+                        'status'      => 'active',
+                        'source_type' => 'manual',
+                        'type'        => 'reading',
+                        'max_attempts'=> 3,
                     ]);
-
-                    $assignments[] = $assignment->load(['classroom', 'assignedBy', 'readingTask']);
                 }
             }
         }
 
-        return response()->json([
-            'message' => 'Bulk assignment completed',
-            'assignments' => ReadingTaskAssignmentResource::collection(collect($assignments)),
-            'errors' => $errors,
-        ]);
+        return response()->json(['message' => 'Bulk assignment completed', 'assignments' => $assignments, 'errors' => $errors]);
     }
 }

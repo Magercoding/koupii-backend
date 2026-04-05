@@ -39,6 +39,9 @@ class StoreTestRequest extends BaseRequest
             'settings.shuffle_options' => 'nullable|boolean',
             'settings.show_results' => 'nullable|boolean',
             
+            'class_id' => 'nullable|string|exists:classes,id',
+            'due_date' => 'nullable|date|after:now',
+            
             // Passages validation
             'passages' => 'nullable|array',
             'passages.*.title' => 'nullable|string|max:255',

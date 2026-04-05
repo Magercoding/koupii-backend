@@ -3,7 +3,7 @@
 namespace App\Services\V1\SpeakingTask;
 
 use App\Models\SpeakingTask;
-use App\Models\SpeakingTaskAssignment;
+use App\Models\Assignment;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -22,8 +22,8 @@ class SpeakingTaskService
         // Role-based access
         if ($user->role === 'student') {
             $query->published()
-                ->whereHas('assignments.classroom', function ($q) use ($user) {
-                    $q->whereHas('enrollments', function ($e) use ($user) {
+                ->whereHas('assignments', function ($q) use ($user) {
+                    $q->whereHas('class.enrollments', function ($e) use ($user) {
                         $e->where('student_id', $user->id)->where('status', 'active');
                     });
                 });
@@ -166,17 +166,21 @@ class SpeakingTaskService
 
             if ($data['assignment_type'] === 'class' && !empty($data['class_ids'])) {
                 foreach ($data['class_ids'] as $classId) {
-                    $assignments[] = SpeakingTaskAssignment::updateOrCreate(
+                    $assignments[] = Assignment::updateOrCreate(
                         [
-                            'speaking_task_id' => $task->id,
-                            'class_id'         => $classId,
+                            'task_id'   => $task->id,
+                            'task_type' => 'speaking_task',
+                            'class_id'  => $classId,
                         ],
                         [
-                            'assigned_by'  => Auth::id(),
-                            'due_date'     => $data['due_date'] ?? null,
-                            'assigned_at'  => now(),
-                            'allow_retake' => $data['allow_retake'] ?? true,
-                            'max_attempts' => $data['max_attempts'] ?? 3,
+                            'assigned_by' => Auth::id(),
+                            'due_date'    => $data['due_date'] ?? null,
+                            'max_attempts'=> $data['max_attempts'] ?? 3,
+                            'title'       => $task->title . ' - Assignment',
+                            'is_published'=> true,
+                            'status'      => 'active',
+                            'source_type' => 'manual',
+                            'type'        => 'speaking',
                         ]
                     );
                 }

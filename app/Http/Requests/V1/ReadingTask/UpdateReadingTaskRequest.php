@@ -34,6 +34,7 @@ class UpdateReadingTaskRequest extends BaseRequest
             'is_published' => 'boolean',
             'settings' => 'nullable|string',
             'passages' => 'sometimes|required|string', // JSON string of passages array
+            'vocabularies' => 'nullable|string', // JSON string of vocabularies array
             'passage_images' => 'nullable|array',
             'passage_images.*' => 'file|mimes:jpg,jpeg,png,gif|max:5120', // 5MB max
             'reference_materials' => 'nullable|array',
@@ -128,12 +129,15 @@ class UpdateReadingTaskRequest extends BaseRequest
                     }
 
                     foreach ($passages as $index => $passage) {
-                        if (!isset($passage['question_groups']) || !is_array($passage['question_groups']) || empty($passage['question_groups'])) {
+                        // Accept both camelCase (from frontend) and snake_case (normalized)
+                        $questionGroups = $passage['question_groups'] ?? $passage['questionGroups'] ?? null;
+
+                        if (!is_array($questionGroups) || empty($questionGroups)) {
                             $validator->errors()->add("passages.{$index}.question_groups", 'Each passage must have at least one question group');
                         }
 
-                        if (isset($passage['question_groups'])) {
-                            foreach ($passage['question_groups'] as $groupIndex => $group) {
+                        if (is_array($questionGroups)) {
+                            foreach ($questionGroups as $groupIndex => $group) {
                                 if (!isset($group['questions']) || !is_array($group['questions']) || empty($group['questions'])) {
                                     $validator->errors()->add("passages.{$index}.question_groups.{$groupIndex}.questions", 'Each question group must have at least one question');
                                 }

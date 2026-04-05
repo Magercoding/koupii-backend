@@ -3,7 +3,7 @@
 namespace App\Services\V1\WritingTask;
 
 use App\Models\WritingTask;
-use App\Models\WritingTaskAssignment;
+use App\Models\Assignment;
 use App\Models\WritingSubmission;
 use Illuminate\Support\Facades\Auth;
 
@@ -16,25 +16,21 @@ class WritingDashboardService
     {
         $studentId = Auth::id();
 
-        // Get all assigned tasks for student through their classrooms
-        $assignments = WritingTaskAssignment::whereHas('writingTask', function ($query) {
-            $query->where('is_published', true);
-        })
-            ->whereHas('classroom.students', function ($query) use ($studentId) {
-                $query->where('student_id', $studentId);
+        // Get all assigned tasks for student through their classes
+        $assignments = Assignment::where('type', 'writing')
+            ->whereHas('class.enrollments', function ($query) use ($studentId) {
+                $query->where('student_id', $studentId)->where('status', 'active');
             })
             ->with([
-                'writingTask',
-                'writingTask.submissions' => function ($query) use ($studentId) {
-                    $query->where('student_id', $studentId)->latest('attempt_number');
-                },
-                'writingTask.submissions.review'
+                'class',
+                'assignedBy',
             ])
             ->get();
 
-        return $assignments->map(function ($assignment) {
-            $task = $assignment->writingTask;
-            $submission = $task->submissions->first(); // Latest submission for this student
+        return $assignments->map(function ($assignment) use ($studentId) {
+            $task = $assignment->getTask();
+            $submission = $task ? WritingSubmission::where('writing_task_id', $task->id)
+                ->where('student_id', $studentId)->latest('attempt_number')->first() : null;
 
             return [
                 'task_id' => $task->id,
@@ -72,7 +68,7 @@ class WritingDashboardService
         $teacherId = Auth::id();
 
         $tasks = WritingTask::where('creator_id', $teacherId)
-            ->with(['assignments.classroom', 'submissions.student', 'submissions.review'])
+            ->with(['class', 'submissions.student', 'submissions.review'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -117,7 +113,7 @@ class WritingDashboardService
         $completedReviews = WritingSubmission::where('status', 'reviewed')->count();
 
         // Get recent tasks
-        $recentTasks = WritingTask::with(['creator', 'assignments.classroom'])
+        $recentTasks = WritingTask::with(['creator', 'class'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();

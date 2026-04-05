@@ -3,8 +3,8 @@
 namespace App\Services\V1\WritingTask;
 
 use App\Models\WritingTask;
+use App\Models\Assignment;
 use App\Models\WritingSubmission;
-use App\Models\WritingTaskAssignment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -77,7 +77,7 @@ class WritingTaskDeleteService
         ]);
 
         // Remove assignments (students can't access anymore)
-        WritingTaskAssignment::where('writing_task_id', $task->id)->delete();
+        Assignment::where('task_id', $task->id)->where('task_type', 'writing_task')->delete();
     }
 
     /**
@@ -86,7 +86,7 @@ class WritingTaskDeleteService
     protected function hardDeleteTask(WritingTask $task): void
     {
         // Delete assignments first
-        WritingTaskAssignment::where('writing_task_id', $task->id)->delete();
+        Assignment::where('task_id', $task->id)->where('task_type', 'writing_task')->delete();
 
         // Delete the task
         $task->delete();
@@ -181,7 +181,7 @@ class WritingTaskDeleteService
                 }
 
                 // Delete assignments
-                WritingTaskAssignment::where('writing_task_id', $task->id)->delete();
+                Assignment::where('task_id', $task->id)->where('task_type', 'writing_task')->delete();
 
                 // Delete the task
                 $task->delete();
@@ -237,7 +237,7 @@ class WritingTaskDeleteService
         }
 
         $submissionsCount = WritingSubmission::where('writing_task_id', $task->id)->count();
-        $assignmentsCount = WritingTaskAssignment::where('writing_task_id', $task->id)->count();
+        $assignmentsCount = Assignment::where('task_id', $task->id)->where('task_type', 'writing_task')->count();
         $reviewsCount = WritingSubmission::where('writing_task_id', $task->id)
             ->whereHas('review')->count();
 

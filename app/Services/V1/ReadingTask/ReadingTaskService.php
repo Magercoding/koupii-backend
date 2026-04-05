@@ -18,7 +18,7 @@ class ReadingTaskService
      */
     public function getReadingTasks(array $filters = []): LengthAwarePaginator
     {
-        $query = ReadingTask::with(['creator', 'assignments.classroom']);
+        $query = ReadingTask::with(['creator', 'class']);
 
         // Apply filters
         if (!empty($filters['test_id'])) {
@@ -93,21 +93,24 @@ class ReadingTaskService
                 if ($classExists) {
                     \Illuminate\Support\Facades\Log::info('Class exists, creating assignment');
                     try {
-                        $assignment = \App\Models\ReadingTaskAssignment::create([
-                            'id' => Str::uuid(),
-                            'reading_task_id' => $task->id,
-                            'class_id' => $taskData['class_id'], // Direct assignment
-                            'classroom_id' => $taskData['class_id'], // Legacy support / Constraint safety
+                        $assignment = \App\Models\Assignment::create([
+                            'id'          => Str::uuid(),
+                            'class_id'    => $taskData['class_id'],
+                            'task_id'     => $task->id,
+                            'task_type'   => 'reading_task',
                             'assigned_by' => Auth::id(),
-                            'assigned_at' => now(),
-                            'status' => $taskData['is_published'] ? 'active' : 'inactive',
-                            'due_date' => null, // Default to null or allow passing it
-                            'max_attempts' => $taskData['max_repetition_count'] ?? 0,
+                            'title'       => $task->title . ' - Assignment',
+                            'due_date'    => $taskData['due_date'] ?? null,
+                            'is_published'=> $taskData['is_published'] ?? false,
+                            'status'      => ($taskData['is_published'] ?? false) ? 'active' : 'inactive',
+                            'source_type' => 'manual',
+                            'type'        => 'reading',
+                            'max_attempts'=> $taskData['max_repetition_count'] ?? 3,
                         ]);
                         \Illuminate\Support\Facades\Log::info('Assignment created successfully', ['assignment_id' => $assignment->id]);
                     } catch (\Exception $e) {
                         \Illuminate\Support\Facades\Log::error('Failed to create assignment', ['error' => $e->getMessage()]);
-                        throw $e; // Re-throw to fail transaction
+                        throw $e;
                     }
                 } else {
                     \Illuminate\Support\Facades\Log::warning('Class does not exist', ['class_id' => $taskData['class_id']]);
@@ -116,7 +119,7 @@ class ReadingTaskService
                 \Illuminate\Support\Facades\Log::info('No class_id provided for reading task');
             }
 
-            return $task->load(['creator', 'assignments.classroom']);
+            return $task->load(['creator', 'assignments']);
         });
     }
 
@@ -191,7 +194,7 @@ class ReadingTaskService
 
             $task->update($updateData);
 
-            return $task->load(['creator', 'assignments.classroom']);
+            return $task->load(['creator', 'assignments']);
         });
     }
 
@@ -350,3 +353,4 @@ class ReadingTaskService
         return array_unique($questionTypes);
     }
 }
+

@@ -91,7 +91,7 @@ class ListeningTaskAssignmentController extends Controller implements HasMiddlew
      */
     public function getTaskAssignments(string $taskId)
     {
-        $task = ListeningTask::with(['assignments.classroom'])->findOrFail($taskId);
+        $task = ListeningTask::with(['class'])->findOrFail($taskId);
 
         // Check authorization
         if (Auth::user()->role !== 'admin' && $task->created_by !== Auth::id()) {

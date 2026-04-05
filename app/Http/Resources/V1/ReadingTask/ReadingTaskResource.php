@@ -103,11 +103,11 @@ class ReadingTaskResource extends JsonResource
                 return $this->whenLoaded('assignments', function () {
                     return $this->assignments->map(function ($assignment) {
                         return [
-                            'id' => $assignment->id,
-                            'classroom_id' => $assignment->classroom_id,
-                            'classroom_name' => optional($assignment->classroom)->name,
-                            'due_date' => $assignment->due_date,
-                            'assigned_at' => $assignment->assigned_at,
+                            'id'             => $assignment->id,
+                            'classroom_id'   => $assignment->class_id,
+                            'classroom_name' => optional($assignment->class)->name,
+                            'due_date'       => $assignment->due_date,
+                            'assigned_at'    => $assignment->created_at,
                         ];
                     });
                 });

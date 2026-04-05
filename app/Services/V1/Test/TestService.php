@@ -10,6 +10,7 @@ use App\Models\TestQuestion;
 use App\Events\TestAssignedToClass;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class TestService
 {
@@ -42,7 +43,7 @@ class TestService
 
                 // If test is published and assigned to a class, automatically create assignments
                 if ($test->is_published && $test->class_id) {
-                    $this->triggerAutomaticAssignment($test);
+                    $this->triggerAutomaticAssignment($test, $data['due_date'] ?? null);
                 }
 
                 return $test->load(['passages.questionGroups.questions.options']);
@@ -257,21 +258,19 @@ class TestService
     /**
      * Trigger automatic assignment creation when test is published and assigned to a class
      */
-    private function triggerAutomaticAssignment(Test $test)
+    private function triggerAutomaticAssignment(Test $test, ?string $dueDate = null)
     {
         try {
             $class = Classes::find($test->class_id);
             if ($class) {
-                // Dispatch event to create automatic assignments
                 TestAssignedToClass::dispatch($test, $class, [
                     'title' => $test->title . ' - Assignment',
                     'description' => 'Complete this test by the due date',
-                    'due_date' => now()->addDays(7), // Default 7 days from now
+                    'due_date' => $dueDate ? \Carbon\Carbon::parse($dueDate) : now()->addDays(7),
                     'is_published' => true
                 ]);
             }
         } catch (\Exception $e) {
-            // Log error but don't fail the test creation
             \Log::error('Failed to create automatic assignment', [
                 'test_id' => $test->id,
                 'class_id' => $test->class_id,

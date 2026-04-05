@@ -12,7 +12,7 @@ class CreateSpeakingTaskRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('create', SpeakingTaskAssignment::class);
+        return $this->user()->can('create', \App\Models\SpeakingTask::class);
     }
 
     /**
