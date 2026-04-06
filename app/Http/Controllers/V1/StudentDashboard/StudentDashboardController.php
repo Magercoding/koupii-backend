@@ -115,6 +115,15 @@ class StudentDashboardController extends Controller
             'attempt_count' => 0
         ]);
 
+        // Self-healing for inconsistent state (in_progress but already completed)
+        if ($studentAssignment->status === StudentAssignment::STATUS_IN_PROGRESS && $studentAssignment->completed_at !== null) {
+            $studentAssignment->update([
+                'status' => StudentAssignment::STATUS_SUBMITTED,
+                'last_activity_at' => now(),
+            ]);
+            $studentAssignment->refresh();
+        }
+
         return response()->json([
             'message' => 'Assignment details retrieved successfully',
             'data' => [
@@ -162,11 +171,22 @@ class StudentDashboardController extends Controller
         // If already exists, just update status to in_progress (don't increment attempts here;
         // the specific submission service like ListeningSubmissionService handles attempt tracking)
         if (!$studentAssignment->wasRecentlyCreated && $studentAssignment->status !== StudentAssignment::STATUS_IN_PROGRESS) {
-            $studentAssignment->update([
+            $updateData = [
                 'status' => StudentAssignment::STATUS_IN_PROGRESS,
-                'started_at' => $studentAssignment->started_at ?? now(),
                 'last_activity_at' => now(),
-            ]);
+            ];
+
+            // If it was already finished, increment attempt count for a retake
+            if (in_array($studentAssignment->status, [StudentAssignment::STATUS_SUBMITTED, StudentAssignment::STATUS_COMPLETED])) {
+                $nextAttempt = ($studentAssignment->attempt_count ?? 0) + 1;
+                $updateData['attempt_count'] = $nextAttempt;
+                $updateData['attempt_number'] = $nextAttempt;
+                $updateData['score'] = 0;
+                $updateData['completed_at'] = null;
+                $updateData['started_at'] = now();
+            }
+
+            $studentAssignment->update($updateData);
         }
 
         return response()->json([

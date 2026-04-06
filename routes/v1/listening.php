@@ -106,6 +106,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/', [ListeningSubmissionController::class, 'index']); // GET /api/v1/listening/submissions
         Route::post('/', [ListeningSubmissionController::class, 'store']); // POST /api/v1/listening/submissions
         Route::get('/{listeningSubmission}', [ListeningSubmissionController::class, 'show']); // GET /api/v1/listening/submissions/{id}
+        Route::get('/my/{taskId}', [ListeningSubmissionController::class, 'getMySubmissions']); // GET /api/v1/listening/submissions/my/{taskId}
         Route::put('/{listeningSubmission}', [ListeningSubmissionController::class, 'update']); // PUT /api/v1/listening/submissions/{id}
         Route::delete('/{listeningSubmission}', [ListeningSubmissionController::class, 'destroy']); // DELETE /api/v1/listening/submissions/{id}
         

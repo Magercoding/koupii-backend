@@ -20,7 +20,7 @@ class ListeningQuestionResource extends JsonResource
             'question_type_info' => $this->getQuestionTypeInfo(),
             'options' => $this->options,
             'correct_answer' => $this->when(
-                $request->user()->hasRole(['admin', 'teacher']),
+                $request->user()->hasRole(['admin', 'teacher']) || ($this->can_see_answers ?? false),
                 $this->correct_answer
             ),
             'points' => $this->points,
@@ -29,7 +29,7 @@ class ListeningQuestionResource extends JsonResource
             'audio_segment' => $this->audio_segment,
             'instructions' => $this->instructions,
             'explanation' => $this->when(
-                $request->user()->hasRole(['admin', 'teacher']),
+                $request->user()->hasRole(['admin', 'teacher']) || ($this->can_see_answers ?? false),
                 $this->explanation
             ),
             'question_options' => $this->whenLoaded('questionOptions', function () {
@@ -92,9 +92,20 @@ class ListeningQuestionResource extends JsonResource
             'QT15' => ['name' => 'Audio Dictation', 'code' => 'audio_dictation']
         ];
 
-        return $questionTypes[$this->question_type] ?? [
-            'name' => 'Unknown Type',
-            'code' => 'unknown'
+        $info = $questionTypes[$this->question_type] ?? null;
+
+        if (!$info) {
+            // Try to find by code if the DB stores slug instead of QT code
+            foreach ($questionTypes as $qt) {
+                if ($qt['code'] === $this->question_type) {
+                    return $qt;
+                }
+            }
+        }
+
+        return $info ?? [
+            'name' => ucfirst(str_replace('_', ' ', $this->question_type)),
+            'code' => $this->question_type
         ];
     }
 

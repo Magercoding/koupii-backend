@@ -121,7 +121,7 @@ class ReadingTaskResource extends JsonResource
                         'submitted' => $submissions->where('status', 'submitted')->count(),
                         'reviewed' => $submissions->where('status', 'reviewed')->count(),
                         'done' => $submissions->where('status', 'done')->count(),
-                        'average_score' => $submissions->where('score', '>', 0)->avg('score'),
+                        'average_score' => $submissions->count() > 0 ? round($submissions->where('percentage', '>', 0)->avg('percentage') ?? 0, 2) : 0,
                         'completion_rate' => $submissions->count() > 0 
                             ? ($submissions->where('status', 'done')->count() / $submissions->count()) * 100 
                             : 0,

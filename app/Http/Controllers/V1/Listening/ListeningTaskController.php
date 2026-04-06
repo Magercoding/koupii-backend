@@ -45,7 +45,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
                 })
                 ->with([
                     'submissions' => function ($q) use ($user) {
-                        $q->where('student_id', $user->id);
+                        $q->where('student_id', $user->id)->with(['answers', 'review']);
                     }
                 ]);
         } else {
@@ -89,13 +89,12 @@ class ListeningTaskController extends Controller implements HasMiddleware
     {
         $user = $request->user();
 
-        $task = ListeningTask::with([
-            'creator',
-            'questions',
+        $task = ListeningTask::with(['questions', 'creator', 
             'submissions' => function ($q) use ($user) {
                 if ($user->role === 'student') {
                     $q->where('student_id', $user->id);
                 }
+                $q->with(['answers', 'review']); // Load answers and the singular review relationship
             }
         ])->findOrFail($id);
 

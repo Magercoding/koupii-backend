@@ -143,14 +143,50 @@ class WritingSubmissionService
                     throw new \Exception('Invalid retake option');
             }
 
-            return WritingSubmission::create([
+            $submission = WritingSubmission::create([
                 'id' => Str::uuid(),
                 'writing_task_id' => $task->id,
                 'student_id' => Auth::id(),
                 'content' => $content,
                 'status' => 'to_do',
                 'attempt_number' => $attemptNumber,
+                'assignment_id' => $data['assignment_id'] ?? null,
             ]);
+
+            // Sync with StudentAssignment
+            $assignmentId = $data['assignment_id'] ?? null;
+            if ($assignmentId) {
+                $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                    ->where('student_id', Auth::id())
+                    ->first();
+
+                if ($studentAssignment) {
+                    $isNewlyStarted = $attemptNumber > $studentAssignment->attempt_count;
+                    $isCompletedInSubmission = in_array($submission->status, ['completed', 'submitted', 'marked_as_done']);
+
+                    $updateData = [
+                        'last_activity_at' => now(),
+                        'attempt_number' => $attemptNumber,
+                        'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
+                    ];
+
+                    // ONLY set to IN_PROGRESS if the underlying submission data isn't already completed
+                    if (!$isCompletedInSubmission) {
+                        $updateData['status'] = \App\Models\StudentAssignment::STATUS_IN_PROGRESS;
+                    }
+
+                    // If this is truly a new attempt, clear the global score and completion date
+                    if ($isNewlyStarted) {
+                        $updateData['score'] = 0;
+                        $updateData['completed_at'] = null;
+                        $updateData['started_at'] = $updateData['last_activity_at'];
+                    }
+
+                    $studentAssignment->update($updateData);
+                }
+            }
+
+            return $submission;
         });
     }
 

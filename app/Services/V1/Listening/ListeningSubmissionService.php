@@ -237,9 +237,12 @@ class ListeningSubmissionService
                 }
             }
 
+            // Support both array of objects from newer frontend and key-value pairs from legacy or other clients
             if (!$qId || !is_string($qId) || strlen($qId) < 30) continue;
 
             try {
+                // Ensure the answer is saved correctly. 
+                // Since 'answer' is casted as 'array' in the model, Eloquent handles common types well.
                 ListeningQuestionAnswer::updateOrCreate(
                     [
                         'submission_id' => $submission->id,

@@ -14,7 +14,7 @@ class SubmitAnswerRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'question_id' => 'required|exists:test_questions,id',
+            'question_id' => 'required|string',
             'answer' => 'required',
             'time_spent_seconds' => 'nullable|integer|min:0',
         ];

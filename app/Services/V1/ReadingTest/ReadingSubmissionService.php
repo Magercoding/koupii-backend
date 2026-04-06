@@ -89,13 +89,29 @@ class ReadingSubmissionService
                     ->where('student_id', $studentId)
                     ->first();
 
-                if ($studentAssignment && $studentAssignment->status === \App\Models\StudentAssignment::STATUS_NOT_STARTED) {
-                    $studentAssignment->update([
-                        'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
-                        'started_at' => now(),
+                if ($studentAssignment) {
+                    $isNewlyStarted = $attemptNumber > $studentAssignment->attempt_count;
+                    $isCompletedInSubmission = in_array($submission->status, ['completed', 'submitted']);
+
+                    $updateData = [
+                        'last_activity_at' => now(),
                         'attempt_number' => $attemptNumber,
-                        'attempt_count' => $attemptNumber,
-                    ]);
+                        'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
+                    ];
+
+                    // ONLY set to IN_PROGRESS if the underlying submission data isn't already completed
+                    // This prevents showing answers in continue flow if the database was in an inconsistent state
+                    if (!$isCompletedInSubmission) {
+                        $updateData['status'] = \App\Models\StudentAssignment::STATUS_IN_PROGRESS;
+                    }
+
+                    // If this is truly a new attempt, clear the global score and completion date
+                    if ($isNewlyStarted) {
+                        $updateData['score'] = 0;
+                        $updateData['completed_at'] = null;
+                    }
+
+                    $studentAssignment->update($updateData);
                 }
             }
 

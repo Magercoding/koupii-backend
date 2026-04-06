@@ -104,7 +104,9 @@ class ListeningQuestion extends Model
         }
 
         // If it's a comma-separated string from the frontend, split it first
-        if (is_string($answer) && str_contains($answer, ',')) {
+        // But NOT for sentence_completion-like types where commas can be part of a single gap's answer
+        $noSplitTypes = ['sentence_completion', 'short_answer', 'note_completion', 'form_completion', 'gap_fill', 'summary_completion', 'table_completion', 'flowchart_completion'];
+        if (is_string($answer) && str_contains($answer, ',') && !in_array($this->question_type, $noSplitTypes)) {
             $answer = array_map('trim', explode(',', $answer));
         }
 
@@ -112,11 +114,33 @@ class ListeningQuestion extends Model
             $answer = [$answer];
         }
 
-        // Normalize student answers: trim, lowercase, and remove excessive whitespace
+        // Standardize student answers: trim, lowercase, and resolve labels to keys if possible
+        $studentValues = is_array($answer) ? $answer : [$answer];
         $normalizedStudentAnswers = array_values(array_unique(array_filter(array_map(function ($val) {
-            $s = strtolower(trim((string)$val));
-            return preg_replace('/\s+/', ' ', $s); // replace multiple spaces with single space
-        }, $answer))));
+            // 1. Handle object-based answers (prioritize key/value over text)
+            if (is_array($val)) {
+                $val = $val['option_key'] ?? $val['value'] ?? $val['text'] ?? json_encode($val);
+            }
+            
+            $rawVal = trim((string)$val);
+            $normalizedVal = strtolower($rawVal);
+
+            // 2. REVERSE LOOKUP: If normalizedVal doesn't look like a typical short key (like A, B, C),
+            // or even if it does, try to see if it matches an option TEXT and get its KEY instead.
+            // This handles cases where frontend sends labels but backend wants keys.
+            if ($this->options && is_array($this->options)) {
+                foreach ($this->options as $opt) {
+                    $optKey = strtolower(trim((string)($opt['key'] ?? $opt['option_key'] ?? '')));
+                    $optText = strtolower(trim((string)($opt['text'] ?? $opt['label'] ?? '')));
+                    
+                    if ($normalizedVal === $optText && $optKey !== '') {
+                        return $optKey; // Translate label to key
+                    }
+                }
+            }
+
+            return preg_replace('/\s+/', ' ', $normalizedVal);
+        }, $studentValues))));
 
         // Handle case where correct_answers might not be an array despite casting
         $correctAnswers = $this->correct_answers;
@@ -129,16 +153,24 @@ class ListeningQuestion extends Model
             return false;
         }
 
-        // Normalize correct answers: trim, lowercase, and remove excessive whitespace
+        // Normalize correct answers
         $normalizedCorrectAnswers = array_map(function ($val) {
+            if (is_array($val)) {
+                $val = $val['option_key'] ?? $val['value'] ?? $val['text'] ?? json_encode($val);
+            }
             $s = strtolower(trim((string)$val));
             return preg_replace('/\s+/', ' ', $s);
         }, $correctAnswers);
 
-        // For multiple answer questions, check if all correct answers are provided
+        // For multiple answer questions: Require exact match of sets
         if ($this->question_type === 'multiple_answer') {
+            if (empty($normalizedStudentAnswers)) return false;
+            
             $intersect = array_intersect($normalizedStudentAnswers, $normalizedCorrectAnswers);
-            return count($intersect) >= count($normalizedCorrectAnswers);
+            
+            // Must match count and contain all correct answers
+            return count($intersect) === count($normalizedCorrectAnswers) && 
+                   count($normalizedStudentAnswers) === count($normalizedCorrectAnswers);
         }
 
         // For single answer questions
@@ -147,7 +179,24 @@ class ListeningQuestion extends Model
             return false;
         }
 
-        return in_array($studentFirstAnswer, $normalizedCorrectAnswers);
+        // 1. Check if it matches any of the alternatives directly
+        if (in_array($studentFirstAnswer, $normalizedCorrectAnswers)) {
+            return true;
+        }
+
+        // 2. For completion questions, check if student input matches the phrase joined together
+        // This handles cases where multi-word answers are stored as separate array elements in DB
+        $completionTypes = ['sentence_completion', 'short_answer', 'note_completion', 'form_completion', 'gap_fill', 'summary_completion', 'table_completion', 'flowchart_completion'];
+        if (in_array($this->question_type, $completionTypes) && count($normalizedCorrectAnswers) > 1) {
+            $joinedPhrase = implode(' ', $normalizedCorrectAnswers);
+            $joinedPhraseComma = implode(', ', $normalizedCorrectAnswers);
+            
+            if ($studentFirstAnswer === $joinedPhrase || $studentFirstAnswer === $joinedPhraseComma) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

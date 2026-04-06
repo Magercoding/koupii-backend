@@ -4,6 +4,7 @@ namespace App\Http\Resources\V1\Listening;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\V1\Listening\ListeningSubmissionResource;
 
 class ListeningTaskResource extends JsonResource
 {
@@ -50,7 +51,7 @@ class ListeningTaskResource extends JsonResource
                 if ($isStudent && $this->relationLoaded('submissions')) {
                     $canSeeAnswers = $this->submissions
                         ->where('student_id', $user->id)
-                        ->whereIn('status', ['submitted', 'reviewed'])
+                        ->whereIn('status', ['submitted', 'reviewed', 'done'])
                         ->isNotEmpty();
                 }
 
@@ -73,7 +74,8 @@ class ListeningTaskResource extends JsonResource
                         // Expose correct answers if authorized
                         if ($canSeeAnswers) {
                             $data['correct_answers'] = $q->correct_answers;
-                            $data['correct_answer']  = $q->correct_answer;
+                            $data['correct_answer']  = $q->correct_answer ?? (is_array($q->correct_answers) ? ($q->correct_answers[0] ?? null) : $q->correct_answers);
+                            $data['explanation']     = $q->explanation;
                         }
 
                         return $data;
@@ -84,16 +86,24 @@ class ListeningTaskResource extends JsonResource
             'total_questions' => $this->whenLoaded('questions', fn() => $this->questions->count()),
             'total_points'    => $this->whenLoaded('questions', fn() => $this->questions->sum('points')),
 
-            // Student-specific
-            'my_submissions' => $this->when($isStudent, function () use ($user) {
-                return $this->whenLoaded('submissions', function () use ($user) {
-                    return $this->submissions->where('student_id', $user->id)->map(fn($s) => [
-                        'id'           => $s->id,
-                        'status'       => $s->status,
-                        'score'        => $s->score,
-                        'submitted_at' => $s->submitted_at,
-                    ]);
-                });
+            // Student-specific - Use the dedicated resource for consistency
+            'my_submissions' => $this->when($isStudent && $this->relationLoaded('submissions'), function () {
+                return ListeningSubmissionResource::collection($this->submissions);
+            }),
+
+            // Alias for frontend compatibility
+            'submissions' => $this->when($isStudent && $this->relationLoaded('submissions'), function () {
+                return ListeningSubmissionResource::collection($this->submissions);
+            }),
+
+            'latest_submission' => $this->when($isStudent && $this->relationLoaded('submissions'), function () use ($user) {
+                $latest = $this->submissions->where('student_id', $user->id)->first();
+                return $latest ? new ListeningSubmissionResource($latest) : null;
+            }),
+
+            'latestSubmission' => $this->when($isStudent && $this->relationLoaded('submissions'), function () use ($user) {
+                $latest = $this->submissions->where('student_id', $user->id)->first();
+                return $latest ? new ListeningSubmissionResource($latest) : null;
             }),
 
             // Teacher/Admin only
@@ -104,7 +114,7 @@ class ListeningTaskResource extends JsonResource
                         'total'         => $subs->count(),
                         'submitted'     => $subs->where('status', 'submitted')->count(),
                         'reviewed'      => $subs->where('status', 'reviewed')->count(),
-                        'average_score' => $subs->where('score', '>', 0)->avg('score'),
+                        'average_score' => $subs->count() > 0 ? round($subs->where('percentage', '>', 0)->avg('percentage') ?? 0, 2) : 0,
                     ];
                 });
             }),
