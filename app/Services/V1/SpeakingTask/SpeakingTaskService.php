@@ -176,7 +176,7 @@ class SpeakingTaskService
                             'assigned_by' => Auth::id(),
                             'due_date'    => $data['due_date'] ?? null,
                             'max_attempts'=> $data['max_attempts'] ?? 3,
-                            'title'       => $task->title . ' - Assignment',
+                            'title'       => $task->title,
                             'is_published'=> true,
                             'status'      => 'active',
                             'source_type' => 'manual',

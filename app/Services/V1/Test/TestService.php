@@ -264,7 +264,7 @@ class TestService
             $class = Classes::find($test->class_id);
             if ($class) {
                 TestAssignedToClass::dispatch($test, $class, [
-                    'title' => $test->title . ' - Assignment',
+                    'title' => $test->title,
                     'description' => 'Complete this test by the due date',
                     'due_date' => $dueDate ? \Carbon\Carbon::parse($dueDate) : now()->addDays(7),
                     'is_published' => true

@@ -39,7 +39,7 @@ class ClassAssignmentController extends Controller
 
             // Dispatch event to create automatic assignments
             TestAssignedToClass::dispatch($test, $class, [
-                'title' => $request->input('title', $test->title . ' - Assignment'),
+                'title' => $request->input('title', $test->title),
                 'description' => $request->input('description', 'Complete this test by the due date'),
                 'due_date' => $request->input('due_date', now()->addDays(7)),
                 'is_published' => true

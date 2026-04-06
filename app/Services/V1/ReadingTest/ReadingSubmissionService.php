@@ -181,6 +181,14 @@ class ReadingSubmissionService
     }
 
     /**
+     * Initialize answer records from Legacy Test (public alias)
+     */
+    public function initializeAnswersFromTestPublic(ReadingSubmission $submission): void
+    {
+        $this->initializeAnswersFromTest($submission);
+    }
+
+    /**
      * Initialize answer records from Legacy Test
      */
     private function initializeAnswersFromTest(ReadingSubmission $submission): void

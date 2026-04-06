@@ -24,7 +24,7 @@ class WritingTaskAssignmentService
                     'task_id'     => $task->id,
                     'task_type'   => 'writing_task',
                     'assigned_by' => Auth::id(),
-                    'title'       => $task->title . ' - Assignment',
+                    'title'       => $task->title,
                     'is_published'=> true,
                     'status'      => 'active',
                     'source_type' => 'manual',

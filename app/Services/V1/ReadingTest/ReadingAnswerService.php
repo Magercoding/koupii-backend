@@ -38,7 +38,15 @@ class ReadingAnswerService
             }
 
             if (!$answer) {
-                throw new Exception('Answer record not found');
+                // Create answer record on the fly for test-based questions
+                $answer = ReadingQuestionAnswer::create([
+                    'submission_id' => $submission->id,
+                    'question_id' => $data['question_id'] ?? null,
+                    'reading_task_question_id' => $data['reading_task_question_id'] ?? $data['question_id'] ?? null,
+                    'student_answer' => null,
+                    'correct_answer' => null,
+                    'is_correct' => null,
+                ]);
             }
 
             $answer->update([

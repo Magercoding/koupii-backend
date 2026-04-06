@@ -28,6 +28,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         
         Route::post('/assignments/{assignmentId}/{type}/submit', [StudentDashboardController::class, 'submitAssignment'])
             ->name('assignment.submit');
+
+        Route::get('/assignments/{assignmentId}/{type}/task', [StudentDashboardController::class, 'getAssignmentTask'])
+            ->name('assignment.task');
+
+        Route::post('/assignments/{assignmentId}/reading-submission', [StudentDashboardController::class, 'createReadingSubmission'])
+            ->name('assignment.reading-submission');
     });
 
     // Teacher Assignment Management

@@ -99,7 +99,7 @@ class ReadingTaskService
                             'task_id'     => $task->id,
                             'task_type'   => 'reading_task',
                             'assigned_by' => Auth::id(),
-                            'title'       => $task->title . ' - Assignment',
+                            'title'       => $task->title,
                             'due_date'    => $taskData['due_date'] ?? null,
                             'is_published'=> $taskData['is_published'] ?? false,
                             'status'      => ($taskData['is_published'] ?? false) ? 'active' : 'inactive',

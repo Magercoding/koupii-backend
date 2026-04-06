@@ -124,11 +124,20 @@ class StudentDashboardController extends Controller
             $studentAssignment->refresh();
         }
 
+        // Resolve description and difficulty from task or test
+        $resolvedTask = $assignmentData->getTask();
+        if (!$resolvedTask && $assignmentData->test_id) {
+            $resolvedTask = \App\Models\Test::find($assignmentData->test_id);
+        }
+
         return response()->json([
             'message' => 'Assignment details retrieved successfully',
             'data' => [
                 'assignment' => $assignmentData->getAssignmentTitle(),
-                'task_id' => $assignmentData->task_id,
+                'task_id' => $assignmentData->task_id ?? $assignmentData->test_id,
+                'description' => $assignmentData->description ?? $resolvedTask?->description,
+                'difficulty' => $resolvedTask?->difficulty ?? $resolvedTask?->difficulty_level,
+                'due_date' => $assignmentData->due_date,
                 'max_attempts' => $assignmentData->max_attempts ?? 3,
                 'student_progress' => [
                     'status' => $studentAssignment->status,
@@ -270,6 +279,151 @@ class StudentDashboardController extends Controller
             'class_id' => $assignment->class_id,
             'status' => 'active'
         ])->exists();
+    }
+
+    /**
+     * Get task/test data for a student assignment (for taking the test)
+     */
+    public function getAssignmentTask(string $assignmentId, string $type): JsonResponse
+    {
+        $studentId = auth()->id();
+        $type = $this->normalizeType($type);
+
+        if (!$this->checkStudentAccess($assignmentId, $type, $studentId)) {
+            return response()->json(['message' => 'You do not have access to this assignment'], 403);
+        }
+
+        $assignment = \App\Models\Assignment::find($assignmentId);
+        if (!$assignment) {
+            return response()->json(['message' => 'Assignment not found'], 404);
+        }
+
+        // Try task first, then fall back to test
+        $task = $assignment->getTask();
+
+        if (!$task && $assignment->test_id) {
+            $test = \App\Models\Test::with(['passages.questionGroups.questions.options'])->find($assignment->test_id);
+            if (!$test) {
+                return response()->json(['message' => 'Task not found'], 404);
+            }
+
+            // Convert Test structure to ReadingTask-compatible format
+            $passages = $test->passages->map(function ($passage) {
+                return [
+                    'id' => $passage->id,
+                    'title' => $passage->title,
+                    'content' => $passage->transcript ?? $passage->description ?? '',
+                    'description' => $passage->description,
+                    'questionGroups' => $passage->questionGroups->map(function ($group) {
+                        return [
+                            'id' => $group->id,
+                            'instruction' => $group->instruction,
+                            'questions' => $group->questions->map(function ($q) {
+                                return [
+                                    'id' => $q->id,
+                                    'question_type' => $q->question_type,
+                                    'question_number' => $q->question_number,
+                                    'question_text' => $q->question_text,
+                                    'question_data' => $q->question_data,
+                                    'points_value' => $q->points_value,
+                                    'options' => $q->options->map(fn($o) => [
+                                        'id' => $o->id,
+                                        'option_key' => $o->option_key,
+                                        'option_text' => $o->option_text,
+                                    ])->toArray(),
+                                ];
+                            })->toArray(),
+                        ];
+                    })->toArray(),
+                ];
+            })->toArray();
+
+            return response()->json([
+                'data' => [
+                    'id' => $test->id,
+                    'title' => $test->title,
+                    'description' => $test->description,
+                    'difficulty' => $test->difficulty,
+                    'difficulty_level' => $test->difficulty,
+                    'timer_type' => $test->timer_mode,
+                    'time_limit_seconds' => null,
+                    'allow_retake' => $test->allow_repetition,
+                    'is_published' => $test->is_published,
+                    'passages' => $passages,
+                    'created_at' => $test->created_at,
+                ]
+            ]);
+        }
+
+        if (!$task) {
+            return response()->json(['message' => 'Task not found'], 404);
+        }
+
+        return response()->json(['data' => $task]);
+    }
+
+    /**
+     * Create a reading submission for a student assignment (handles both task and test based)
+     */
+    public function createReadingSubmission(Request $request, string $assignmentId): JsonResponse
+    {
+        $studentId = auth()->id();
+        $type = $this->normalizeType($request->input('type', 'reading_task'));
+
+        if (!$this->checkStudentAccess($assignmentId, $type, $studentId)) {
+            return response()->json(['message' => 'You do not have access to this assignment'], 403);
+        }
+
+        $assignment = \App\Models\Assignment::find($assignmentId);
+        if (!$assignment) {
+            return response()->json(['message' => 'Assignment not found'], 404);
+        }
+
+        $submissionService = app(\App\Services\V1\ReadingTest\ReadingSubmissionService::class);
+        $attemptNumber = $request->input('attempt_number', 1);
+
+        try {
+            if ($assignment->task_id) {
+                $task = \App\Models\ReadingTask::findOrFail($assignment->task_id);
+                $submission = $submissionService->startReadingTask($task, $studentId, [
+                    'assignment_id' => $assignmentId,
+                    'attempt_number' => $attemptNumber,
+                ]);
+            } elseif ($assignment->test_id) {
+                $test = \App\Models\Test::findOrFail($assignment->test_id);
+
+                // Check for existing in-progress submission
+                $existing = \App\Models\ReadingSubmission::where('test_id', $test->id)
+                    ->where('student_id', $studentId)
+                    ->where('assignment_id', $assignmentId)
+                    ->whereIn('status', ['in_progress'])
+                    ->first();
+
+                if ($existing) {
+                    $submission = $existing->load('answers');
+                } else {
+                    $submission = \App\Models\ReadingSubmission::create([
+                        'test_id' => $test->id,
+                        'assignment_id' => $assignmentId,
+                        'student_id' => $studentId,
+                        'attempt_number' => $attemptNumber,
+                        'status' => 'in_progress',
+                        'started_at' => now(),
+                    ]);
+                    $submissionService->initializeAnswersFromTestPublic($submission);
+                    $submission->load('answers');
+                }
+            } else {
+                return response()->json(['message' => 'Assignment has no associated task or test'], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => new \App\Http\Resources\V1\ReadingTest\ReadingSubmissionResource($submission),
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 
     /**
