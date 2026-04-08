@@ -13,6 +13,7 @@ class ReadingQuestionAnswerResource extends JsonResource
             'id' => $this->id,
             'submission_id' => $this->submission_id,
             'question_id' => $this->question_id,
+            'reading_task_question_id' => $this->reading_task_question_id,
             'student_answer' => $this->student_answer,
             'correct_answer' => $this->correct_answer,
             'is_correct' => $this->is_correct,

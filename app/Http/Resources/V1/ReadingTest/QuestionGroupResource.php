@@ -14,12 +14,12 @@ class QuestionGroupResource extends JsonResource
      */
     public function toArray( Request $request): array
     {
-        $isStudent = auth()->user()->role === 'student';
+        $canSeeAnswers = $this->additional['canSeeAnswers'] ?? false;
 
         return [
             'instruction' => $this->instruction,
             'questions' => QuestionResource::collection($this->questions)
-                ->additional(['isStudent' => $isStudent]),
+                ->additional(['canSeeAnswers' => $canSeeAnswers]),
         ];
     }
 }

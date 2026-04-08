@@ -15,6 +15,17 @@ class ReadingTestResource extends JsonResource
      */
     public function toArray($request): array
     {
+        $user = auth()->user();
+        $isStudent = $user && $user->role === 'student';
+        $canSeeAnswers = !$isStudent;
+        
+        if ($isStudent) {
+            $canSeeAnswers = \App\Models\ReadingSubmission::where('test_id', $this->id)
+                ->where('student_id', $user->id)
+                ->whereIn('status', ['submitted', 'completed', 'reviewed'])
+                ->exists();
+        }
+
         return [
             'id' => $this->id,
             'title' => $this->title,
@@ -24,7 +35,8 @@ class ReadingTestResource extends JsonResource
                 'id' => $this->creator->id,
                 'name' => $this->creator->name,
             ],
-            'passages' => PassageResource::collection($this->passages),
+            'passages' => PassageResource::collection($this->passages)
+                ->additional(['canSeeAnswers' => $canSeeAnswers]),
         ];
     }
 }

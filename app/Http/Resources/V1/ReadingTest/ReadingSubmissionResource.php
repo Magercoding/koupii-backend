@@ -30,6 +30,9 @@ class ReadingSubmissionResource extends JsonResource
 
             // Test information
             'test' => $this->whenLoaded('test', function () {
+                $isStudent = auth()->user()->role === 'student';
+                $canSeeAnswers = !$isStudent || in_array($this->status, ['submitted', 'completed', 'reviewed']);
+                
                 return [
                     'id' => $this->test->id,
                     'title' => $this->test->title,
@@ -40,10 +43,36 @@ class ReadingSubmissionResource extends JsonResource
                     'timer_settings' => $this->test->timer_settings,
                     'allow_repetition' => $this->test->allow_repetition,
                     'max_repetition_count' => $this->test->max_repetition_count,
+                    'passages' => PassageResource::collection($this->test->passages)
+                        ->additional(['canSeeAnswers' => $canSeeAnswers]),
                 ];
             }),
 
             'reading_task' => $this->whenLoaded('readingTask', function () {
+                $isStudent = auth()->user()->role === 'student';
+                $canSeeAnswers = !$isStudent || in_array($this->status, ['submitted', 'completed', 'reviewed']);
+                
+                $passages = collect($this->readingTask->passages)->map(function ($passage) use ($canSeeAnswers) {
+                    if (isset($passage['question_groups'])) {
+                        $groups = collect($passage['question_groups'])->map(function ($group) use ($canSeeAnswers) {
+                            if (isset($group['questions'])) {
+                                $group['questions'] = collect($group['questions'])->map(function ($q) use ($canSeeAnswers) {
+                                    if (!$canSeeAnswers) {
+                                        unset($q['correct_answers']);
+                                        unset($q['correct_answer']);
+                                    }
+                                    return $q;
+                                })->toArray();
+                            }
+                            return $group;
+                        })->toArray();
+                        
+                        $passage['questionGroups'] = $groups;
+                        unset($passage['question_groups']);
+                    }
+                    return $passage;
+                })->toArray();
+
                 return [
                     'id' => $this->readingTask->id,
                     'title' => $this->readingTask->title,
@@ -54,7 +83,7 @@ class ReadingSubmissionResource extends JsonResource
                     'time_limit_seconds' => $this->readingTask->time_limit_seconds,
                     'allow_retake' => $this->readingTask->allow_retake,
                     'max_retake_attempts' => $this->readingTask->max_retake_attempts,
-                    'passages' => $this->readingTask->passages,
+                    'passages' => $passages,
                 ];
             }),
 

@@ -14,11 +14,14 @@ class PassageResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $canSeeAnswers = $this->additional['canSeeAnswers'] ?? false;
+        
         return [
             'id' => $this->id,
             'title' => $this->title,
             'description' => $this->description,
-            'question_groups' => QuestionGroupResource::collection($this->questionGroups),
+            'question_groups' => QuestionGroupResource::collection($this->questionGroups)
+                ->additional(['canSeeAnswers' => $canSeeAnswers]),
         ];
     }
 }

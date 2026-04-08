@@ -98,7 +98,8 @@ class MissionSeeder extends Seeder
                             'instruction' => 'Choose the correct letter, A, B, C or D.',
                             'questions' => [
                                 [
-                                    'id' => "1",
+                                    'id' => "q1-1",
+                                    'question_number' => 1,
                                     'question_text' => 'What is the primary benefit of AI mentioned in the passage?',
                                     'question_type' => 'multiple_choice',
                                     'options' => [
@@ -110,7 +111,8 @@ class MissionSeeder extends Seeder
                                     'correct_answers' => 'B'
                                 ],
                                 [
-                                    'id' => "2",
+                                    'id' => "q1-2",
+                                    'question_number' => 2,
                                     'question_text' => 'Which human traits are considered potentially irreplaceable by AI?',
                                     'question_type' => 'multiple_choice',
                                     'options' => [
@@ -120,6 +122,44 @@ class MissionSeeder extends Seeder
                                         ['id' => 'D', 'text' => 'Automation']
                                     ],
                                     'correct_answers' => 'C'
+                                ]
+                            ]
+                        ]
+                    ]
+                ],
+                [
+                    'title' => 'Sustainable Urban Planning',
+                    'content' => 'As the global population becomes increasingly urbanized, the challenge of creating sustainable cities has taken center stage. Urban planners are now focusing on "green infrastructure"—integrating natural systems like parks, wetlands, and vertical gardens into the city fabric to manage rainwater, reduce heat, and improve air quality...',
+                    'question_groups' => [
+                        [
+                            'type' => 'multiple_choice',
+                            'instruction' => 'Choose the correct letter, A, B, C or D.',
+                            'questions' => [
+                                [
+                                    'id' => "q2-3",
+                                    'question_number' => 3,
+                                    'question_text' => 'What is the main goal of "green infrastructure" according to the passage?',
+                                    'question_type' => 'multiple_choice',
+                                    'options' => [
+                                        ['id' => 'A', 'text' => 'Increasing city population'],
+                                        ['id' => 'B', 'text' => 'Managing natural systems in cities'],
+                                        ['id' => 'C', 'text' => 'Building more skyscrapers'],
+                                        ['id' => 'D', 'text' => 'Reducing the number of parks']
+                                    ],
+                                    'correct_answers' => 'B'
+                                ],
+                                [
+                                    'id' => "q2-4",
+                                    'question_number' => 4,
+                                    'question_text' => 'Which of the following is NOT mentioned as a benefit of green infrastructure?',
+                                    'question_type' => 'multiple_choice',
+                                    'options' => [
+                                        ['id' => 'A', 'text' => 'Rainwater management'],
+                                        ['id' => 'B', 'text' => 'Temperature reduction'],
+                                        ['id' => 'C', 'text' => 'Improved air quality'],
+                                        ['id' => 'D', 'text' => 'Cheaper housing prices']
+                                    ],
+                                    'correct_answers' => 'D'
                                 ]
                             ]
                         ]

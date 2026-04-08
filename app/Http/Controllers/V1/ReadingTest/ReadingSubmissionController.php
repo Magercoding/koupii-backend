@@ -182,7 +182,8 @@ class ReadingSubmissionController extends Controller implements HasMiddleware
                 $submission->save();
             }
 
-            $submission = $this->submissionService->completeSubmission($submission);
+            $answerService = app(\App\Services\V1\ReadingTest\ReadingAnswerService::class);
+            $submission = $answerService->submitTest($submission, $request->all());
 
             return response()->json([
                 'success' => true,
@@ -190,6 +191,12 @@ class ReadingSubmissionController extends Controller implements HasMiddleware
                 'data' => new ReadingSubmissionResource($submission)
             ]);
         } catch (\Exception $e) {
+            Log::error('ReadingSubmissionController@complete: Error', [
+                'submission_id' => $submissionId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to complete submission',

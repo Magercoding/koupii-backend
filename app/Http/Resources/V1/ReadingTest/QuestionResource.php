@@ -14,7 +14,7 @@ class QuestionResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $isStudent = $this->additional['isStudent'] ?? false;
+        $canSeeAnswers = $this->additional['canSeeAnswers'] ?? false;
 
         $data = [
             'id' => $this->id,
@@ -27,8 +27,8 @@ class QuestionResource extends JsonResource
             ]),
         ];
 
-        if (!$isStudent) {
-            $data['correct_answers'] = json_decode($this->correct_answers, true) ?? [];
+        if ($canSeeAnswers) {
+            $data['correct_answers'] = json_decode($this->correct_answers, true) ?? $this->correct_answers ?? [];
             $data['breakdowns'] = $this->breakdowns->map(fn($bd) => [
                 'explanation' => $bd->explanation,
                 'highlights' => $bd->highlightSegments->map(fn($h) => [
@@ -39,6 +39,5 @@ class QuestionResource extends JsonResource
         }
 
         return $data;
-    
     }
 }

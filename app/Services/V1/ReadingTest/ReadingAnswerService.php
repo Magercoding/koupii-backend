@@ -14,9 +14,9 @@ class ReadingAnswerService
     /**
      * Submit answer for a specific question
      */
-    public function submitAnswer(ReadingSubmission $submission, array $data): ReadingQuestionAnswer
+    public function submitAnswer(ReadingSubmission $submission, array $data, bool $isFinal = false): ReadingQuestionAnswer
     {
-        if ($submission->status !== 'in_progress') {
+        if (!$isFinal && $submission->status !== 'in_progress') {
             throw new Exception('Cannot submit answers for completed submission');
         }
 
@@ -67,29 +67,43 @@ class ReadingAnswerService
     public function submitTest(ReadingSubmission $submission, array $data): ReadingSubmission
     {
         return DB::transaction(function () use ($submission, $data) {
-            if ($submission->status !== 'in_progress') {
-                throw new Exception('Test has already been submitted');
-            }
-
-            // Update submission timing
-            $submission->update([
-                'submitted_at' => now(),
-                'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
-                'status' => 'submitted'
-            ]);
-
-            // Process any remaining answers
+            // Process any remaining answers first while still in_progress
             if (!empty($data['answers'])) {
                 foreach ($data['answers'] as $answerData) {
-                    $this->submitAnswer($submission, $answerData);
+                    $this->submitAnswer($submission, $answerData, true);
                 }
             }
 
+            // Now update submission status and metadata
+            $submission->update([
+                'submitted_at' => $submission->submitted_at ?: now(),
+                'time_taken_seconds' => $data['time_taken_seconds'] ?? $submission->time_taken_seconds,
+                'status' => 'submitted'
+            ]);
+
             // Calculate final score
             $submission->calculateScore();
+            $submission->refresh(); // Critically refresh to get calculated percentage into memory
 
             // Mark as completed
             $submission->update(['status' => 'completed']);
+
+            // Sync with StudentAssignment
+            $assignmentId = $submission->assignment_id;
+            if ($assignmentId) {
+                $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                    ->where('student_id', $submission->student_id)
+                    ->first();
+
+                if ($studentAssignment) {
+                    $studentAssignment->update([
+                        'status' => \App\Models\StudentAssignment::STATUS_SUBMITTED,
+                        'score' => $submission->percentage ?? 0,
+                        'completed_at' => now(),
+                        'last_activity_at' => now(),
+                    ]);
+                }
+            }
 
             // Discover vocabularies
             $this->discoverVocabularies($submission);
@@ -158,18 +172,24 @@ class ReadingAnswerService
      */
     private function discoverVocabularies(ReadingSubmission $submission): void
     {
-        // Get vocabularies that appear in test passages
-        $testPassages = $submission->test->passages;
+        $testPassages = [];
+        
+        // Handle both new ReadingTask and legacy Test
+        if ($submission->reading_task_id && $submission->readingTask) {
+            $testPassages = $submission->readingTask->passages ?? [];
+        } elseif ($submission->test_id && $submission->test) {
+            $testPassages = $submission->test->passages ?? [];
+        }
         
         foreach ($testPassages as $passage) {
             // Extract vocabulary words from passage content
             $vocabularies = $this->extractVocabulariesFromPassage($passage);
             
-            foreach ($vocabularies as $vocabulary) {
-                StudentVocabularyDiscovery::firstOrCreate([
+            foreach ($vocabularies as $vocabularyArray) {
+                \App\Models\StudentVocabularyDiscovery::firstOrCreate([
                     'student_id' => $submission->student_id,
                     'test_id' => $submission->test_id,
-                    'vocabulary_id' => $vocabulary->id,
+                    'vocabulary_id' => $vocabularyArray['id'],
                 ], [
                     'discovered_at' => now(),
                     'is_saved' => false,
@@ -183,11 +203,11 @@ class ReadingAnswerService
      */
     private function extractVocabulariesFromPassage($passage): array
     {
-        // This is a simplified implementation
-        // In production, you might want to use NLP libraries for better word extraction
+        // Handle both object (legacy) and array (new JSON task)
+        $passageText = is_array($passage) ? ($passage['description'] ?? '') : ($passage->description ?? '');
         
-        $passageText = $passage->description ?? '';
-        
+        if (empty($passageText)) return [];
+
         // Get vocabularies that contain words found in the passage
         $vocabularies = \App\Models\Vocabulary::where('is_public', true)
             ->get()

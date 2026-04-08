@@ -99,6 +99,10 @@ class ReadingSubmissionService
                         'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
                     ];
 
+                    if (!$studentAssignment->started_at) {
+                        $updateData['started_at'] = now();
+                    }
+
                     // ONLY set to IN_PROGRESS if the underlying submission data isn't already completed
                     // This prevents showing answers in continue flow if the database was in an inconsistent state
                     if (!$isCompletedInSubmission) {
@@ -148,6 +152,7 @@ class ReadingSubmissionService
     {
         $existingSubmission = ReadingSubmission::where('reading_task_id', $task->id)
             ->where('student_id', $studentId)
+            ->with('answers')
             ->latest()
             ->first();
 
@@ -245,10 +250,11 @@ class ReadingSubmissionService
             $submission->update([
                 'status' => 'completed',
                 'submitted_at' => now(),
-                'time_taken_seconds' => $submission->time_taken_seconds ?: now()->diffInSeconds($submission->started_at),
+                'time_taken_seconds' => $submission->time_taken_seconds ?: ($submission->started_at ? now()->diffInSeconds($submission->started_at) : 0),
             ]);
 
             $submission->calculateScore();
+            $submission->refresh(); // Critically refresh to get calculated percentage into memory
 
             // Sync with StudentAssignment
             $assignmentId = $submission->assignment_id;
@@ -260,7 +266,7 @@ class ReadingSubmissionService
                 if ($studentAssignment) {
                     $studentAssignment->update([
                         'status' => \App\Models\StudentAssignment::STATUS_SUBMITTED,
-                        'score' => $submission->percentage,
+                        'score' => $submission->percentage ?? 0,
                         'completed_at' => now(),
                         'last_activity_at' => now(),
                     ]);

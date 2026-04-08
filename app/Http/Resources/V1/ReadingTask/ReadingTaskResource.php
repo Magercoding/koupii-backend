@@ -37,8 +37,12 @@ class ReadingTaskResource extends JsonResource
             'passages' => collect($this->passages)->map(function ($passage) use ($isStudent, $user) {
                 // If it's a student, check if they have a completed submission to allow seeing answers
                 $canSeeAnswers = !$isStudent;
-                if ($isStudent && $this->relationLoaded('submissions')) {
-                    $canSeeAnswers = $this->submissions
+                if ($isStudent) {
+                    $submissions = $this->relationLoaded('submissions') 
+                        ? $this->submissions 
+                        : $this->submissions()->where('student_id', $user->id)->get();
+
+                    $canSeeAnswers = $submissions
                         ->where('student_id', $user->id)
                         ->whereIn('status', ['submitted', 'completed', 'reviewed'])
                         ->isNotEmpty();
@@ -83,9 +87,18 @@ class ReadingTaskResource extends JsonResource
                         return [
                             'id' => $submission->id,
                             'status' => $submission->status,
-                            'score' => $submission->score,
+                            'score' => $submission->score ?? $submission->percentage,
                             'submitted_at' => $submission->submitted_at,
                             'has_review' => isset($submission->review_id) && $submission->review_id !== null,
+                            'answers' => $submission->relationLoaded('answers') ? $submission->answers->map(function($a) {
+                                return [
+                                    'id' => $a->id,
+                                    'reading_task_question_id' => $a->reading_task_question_id,
+                                    'student_answer' => $a->student_answer,
+                                    'correct_answer' => $a->correct_answer,
+                                    'is_correct' => $a->is_correct,
+                                ];
+                            }) : [],
                         ];
                     });
                 });

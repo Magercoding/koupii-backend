@@ -116,7 +116,6 @@ class ReadingTaskController extends Controller implements HasMiddleware
 
         $task = ReadingTask::with([
             'creator',
-            'class',
             'submissions' => function ($query) use ($user) {
                 if ($user && $user->role === 'student') {
                     $query->where('student_id', $user->id);

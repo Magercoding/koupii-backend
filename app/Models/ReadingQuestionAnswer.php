@@ -43,7 +43,7 @@ class ReadingQuestionAnswer extends Model
     public function checkAnswer(): void
     {
         $studentAnswer = $this->student_answer;
-        $correctAnswer = $this->correct_answer;
+        $correctAnswer = null;
         $questionType = null;
         $pointsValue = 1;
 
@@ -53,7 +53,7 @@ class ReadingQuestionAnswer extends Model
             $questionData = $this->findQuestionInTask($task, $this->reading_task_question_id);
             
             if ($questionData) {
-                $correctAnswer = $correctAnswer ?? ($questionData['correct_answers'] ?? null);
+                $correctAnswer = $questionData['correct_answers'] ?? null;
                 $questionType = $questionData['question_type'] ?? null;
                 $pointsValue = $questionData['points'] ?? 1;
             }
@@ -61,13 +61,19 @@ class ReadingQuestionAnswer extends Model
             // Support for legacy Test model
             $question = $this->question;
             if ($question) {
-                $correctAnswer = $correctAnswer ?? $question->correct_answers;
+                $correctAnswer = $question->correct_answers;
                 $questionType = $question->question_type;
                 $pointsValue = $question->points_value;
             }
         }
 
+        // If we still don't have a correct answer but we have it saved, use it as fallback
+        if ($correctAnswer === null && $this->correct_answer !== null) {
+            $correctAnswer = $this->correct_answer;
+        }
+
         if (!$questionType) {
+            // Try to guess question type from data if possible, but if not we can't score
             return;
         }
 
@@ -77,7 +83,7 @@ class ReadingQuestionAnswer extends Model
         $this->update([
             'is_correct' => $isCorrect,
             'points_earned' => $pointsEarned,
-            'correct_answer' => $correctAnswer
+            'correct_answer' => $correctAnswer // Update with the fresh one from source
         ]);
     }
 
@@ -106,69 +112,106 @@ class ReadingQuestionAnswer extends Model
         }
 
         return match ($questionType) {
-            'choose_correct_answer' => $this->compareSingleChoice($studentAnswer, $correctAnswer),
+            'choose_correct_answer', 'multiple_choice' => $this->compareSingleChoice($studentAnswer, $correctAnswer),
             'choose_multiple_answer' => $this->compareMultipleChoice($studentAnswer, $correctAnswer),
             'true_false_not_given' => $this->compareTrueFalseNotGiven($studentAnswer, $correctAnswer),
             'yes_no_not_given' => $this->compareYesNoNotGiven($studentAnswer, $correctAnswer),
-            'matching_heading' => $this->compareMatching($studentAnswer, $correctAnswer),
-            'matching_information' => $this->compareMatching($studentAnswer, $correctAnswer),
-            'matching_features' => $this->compareMatching($studentAnswer, $correctAnswer),
-            'matching_sentence_ending' => $this->compareMatching($studentAnswer, $correctAnswer),
-            'sentence_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
-            'paragraph_summary_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
-            'note_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
-            'table_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
-            'flowchart_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
-            'diagram_label_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
+            'matching_heading', 'matching_information', 'matching_features', 'matching_sentence_ending' => $this->compareMatching($studentAnswer, $correctAnswer),
+            'sentence_completion', 'paragraph_summary_completion', 'note_completion', 'table_completion', 'flowchart_completion', 'diagram_label_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
             'short_answer_question' => $this->compareShortAnswer($studentAnswer, $correctAnswer),
             default => false
         };
     }
 
+    private function resolveValue($val): string
+    {
+        if (is_array($val)) {
+            return count($val) > 0 ? (string) reset($val) : '';
+        }
+        return (string) ($val ?? '');
+    }
+
     private function compareSingleChoice($student, $correct): bool
     {
-        return strtolower(trim($student)) === strtolower(trim($correct));
+        $studentStr = strtolower(trim($this->resolveValue($student)));
+        
+        if (is_array($correct)) {
+            foreach ($correct as $possible) {
+                if ($studentStr === strtolower(trim($this->resolveValue($possible)))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        return $studentStr === strtolower(trim((string)$correct));
     }
 
     private function compareMultipleChoice($student, $correct): bool
     {
         if (!is_array($student) || !is_array($correct)) {
+            // Even if one is not array, try comparing as single choice if they happen to be strings
+            if (!is_array($student) && !is_array($correct)) {
+                return strtolower(trim($student)) === strtolower(trim($correct));
+            }
             return false;
         }
 
-        sort($student);
-        sort($correct);
+        $studentClean = array_map(fn($item) => strtolower(trim((string)$item)), $student);
+        $correctClean = array_map(fn($item) => strtolower(trim((string)$item)), $correct);
 
-        return $student === $correct;
+        sort($studentClean);
+        sort($correctClean);
+
+        return $studentClean === $correctClean;
     }
 
     private function compareTrueFalseNotGiven($student, $correct): bool
     {
+        $studentStr = strtolower(trim($this->resolveValue($student)));
         $validOptions = ['true', 'false', 'not given'];
-        $studentLower = strtolower(trim($student));
-        $correctLower = strtolower(trim($correct));
+        
+        if (is_array($correct)) {
+            foreach ($correct as $possible) {
+                if ($studentStr === strtolower(trim($this->resolveValue($possible)))) {
+                    return true;
+                }
+            }
+            return false;
+        }
 
-        return in_array($studentLower, $validOptions) && $studentLower === $correctLower;
+        $correctLower = strtolower(trim((string)$correct));
+        return in_array($studentStr, $validOptions) && $studentStr === $correctLower;
     }
 
     private function compareYesNoNotGiven($student, $correct): bool
     {
+        $studentStr = strtolower(trim($this->resolveValue($student)));
         $validOptions = ['yes', 'no', 'not given'];
-        $studentLower = strtolower(trim($student));
-        $correctLower = strtolower(trim($correct));
 
-        return in_array($studentLower, $validOptions) && $studentLower === $correctLower;
+        if (is_array($correct)) {
+            foreach ($correct as $possible) {
+                if ($studentStr === strtolower(trim($this->resolveValue($possible)))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        $correctLower = strtolower(trim((string)$correct));
+        return in_array($studentStr, $validOptions) && $studentStr === $correctLower;
     }
 
     private function compareMatching($student, $correct): bool
     {
         if (!is_array($student) || !is_array($correct)) {
-            return false;
+            // If it's a simple string match, allow it
+            return strtolower(trim($this->resolveValue($student))) === strtolower(trim($this->resolveValue($correct)));
         }
 
         // For matching questions, compare each pair
         foreach ($correct as $key => $value) {
-            if (!isset($student[$key]) || $student[$key] !== $value) {
+            if (!isset($student[$key]) || (string)$student[$key] !== (string)$value) {
                 return false;
             }
         }
@@ -178,17 +221,18 @@ class ReadingQuestionAnswer extends Model
 
     private function compareTextCompletion($student, $correct): bool
     {
+        $studentStr = $this->resolveValue($student);
+        
         if (is_array($correct)) {
-            // Multiple possible answers
             foreach ($correct as $possibleAnswer) {
-                if ($this->isTextMatch(trim($student), trim($possibleAnswer))) {
+                if ($this->isTextMatch($studentStr, $this->resolveValue($possibleAnswer))) {
                     return true;
                 }
             }
             return false;
         }
 
-        return $this->isTextMatch(trim($student), trim($correct));
+        return $this->isTextMatch($studentStr, (string)$correct);
     }
 
     private function compareShortAnswer($student, $correct): bool
@@ -198,10 +242,9 @@ class ReadingQuestionAnswer extends Model
 
     private function isTextMatch($student, $correct): bool
     {
-        // Case-insensitive comparison, allowing for minor variations
-        $student = strtolower(preg_replace('/[^\w\s]/', '', $student));
-        $correct = strtolower(preg_replace('/[^\w\s]/', '', $correct));
+        $student = strtolower(preg_replace('/[^\w\s]/', '', (string)$student));
+        $correct = strtolower(preg_replace('/[^\w\s]/', '', (string)$correct));
 
-        return $student === $correct;
+        return trim($student) === trim($correct);
     }
 }
