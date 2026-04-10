@@ -7,6 +7,8 @@ use App\Models\ListeningSubmission;
 use App\Models\User;
 use App\Models\Test;
 use App\Helpers\Listening\ListeningAnalyticsHelper;
+use App\Models\ListeningQuestion;
+use App\Models\ListeningQuestionAnswer;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -209,6 +211,7 @@ class ListeningAnalyticsService
         $comparativeData = [];
         
         foreach ($students as $student) {
+            /** @var User $student */
             $analytics = $this->getStudentPerformanceAnalytics($student, $request);
             $comparativeData[] = [
                 'student' => $student,
@@ -255,28 +258,98 @@ class ListeningAnalyticsService
      */
     public function getDashboardData(array $filters = []): array
     {
+        $user = auth()->user();
+        
+        // If the user is a student, return student-specific dashboard data
+        if ($user && $user->role === 'student') {
+            return $this->getStudentDashboardData($user, $filters);
+        }
+
         $timeframe = $filters['timeframe'] ?? 'week';
         $startDate = $this->getStartDateForTimeframe($timeframe);
+        $teacherId = $filters['teacher_id'] ?? ($user ? $user->id : null);
+        $classId = $filters['class_id'] ?? null;
         
-        $query = ListeningSubmission::with(['student', 'test.listeningTask'])
-            ->where('created_at', '>=', $startDate);
-            
-        if (!empty($filters['class_id'])) {
-            $query->whereHas('student.classEnrollments', function($q) use ($filters) {
-                $q->where('class_id', $filters['class_id']);
+        // Base query for tasks created by this teacher
+        $tasksQuery = ListeningTask::where('created_by', $teacherId);
+        
+        if ($classId && $classId !== 'all') {
+            $tasksQuery->whereHas('assignments', function ($q) use ($classId) {
+                $q->where('class_id', $classId);
             });
         }
         
-        $submissions = $query->get();
+        $tasks = $tasksQuery->get();
+        $taskIds = $tasks->pluck('id');
+
+        // Fetch submissions for these tasks
+        $submissionsQuery = ListeningSubmission::whereIn('listening_task_id', $taskIds)
+            ->where('created_at', '>=', $startDate)
+            ->with(['student', 'task']);
+
+        if ($classId && $classId !== 'all') {
+            $submissionsQuery->whereHas('student.classEnrollments', function($q) use ($classId) {
+                $q->where('class_id', $classId);
+            });
+        }
+        
+        $submissions = $submissionsQuery->get();
+        $bestSubmissions = $this->getBestSubmissions($submissions);
+
+        // Get all classes taught by this teacher for the filter
+        $classes = DB::table('classes')
+            ->where('teacher_id', $teacherId)
+            ->select('id', 'name')
+            ->get();
         
         return [
-            'overview' => $this->getDashboardOverview($submissions),
-            'recent_activity' => $this->getRecentActivity($submissions),
-            'performance_trends' => $this->getPerformanceTrends($submissions, $timeframe),
-            'top_performers' => $this->getTopPerformers($submissions),
-            'struggling_students' => $this->getStrugglingStudents($submissions),
+            'overview' => $this->getDashboardOverview($bestSubmissions, $submissions),
+            'recent_activity' => $this->getRecentActivity($submissions->take(10)),
+            'performance_trends' => $this->getPerformanceTrends($bestSubmissions, $timeframe),
+            'top_performers' => $this->getTopPerformers($bestSubmissions),
+            'struggling_students' => $this->getStrugglingStudents($bestSubmissions),
             'popular_tasks' => $this->getPopularTasks($submissions),
-            'question_type_insights' => $this->getQuestionTypeInsights($submissions)
+            'question_type_insights' => $this->getQuestionTypeInsights($bestSubmissions),
+            'classes' => $classes,
+            'total_tasks' => $tasks->count()
+        ];
+    }
+
+    /**
+     * Get dashboard data for a student
+     */
+    private function getStudentDashboardData(User $student, array $filters = []): array
+    {
+        $timeframe = $filters['timeframe'] ?? 'all';
+        $startDate = $this->getStartDateForTimeframe($timeframe);
+        
+        // Fetch all submitted submissions for this student
+        $submissions = ListeningSubmission::where('student_id', $student->id)
+            ->where('status', 'submitted')
+            ->when($timeframe !== 'all', function($q) use ($startDate) {
+                return $q->where('submitted_at', '>=', $startDate);
+            })
+            ->with(['task'])
+            ->get();
+
+        // Get best submission per task
+        $bestSubmissions = $this->getBestSubmissions($submissions);
+
+        // Calculate stats
+        $totalCompleted = $bestSubmissions->count();
+        $averageScore = $totalCompleted > 0 ? round($bestSubmissions->avg('percentage'), 1) : 0;
+        
+        // Total time spent (sum of time_taken_seconds across all attempts)
+        $totalTimeSeconds = $submissions->sum('time_taken_seconds') ?? 0;
+        $timeSpentMinutes = round($totalTimeSeconds / 60, 0);
+
+        return [
+            'tasks_completed' => $totalCompleted,
+            'time_spent_minutes' => $timeSpentMinutes,
+            'average_score' => $averageScore,
+            'performance_by_month' => $this->getPerformanceByMonth($bestSubmissions),
+            'performance_by_section' => $this->getPerformanceBySection($submissions, $student),
+            'question_type_accuracy' => $this->getQuestionTypeAccuracy($bestSubmissions),
         ];
     }
 
@@ -350,7 +423,28 @@ class ListeningAnalyticsService
      */
     private function getQuestionAnalytics(ListeningTask $task): array
     {
-        return ListeningAnalyticsHelper::getQuestionPerformanceAnalytics($task->test);
+        $submissions = $task->submissions()->whereNotNull('submitted_at')->with('answers')->get();
+        $questions = $task->questions;
+        $stats = [];
+
+        foreach ($questions as $question) {
+            $answers = ListeningQuestionAnswer::where('question_id', $question->id)
+                ->whereIn('submission_id', $submissions->pluck('id'))
+                ->get();
+            
+            $correct = $answers->where('is_correct', true)->count();
+            $total = $answers->count();
+            
+            $stats[] = [
+                'question_id' => $question->id,
+                'question_text' => $question->question_text,
+                'question_type' => $question->question_type,
+                'accuracy' => $total > 0 ? round(($correct / $total) * 100, 1) : 0,
+                'total_responses' => $total
+            ];
+        }
+
+        return $stats;
     }
 
     /**
@@ -358,7 +452,24 @@ class ListeningAnalyticsService
      */
     private function getAudioInteractionSummary(ListeningTask $task): array
     {
-        return ListeningAnalyticsHelper::getAudioInteractionSummary($task);
+        $submissions = $task->submissions()->whereNotNull('submitted_at')->get();
+        $totalPlays = 0;
+        $interactionPatterns = [];
+
+        foreach ($submissions as $sub) {
+            $counts = $sub->audio_play_counts ?? [];
+            foreach ($counts as $segmentId => $count) {
+                $totalPlays += $count;
+                $interactionPatterns[$segmentId] = ($interactionPatterns[$segmentId] ?? 0) + $count;
+            }
+        }
+
+        return [
+            'total_plays' => $totalPlays,
+            'average_plays_per_submission' => $submissions->count() > 0 ? round($totalPlays / $submissions->count(), 1) : 0,
+            'most_played_segments' => $interactionPatterns,
+            'audio_interaction_patterns' => $interactionPatterns
+        ];
     }
 
     /**
@@ -366,7 +477,18 @@ class ListeningAnalyticsService
      */
     private function analyzeDifficulty(Collection $submissions): array
     {
-        return ListeningAnalyticsHelper::analyzeDifficulty($submissions);
+        $avgScore = $submissions->avg('percentage') ?? 0;
+        $difficulty = 'medium';
+        
+        if ($avgScore > 80) $difficulty = 'easy';
+        elseif ($avgScore < 40) $difficulty = 'hard';
+
+        return [
+            'overall_difficulty' => $difficulty,
+            'average_percentage' => round($avgScore, 1),
+            'difficulty_distribution' => $this->getScoreDistribution($submissions->pluck('percentage')->toArray()),
+            'suggested_adjustments' => []
+        ];
     }
 
     /**
@@ -417,174 +539,302 @@ class ListeningAnalyticsService
         }
     }
 
-    // Additional private helper methods would go here...
-    // (Implementing all the helper methods to keep the service complete)
-    
     private function getStudentQuestionTypePerformance(User $student, array $filters): array
     {
-        // Implementation for student question type performance
-        return [];
+        $submissions = ListeningSubmission::where('student_id', $student->id)
+            ->where('status', 'submitted')
+            ->with('answers.question')
+            ->get();
+
+        $types = [];
+        foreach ($submissions as $sub) {
+            foreach ($sub->answers as $answer) {
+                $type = $answer->question->question_type ?? 'unknown';
+                if (!isset($types[$type])) {
+                    $types[$type] = ['total' => 0, 'correct' => 0];
+                }
+                $types[$type]['total']++;
+                if ($answer->is_correct) {
+                    $types[$type]['correct']++;
+                }
+            }
+        }
+
+        $result = [];
+        foreach ($types as $type => $stats) {
+            $result[] = [
+                'type' => $type,
+                'name' => ListeningQuestion::QUESTION_TYPES[$type] ?? ucwords(str_replace('_', ' ', $type)),
+                'accuracy' => round(($stats['correct'] / $stats['total']) * 100, 1),
+                'total_questions' => $stats['total']
+            ];
+        }
+
+        return $result;
     }
-    
+
     private function getStudentAudioPatterns(User $student, array $filters): array
     {
-        // Implementation for student audio patterns
-        return [];
+        $submissions = ListeningSubmission::where('student_id', $student->id)->get();
+        $totalPlays = 0;
+        
+        foreach ($submissions as $sub) {
+            $counts = $sub->audio_play_counts ?? [];
+            foreach ($counts as $count) {
+                $totalPlays += $count;
+            }
+        }
+
+        return [
+            'total_plays' => $totalPlays,
+            'average_plays_per_task' => $submissions->count() > 0 ? round($totalPlays / $submissions->count(), 1) : 0
+        ];
     }
-    
+
     private function identifyStudentStrengths(User $student, Collection $submissions): array
     {
-        // Implementation for identifying strengths
-        return [];
+        $types = $this->getStudentQuestionTypePerformance($student, []);
+        if (empty($types)) return [];
+        usort($types, fn($a, $b) => $b['accuracy'] <=> $a['accuracy']);
+        return array_slice($types, 0, 2);
     }
-    
+
     private function identifyImprovementAreas(User $student, Collection $submissions): array
     {
-        // Implementation for identifying improvement areas
-        return [];
+        $types = $this->getStudentQuestionTypePerformance($student, []);
+        if (empty($types)) return [];
+        usort($types, fn($a, $b) => $a['accuracy'] <=> $b['accuracy']);
+        return array_slice($types, 0, 2);
     }
-    
-    private function analyzeQuestionTypePerformance(Collection $submissions): array
+
+    private function getPerformanceByMonth(Collection $bestSubmissions): array
     {
-        // Implementation for question type performance analysis
-        return [];
+        $months = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $monthKey = $date->format('Y-m');
+            $months[$monthKey] = [
+                'label' => $date->format('M'),
+                'total' => 0,
+                'count' => 0
+            ];
+        }
+
+        foreach ($bestSubmissions as $sub) {
+            $date = $sub->submitted_at ?: $sub->created_at;
+            $monthKey = $date->format('Y-m');
+            if (isset($months[$monthKey])) {
+                $months[$monthKey]['total'] += $sub->percentage;
+                $months[$monthKey]['count']++;
+            }
+        }
+
+        return array_values(array_map(fn($m) => [
+            'label' => $m['label'],
+            'average' => $m['count'] > 0 ? round($m['total'] / $m['count'], 1) : 0
+        ], $months));
     }
-    
-    private function analyzeAudioInteractions($audioLogs): array
+
+    private function getPerformanceBySection(Collection $allSubmissions, User $student): array
     {
-        // Implementation for audio interaction analysis
-        return [];
+        $weeks = [];
+        for ($i = 3; $i >= 0; $i--) {
+            $weeks[$i] = [
+                'week' => "Week " . (4 - $i),
+                'multipleChoice' => 0,
+                'identifyingInformation' => 0,
+                'matchingHeading' => 0,
+                'sentenceCompletion' => 0,
+                'paragraphCompletion' => 0,
+                'counts' => [
+                    'multipleChoice' => 0,
+                    'identifyingInformation' => 0,
+                    'matchingHeading' => 0,
+                    'sentenceCompletion' => 0,
+                    'paragraphCompletion' => 0
+                ]
+            ];
+        }
+
+        $typeMapping = [
+            'multiple_choice' => 'multipleChoice',
+            'multiple_choice_multiple_answer' => 'multipleChoice',
+            'identifying_information' => 'identifyingInformation',
+            'matching_headings' => 'matchingHeading',
+            'sentence_completion' => 'sentenceCompletion',
+            'summary_completion' => 'paragraphCompletion',
+            'note_completion' => 'paragraphCompletion',
+            'table_completion' => 'paragraphCompletion',
+            'flow_chart_completion' => 'paragraphCompletion',
+            'diagram_labeling' => 'paragraphCompletion',
+        ];
+
+        foreach ($allSubmissions as $sub) {
+            $subDate = $sub->submitted_at ?: $sub->created_at;
+            $diff = now()->diffInWeeks($subDate);
+            if ($diff <= 3) {
+                foreach ($sub->answers as $ans) {
+                    $key = $typeMapping[$ans->question->question_type ?? ''] ?? null;
+                    if ($key) {
+                        $weeks[$diff][$key] += $ans->is_correct ? 100 : 0;
+                        $weeks[$diff]['counts'][$key]++;
+                    }
+                }
+            }
+        }
+
+        return array_values(array_map(function($w) {
+            foreach (['multipleChoice', 'identifyingInformation', 'matchingHeading', 'sentenceCompletion', 'paragraphCompletion'] as $k) {
+                $w[$k] = $w['counts'][$k] > 0 ? round($w[$k] / $w['counts'][$k], 1) : 0;
+            }
+            unset($w['counts']);
+            return $w;
+        }, array_reverse($weeks)));
     }
-    
-    private function calculateProgressTrend(Collection $submissions): array
+
+    private function getQuestionTypeAccuracy(Collection $bestSubmissions): array
     {
-        // Implementation for progress trend calculation
-        return [];
+        $types = [];
+        foreach ($bestSubmissions as $sub) {
+            foreach ($sub->answers as $ans) {
+                $type = $ans->question->question_type ?? 'unknown';
+                if (!isset($types[$type])) $types[$type] = ['c' => 0, 't' => 0];
+                $types[$type]['t']++;
+                if ($ans->is_correct) $types[$type]['c']++;
+            }
+        }
+
+        $res = [];
+        foreach ($types as $type => $stats) {
+            $res[] = [
+                'test_name' => ListeningQuestion::QUESTION_TYPES[$type] ?? ucwords(str_replace('_', ' ', $type)),
+                'accuracy' => round(($stats['c'] / $stats['t']) * 100, 1)
+            ];
+        }
+        return $res;
     }
-    
-    private function analyzeSkillDevelopment(Collection $submissions): array
+
+    private function getBestSubmissions(Collection $submissions): Collection
     {
-        // Implementation for skill development analysis
-        return [];
+        return $submissions->groupBy(function ($sub) {
+            return $sub->student_id . '_' . $sub->listening_task_id;
+        })->map(function ($studentTaskWork) {
+            return $studentTaskWork->filter(function($sub) {
+                return in_array($sub->status, [ListeningSubmission::STATUS_SUBMITTED, ListeningSubmission::STATUS_REVIEWED, ListeningSubmission::STATUS_DONE]);
+            })->sortByDesc('total_score')->first();
+        })->filter()->values();
     }
-    
-    private function calculateConsistencyMetrics(Collection $submissions): array
+
+    private function getDashboardOverview(Collection $bestSubmissions, Collection $allSubmissions): array
     {
-        // Implementation for consistency metrics
-        return [];
-    }
-    
-    private function calculateGoalProgress(User $student, Collection $submissions): array
-    {
-        // Implementation for goal progress
-        return [];
-    }
-    
-    private function generateProgressRecommendations(User $student, Collection $submissions): array
-    {
-        // Implementation for progress recommendations
-        return [];
-    }
-    
-    private function getMetricValue(array $analytics, string $metric): float
-    {
-        // Implementation for getting metric value
-        return 0;
-    }
-    
-    private function generateComparativeSummary(array $data, string $metric): array
-    {
-        // Implementation for comparative summary
-        return [];
-    }
-    
-    private function generateTaskPerformanceReport(array $request): array
-    {
-        // Implementation for task performance report
-        return [];
-    }
-    
-    private function generateStudentProgressReport(array $request): array
-    {
-        // Implementation for student progress report
-        return [];
-    }
-    
-    private function generateClassOverviewReport(array $request): array
-    {
-        // Implementation for class overview report
-        return [];
-    }
-    
-    private function generateQuestionAnalysisReport(array $request): array
-    {
-        // Implementation for question analysis report
-        return [];
-    }
-    
-    private function getDashboardOverview(Collection $submissions): array
-    {
-        // Implementation for dashboard overview
-        return [];
+        $avgScore = $bestSubmissions->avg('percentage') ?? 0;
+        
+        return [
+            'tasks_completed' => $bestSubmissions->count(),
+            'total_submissions' => $allSubmissions->count(),
+            'average_score' => round($avgScore, 1),
+            'active_students' => $allSubmissions->pluck('student_id')->unique()->count()
+        ];
     }
     
     private function getRecentActivity(Collection $submissions): array
     {
-        // Implementation for recent activity
-        return [];
+        return $submissions->map(function($sub) {
+            return [
+                'id' => $sub->id,
+                'student_name' => $sub->student->name ?? 'Unknown Student',
+                'task_title' => $sub->task->title ?? 'Untitled Task',
+                'score' => (float)$sub->total_score,
+                'percentage' => (float)$sub->percentage,
+                'submitted_at' => $sub->created_at->diffForHumans()
+            ];
+        })->toArray();
     }
     
-    private function getPerformanceTrends(Collection $submissions, string $timeframe): array
+    private function getPerformanceTrends(Collection $bestSubmissions, string $timeframe): array
     {
-        // Implementation for performance trends
-        return [];
+        $trends = $bestSubmissions->groupBy(function($sub) {
+            return $sub->created_at->format('Y-m');
+        })->map(function($group) {
+            return round($group->avg('percentage'), 1);
+        });
+
+        $result = [];
+        foreach ($trends as $month => $score) {
+            $result[] = [
+                'month' => Carbon::createFromFormat('Y-m', $month)->format('M Y'),
+                'score' => $score
+            ];
+        }
+        
+        return array_values($result);
     }
     
-    private function getTopPerformers(Collection $submissions): array
+    private function getTopPerformers(Collection $bestSubmissions): array
     {
-        // Implementation for top performers
-        return [];
+        return $bestSubmissions->groupBy('student_id')->map(function($studentWork) {
+            return [
+                'student_name' => $studentWork->first()->student->name ?? 'Unknown',
+                'average_score' => round($studentWork->avg('percentage'), 1),
+                'tasks_completed' => $studentWork->count()
+            ];
+        })->sortByDesc('average_score')->take(5)->values()->toArray();
     }
     
-    private function getStrugglingStudents(Collection $submissions): array
+    private function getStrugglingStudents(Collection $bestSubmissions): array
     {
-        // Implementation for struggling students
-        return [];
+        return $bestSubmissions->groupBy('student_id')->map(function($studentWork) {
+            return [
+                'student_name' => $studentWork->first()->student->name ?? 'Unknown',
+                'average_score' => round($studentWork->avg('percentage'), 1),
+                'tasks_completed' => $studentWork->count()
+            ];
+        })->sortBy('average_score')->take(5)->values()->toArray();
     }
     
     private function getPopularTasks(Collection $submissions): array
     {
-        // Implementation for popular tasks
-        return [];
+        return $submissions->groupBy('listening_task_id')->map(function($taskSubmissions) {
+            return [
+                'task_title' => $taskSubmissions->first()->task->title ?? 'Untitled',
+                'submission_count' => $taskSubmissions->count(),
+                'average_score' => round($taskSubmissions->avg('percentage'), 1)
+            ];
+        })->sortByDesc('submission_count')->take(5)->values()->toArray();
     }
     
-    private function getQuestionTypeInsights(Collection $submissions): array
+    private function getQuestionTypeInsights(Collection $bestSubmissions): array
     {
-        // Implementation for question type insights
-        return [];
-    }
-    
-    private function exportSubmissionsData(array $filters): array
-    {
-        // Implementation for exporting submissions data
-        return [];
-    }
-    
-    private function exportAudioLogsData(array $filters): array
-    {
-        // Implementation for exporting audio logs
-        return [];
-    }
-    
-    private function exportPerformanceMetrics(array $filters): array
-    {
-        // Implementation for exporting performance metrics
-        return [];
-    }
-    
-    private function formatExportData(array $data, string $exportType): array
-    {
-        // Implementation for formatting export data
-        return [];
+        $typeStats = [];
+        foreach ($bestSubmissions as $sub) {
+            foreach ($sub->answers as $answer) {
+                $type = $answer->question->question_type ?? 'unknown';
+                if (!isset($typeStats[$type])) {
+                    $typeStats[$type] = ['correct' => 0, 'total' => 0];
+                }
+                $typeStats[$type]['total']++;
+                if ($answer->is_correct) {
+                    $typeStats[$type]['correct']++;
+                }
+            }
+        }
+
+        $mastery = [];
+        foreach ($typeStats as $type => $stats) {
+            $accuracy = $stats['total'] > 0 ? round(($stats['correct'] / $stats['total']) * 100, 0) : 0;
+            $mastery[] = [
+                'id' => $type,
+                'name' => ListeningQuestion::QUESTION_TYPES[$type] ?? ucwords(str_replace('_', ' ', $type)),
+                'score' => (int)$accuracy
+            ];
+        }
+
+        usort($mastery, fn($a, $b) => $b['score'] <=> $a['score']);
+        
+        return [
+            'mastery' => $mastery,
+            'best_type' => count($mastery) > 0 ? $mastery[0] : null,
+            'weakest_type' => count($mastery) > 0 ? end($mastery) : null
+        ];
     }
 }

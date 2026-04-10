@@ -213,6 +213,7 @@ class ListeningAnalyticsController extends Controller
     {
         try {
             $filters = [
+                'teacher_id' => auth()->id(),
                 'class_id' => $request->get('class_id'),
                 'timeframe' => $request->get('timeframe', 'week'),
                 'include_inactive' => $request->boolean('include_inactive', false)
