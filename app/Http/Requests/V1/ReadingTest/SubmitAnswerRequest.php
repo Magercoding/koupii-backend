@@ -8,14 +8,14 @@ class SubmitAnswerRequest extends BaseRequest
 {
     public function authorize(): bool
     {
-        return auth()->user()->role === 'student';
+        return auth()->check();
     }
 
     public function rules(): array
     {
         return [
             'question_id' => 'required|string',
-            'answer' => 'required',
+            'answer' => 'nullable',
             'time_spent_seconds' => 'nullable|integer|min:0',
         ];
     }

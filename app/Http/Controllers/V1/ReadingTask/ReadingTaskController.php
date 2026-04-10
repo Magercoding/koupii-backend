@@ -138,7 +138,12 @@ class ReadingTaskController extends Controller implements HasMiddleware
             }
         }
 
-        if ($user->role === 'teacher' && $task->created_by !== $user->id && !$task->is_published) {
+        if (
+            $user->role === 'teacher'
+            && $task->created_by !== $user->id
+            && !$task->is_published
+            && !$this->isTeacherAssigned($task, $user)
+        ) {
             \Illuminate\Support\Facades\Log::warning('ReadingTask: Access Denied for teacher', [
                 'user_id' => $user->id,
                 'task_id' => $task->id
@@ -258,6 +263,19 @@ class ReadingTaskController extends Controller implements HasMiddleware
             ->where('assignments.task_type', 'reading_task')
             ->where('class_enrollments.student_id', $user->id)
             ->where('class_enrollments.status', 'active')
+            ->exists();
+    }
+
+    /**
+     * Check if teacher owns a class that has this task assigned.
+     */
+    private function isTeacherAssigned(ReadingTask $task, $user): bool
+    {
+        return \Illuminate\Support\Facades\DB::table('assignments')
+            ->join('classes', 'assignments.class_id', '=', 'classes.id')
+            ->where('assignments.task_id', $task->id)
+            ->where('assignments.task_type', 'reading_task')
+            ->where('classes.teacher_id', $user->id)
             ->exists();
     }
 }

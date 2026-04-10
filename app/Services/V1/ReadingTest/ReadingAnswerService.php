@@ -16,41 +16,36 @@ class ReadingAnswerService
      */
     public function submitAnswer(ReadingSubmission $submission, array $data, bool $isFinal = false): ReadingQuestionAnswer
     {
-        if (!$isFinal && $submission->status !== 'in_progress') {
-            throw new Exception('Cannot submit answers for completed submission');
+        if (!$isFinal && !in_array($submission->status, ['in_progress', 'submitted', 'completed'])) {
+            throw new Exception('Cannot submit answers for this submission');
         }
 
         return DB::transaction(function () use ($submission, $data) {
+            $questionId = $data['question_id'] ?? null;
+
+            // Try to find existing answer record by any matching identifier
             $answer = ReadingQuestionAnswer::where('submission_id', $submission->id)
-                ->when(isset($data['question_id']), function($query) use ($data) {
-                    return $query->where('question_id', $data['question_id']);
-                })
-                ->when(isset($data['reading_task_question_id']), function($query) use ($data) {
-                    return $query->where('reading_task_question_id', $data['reading_task_question_id']);
+                ->where(function($q) use ($questionId) {
+                    $q->where('question_id', $questionId)
+                      ->orWhere('reading_task_question_id', $questionId);
                 })
                 ->first();
 
             if (!$answer) {
-                // Try finding by question_id if it's passed as a fallback
-                $answer = ReadingQuestionAnswer::where('submission_id', $submission->id)
-                    ->where('reading_task_question_id', $data['question_id'] ?? null)
-                    ->first();
-            }
-
-            if (!$answer) {
-                // Create answer record on the fly for test-based questions
+                // Create on the fly
                 $answer = ReadingQuestionAnswer::create([
                     'submission_id' => $submission->id,
-                    'question_id' => $data['question_id'] ?? null,
-                    'reading_task_question_id' => $data['reading_task_question_id'] ?? $data['question_id'] ?? null,
+                    'question_id' => null,
+                    'reading_task_question_id' => $questionId,
                     'student_answer' => null,
                     'correct_answer' => null,
                     'is_correct' => null,
+                    'points_earned' => 0,
                 ]);
             }
 
             $answer->update([
-                'student_answer' => $data['answer'],
+                'student_answer' => $data['answer'] ?? null,
                 'time_spent_seconds' => $data['time_spent_seconds'] ?? null,
             ]);
 

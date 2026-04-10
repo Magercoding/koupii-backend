@@ -53,9 +53,13 @@ class ReadingQuestionAnswer extends Model
             $questionData = $this->findQuestionInTask($task, $this->reading_task_question_id);
             
             if ($questionData) {
-                $correctAnswer = $questionData['correct_answers'] ?? null;
+                $correctAnswer = $questionData['correct_answers']
+                    ?? $questionData['correct_answer']
+                    ?? null;
                 $questionType = $questionData['question_type'] ?? null;
-                $pointsValue = $questionData['points'] ?? 1;
+                $pointsValue = $questionData['points']
+                    ?? $questionData['points_value']
+                    ?? 1;
             }
         } else {
             // Support for legacy Test model
@@ -73,8 +77,18 @@ class ReadingQuestionAnswer extends Model
         }
 
         if (!$questionType) {
-            // Try to guess question type from data if possible, but if not we can't score
-            return;
+            // Fallback inference (mainly for ReadingTask JSON questions)
+            // If we have an object-like correct answer with option_key/option_text, treat as single choice.
+            if (is_array($correctAnswer) && (isset($correctAnswer['option_key']) || isset($correctAnswer['option_text']) || isset($correctAnswer['id']))) {
+                $questionType = 'choose_correct_answer';
+            } elseif (is_array($correctAnswer) && array_keys($correctAnswer) === range(0, count($correctAnswer) - 1)) {
+                // List-like correct answers: could be multi-choice or text completion; multi-choice compare handles strings/objects well.
+                $questionType = 'choose_multiple_answer';
+            } elseif (is_string($correctAnswer)) {
+                $questionType = 'short_answer_question';
+            } else {
+                return;
+            }
         }
 
         $isCorrect = $this->compareAnswers($studentAnswer, $correctAnswer, $questionType);
@@ -94,7 +108,14 @@ class ReadingQuestionAnswer extends Model
         foreach ($task->passages as $passage) {
             foreach ($passage['question_groups'] ?? [] as $group) {
                 foreach ($group['questions'] ?? [] as $question) {
-                    if (($question['id'] ?? '') === $questionId) {
+                    $qId = $question['id'] ?? null;
+                    if ($qId !== null && (string) $qId === (string) $questionId) {
+                        return $question;
+                    }
+
+                    // Some tasks store numeric question identifiers as question_number instead of id.
+                    $qNumber = $question['question_number'] ?? null;
+                    if ($qNumber !== null && (string) $qNumber === (string) $questionId) {
                         return $question;
                     }
                 }
@@ -131,74 +152,149 @@ class ReadingQuestionAnswer extends Model
         return (string) ($val ?? '');
     }
 
+    private function normalizeValue($value): string
+    {
+        return strtolower(trim((string) $value));
+    }
+
+    private function extractComparableValues($value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        if (!is_array($value)) {
+            $normalized = $this->normalizeValue($value);
+            return $normalized === '' ? [] : [$normalized];
+        }
+
+        $isAssoc = array_keys($value) !== range(0, count($value) - 1);
+
+        if ($isAssoc) {
+            $candidates = [
+                $value['id'] ?? null,
+                $value['option_key'] ?? null,
+                $value['option_text'] ?? null,
+                $value['text'] ?? null,
+                $value['value'] ?? null,
+            ];
+
+            return array_values(array_unique(array_filter(
+                array_map(fn($item) => $item === null ? '' : $this->normalizeValue($item), $candidates),
+                fn($item) => $item !== ''
+            )));
+        }
+
+        $results = [];
+        foreach ($value as $item) {
+            foreach ($this->extractComparableValues($item) as $candidate) {
+                $results[] = $candidate;
+            }
+        }
+
+        return array_values(array_unique($results));
+    }
+
     private function compareSingleChoice($student, $correct): bool
     {
-        $studentStr = strtolower(trim($this->resolveValue($student)));
-        
-        if (is_array($correct)) {
-            foreach ($correct as $possible) {
-                if ($studentStr === strtolower(trim($this->resolveValue($possible)))) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        
-        return $studentStr === strtolower(trim((string)$correct));
+        $studentValues = $this->extractComparableValues($student);
+        $correctValues = $this->extractComparableValues($correct);
+
+        return count(array_intersect($studentValues, $correctValues)) > 0;
     }
 
     private function compareMultipleChoice($student, $correct): bool
     {
         if (!is_array($student) || !is_array($correct)) {
-            // Even if one is not array, try comparing as single choice if they happen to be strings
-            if (!is_array($student) && !is_array($correct)) {
-                return strtolower(trim($student)) === strtolower(trim($correct));
-            }
             return false;
         }
 
-        $studentClean = array_map(fn($item) => strtolower(trim((string)$item)), $student);
-        $correctClean = array_map(fn($item) => strtolower(trim((string)$item)), $correct);
+        // Prefer comparing option_key sets when correct answers are option objects.
+        $correctPreferKeys = false;
+        foreach ($correct as $c) {
+            if (is_array($c) && array_key_exists('option_key', $c)) {
+                $correctPreferKeys = true;
+                break;
+            }
+        }
 
-        sort($studentClean);
-        sort($correctClean);
+        $studentTokens = [];
+        foreach ($student as $s) {
+            if (is_array($s)) {
+                $token = $s['option_key'] ?? $s['id'] ?? $s['option_text'] ?? $s['text'] ?? null;
+                if ($token !== null && $token !== '') {
+                    $studentTokens[] = $this->normalizeValue($token);
+                }
+            } else {
+                $studentTokens[] = $this->normalizeValue($s);
+            }
+        }
 
-        return $studentClean === $correctClean;
+        $correctTokens = [];
+        foreach ($correct as $c) {
+            if (is_array($c)) {
+                $token = $correctPreferKeys
+                    ? ($c['option_key'] ?? null)
+                    : ($c['option_text'] ?? $c['text'] ?? $c['id'] ?? null);
+
+                if ($token === null || $token === '') {
+                    $token = $c['option_key'] ?? $c['option_text'] ?? $c['text'] ?? $c['id'] ?? null;
+                }
+
+                if ($token !== null && $token !== '') {
+                    $correctTokens[] = $this->normalizeValue($token);
+                }
+            } else {
+                $correctTokens[] = $this->normalizeValue($c);
+            }
+        }
+
+        $studentTokens = array_values(array_unique(array_filter($studentTokens, fn($v) => $v !== '')));
+        $correctTokens = array_values(array_unique(array_filter($correctTokens, fn($v) => $v !== '')));
+
+        if (empty($studentTokens) || empty($correctTokens)) {
+            return false;
+        }
+
+        sort($studentTokens);
+        sort($correctTokens);
+
+        return $studentTokens === $correctTokens;
     }
 
     private function compareTrueFalseNotGiven($student, $correct): bool
     {
-        $studentStr = strtolower(trim($this->resolveValue($student)));
+        $studentStr = $this->normalizeValue($this->resolveValue($student));
         $validOptions = ['true', 'false', 'not given'];
         
         if (is_array($correct)) {
             foreach ($correct as $possible) {
-                if ($studentStr === strtolower(trim($this->resolveValue($possible)))) {
+                if (in_array($studentStr, $this->extractComparableValues($possible), true)) {
                     return true;
                 }
             }
             return false;
         }
 
-        $correctLower = strtolower(trim((string)$correct));
+        $correctLower = $this->normalizeValue($correct);
         return in_array($studentStr, $validOptions) && $studentStr === $correctLower;
     }
 
     private function compareYesNoNotGiven($student, $correct): bool
     {
-        $studentStr = strtolower(trim($this->resolveValue($student)));
+        $studentStr = $this->normalizeValue($this->resolveValue($student));
         $validOptions = ['yes', 'no', 'not given'];
 
         if (is_array($correct)) {
             foreach ($correct as $possible) {
-                if ($studentStr === strtolower(trim($this->resolveValue($possible)))) {
+                if (in_array($studentStr, $this->extractComparableValues($possible), true)) {
                     return true;
                 }
             }
             return false;
         }
 
-        $correctLower = strtolower(trim((string)$correct));
+        $correctLower = $this->normalizeValue($correct);
         return in_array($studentStr, $validOptions) && $studentStr === $correctLower;
     }
 
@@ -206,12 +302,21 @@ class ReadingQuestionAnswer extends Model
     {
         if (!is_array($student) || !is_array($correct)) {
             // If it's a simple string match, allow it
-            return strtolower(trim($this->resolveValue($student))) === strtolower(trim($this->resolveValue($correct)));
+            return count(array_intersect(
+                $this->extractComparableValues($student),
+                $this->extractComparableValues($correct)
+            )) > 0;
         }
 
         // For matching questions, compare each pair
         foreach ($correct as $key => $value) {
-            if (!isset($student[$key]) || (string)$student[$key] !== (string)$value) {
+            if (
+                !isset($student[$key]) ||
+                count(array_intersect(
+                    $this->extractComparableValues($student[$key]),
+                    $this->extractComparableValues($value)
+                )) === 0
+            ) {
                 return false;
             }
         }
@@ -225,14 +330,31 @@ class ReadingQuestionAnswer extends Model
         
         if (is_array($correct)) {
             foreach ($correct as $possibleAnswer) {
-                if ($this->isTextMatch($studentStr, $this->resolveValue($possibleAnswer))) {
-                    return true;
+                foreach ($this->extractComparableValues($possibleAnswer) as $candidate) {
+                    if ($this->isTextMatch($studentStr, $candidate)) {
+                        return true;
+                    }
                 }
             }
+
+            if (array_keys($correct) !== range(0, count($correct) - 1)) {
+                foreach ($this->extractComparableValues($correct) as $candidate) {
+                    if ($this->isTextMatch($studentStr, $candidate)) {
+                        return true;
+                    }
+                }
+            }
+
             return false;
         }
 
-        return $this->isTextMatch($studentStr, (string)$correct);
+        foreach ($this->extractComparableValues($correct) as $candidate) {
+            if ($this->isTextMatch($studentStr, $candidate)) {
+                    return true;
+                }
+        }
+
+        return false;
     }
 
     private function compareShortAnswer($student, $correct): bool

@@ -91,7 +91,11 @@ class ReadingSubmission extends Model
             foreach ($passages as $passage) {
                 foreach ($passage['question_groups'] ?? [] as $group) {
                     foreach ($group['questions'] ?? [] as $question) {
-                        $maxPossiblePoints += ($question['points'] ?? 1);
+                        $maxPossiblePoints += (
+                            $question['points']
+                            ?? $question['points_value']
+                            ?? 1
+                        );
                     }
                 }
             }

@@ -49,7 +49,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('reading-submissions')->name('reading.submissions.')->group(function () {
         Route::get('/', [ReadingSubmissionController::class, 'index'])->name('index');
         Route::post('/', [ReadingSubmissionController::class, 'store'])->name('store');
-        Route::get('/{id}', [ReadingSubmissionController::class, 'show'])->name('show');
+        // Get a specific submission (with answers/details)
+        Route::get('/{submission}', [ReadingSubmissionController::class, 'getSubmission'])->name('show');
         Route::put('/{id}', [ReadingSubmissionController::class, 'update'])->name('update');
         Route::delete('/{id}', [ReadingSubmissionController::class, 'destroy'])->name('destroy');
         Route::post('/{submissionId}/complete', [ReadingSubmissionController::class, 'complete'])->name('complete');

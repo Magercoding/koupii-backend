@@ -225,10 +225,12 @@ class ReadingSubmissionService
             foreach ($passage['question_groups'] ?? [] as $group) {
                 foreach ($group['questions'] ?? [] as $question) {
                     $submission->answers()->create([
-                        'reading_task_question_id' => $question['id'] ?? null,
-                        'question_id' => null, // This is for Legacy Test questions
+                        'reading_task_question_id' => $question['id'] ?? $question['question_number'] ?? null,
+                        'question_id' => null,
                         'student_answer' => null,
-                        'correct_answer' => $question['correct_answers'] ?? [],
+                        'correct_answer' => $question['correct_answers']
+                            ?? $question['correct_answer']
+                            ?? [],
                         'is_correct' => null,
                         'points_earned' => 0,
                     ]);

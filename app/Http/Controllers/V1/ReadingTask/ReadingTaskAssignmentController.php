@@ -29,7 +29,7 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
         if ($user->role === 'student') {
             return response()->json(['message' => 'Access denied'], 403);
         }
-        if ($user->role === 'teacher' && $task->created_by !== $user->id) {
+        if ($user->role === 'teacher' && $task->created_by !== $user->id && !$this->isTeacherAssigned($task, $user)) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
@@ -46,7 +46,7 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
         $user = $request->user();
         $task = ReadingTask::findOrFail($id);
 
-        if ($user->role === 'teacher' && $task->created_by !== $user->id) {
+        if ($user->role === 'teacher' && $task->created_by !== $user->id && !$this->isTeacherAssigned($task, $user)) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
@@ -89,7 +89,7 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
         $user = $request->user();
         $task = ReadingTask::findOrFail($id);
 
-        if ($user->role === 'teacher' && $task->created_by !== $user->id) {
+        if ($user->role === 'teacher' && $task->created_by !== $user->id && !$this->isTeacherAssigned($task, $user)) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
@@ -118,7 +118,7 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
 
         foreach ($request->task_ids as $taskId) {
             $task = ReadingTask::find($taskId);
-            if ($user->role === 'teacher' && $task->created_by !== $user->id) {
+            if ($user->role === 'teacher' && $task->created_by !== $user->id && !$this->isTeacherAssigned($task, $user)) {
                 $errors[] = "Access denied for task: {$task->title}";
                 continue;
             }
@@ -149,5 +149,15 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
         }
 
         return response()->json(['message' => 'Bulk assignment completed', 'assignments' => $assignments, 'errors' => $errors]);
+    }
+
+    private function isTeacherAssigned(ReadingTask $task, $user): bool
+    {
+        return \Illuminate\Support\Facades\DB::table('assignments')
+            ->join('classes', 'assignments.class_id', '=', 'classes.id')
+            ->where('assignments.task_id', $task->id)
+            ->where('assignments.task_type', 'reading_task')
+            ->where('classes.teacher_id', $user->id)
+            ->exists();
     }
 }
