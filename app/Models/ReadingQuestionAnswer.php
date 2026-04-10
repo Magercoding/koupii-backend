@@ -105,6 +105,8 @@ class ReadingQuestionAnswer extends Model
     {
         if (!$task || !$task->passages) return null;
 
+        $questionIdStr = (string) $questionId;
+
         foreach ($task->passages as $passage) {
             foreach ($passage['question_groups'] ?? [] as $group) {
                 foreach ($group['questions'] ?? [] as $question) {
@@ -117,6 +119,30 @@ class ReadingQuestionAnswer extends Model
                     $qNumber = $question['question_number'] ?? null;
                     if ($qNumber !== null && (string) $qNumber === (string) $questionId) {
                         return $question;
+                    }
+
+                    // Support matching_* questions that store graded entities under items[]
+                    $items = $question['items'] ?? null;
+                    if (is_array($items)) {
+                        $parentKey = (string) ($question['id'] ?? $question['question_number'] ?? '');
+                        foreach ($items as $item) {
+                            $iId = $item['id'] ?? null;
+                            if ($iId !== null && (string) $iId === (string) $questionId) {
+                                return $item;
+                            }
+                            $iNumber = $item['question_number'] ?? null;
+                            if ($iNumber !== null && (string) $iNumber === (string) $questionId) {
+                                return $item;
+                            }
+
+                            // Support composite keys like "{parentKey}-item-{itemNumber}"
+                            if ($parentKey !== '') {
+                                $composite = $parentKey . '-item-' . (string) ($iNumber ?? '');
+                                if ($iNumber !== null && $composite === $questionIdStr) {
+                                    return $item;
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -76,12 +76,51 @@ class ReadingSubmission extends Model
     // Calculate final score
     public function calculateScore(): void
     {
-        $totalQuestions = $this->answers()->count();
-        $correctAnswers = $this->answers()->where('is_correct', true)->count();
-        $incorrectAnswers = $this->answers()->where('is_correct', false)->count();
+        // For ReadingTask (JSON), we may have legacy/orphan answer rows from older schemas.
+        // Only count answers that match current task questions/items.
+        $validReadingTaskIds = null;
+        if ($this->reading_task_id && $this->readingTask) {
+            $validReadingTaskIds = [];
+            $passages = $this->readingTask->passages ?? [];
+            foreach ($passages as $passage) {
+                foreach ($passage['question_groups'] ?? [] as $group) {
+                    foreach ($group['questions'] ?? [] as $question) {
+                        $items = $question['items'] ?? null;
+                        $parentKey = (string) ($question['id'] ?? $question['question_number'] ?? '');
+
+                        if (is_array($items) && count($items) > 0) {
+                            foreach ($items as $idx => $item) {
+                                $itemNum = $item['question_number'] ?? ($idx + 1);
+                                $itemKey = $item['id']
+                                    ?? ($parentKey !== '' ? ($parentKey . '-item-' . (string) $itemNum) : (string) $itemNum);
+                                if ($itemKey !== null && (string) $itemKey !== '') {
+                                    $validReadingTaskIds[] = (string) $itemKey;
+                                }
+                            }
+                        } else {
+                            $qKey = $question['id'] ?? $question['question_number'] ?? null;
+                            if ($qKey !== null && (string) $qKey !== '') {
+                                $validReadingTaskIds[] = (string) $qKey;
+                            }
+                        }
+                    }
+                }
+            }
+
+            $validReadingTaskIds = array_values(array_unique($validReadingTaskIds));
+        }
+
+        $answersQuery = $this->answers();
+        if (is_array($validReadingTaskIds)) {
+            $answersQuery = $answersQuery->whereIn('reading_task_question_id', $validReadingTaskIds);
+        }
+
+        $totalQuestions = $answersQuery->count();
+        $correctAnswers = (clone $answersQuery)->where('is_correct', true)->count();
+        $incorrectAnswers = (clone $answersQuery)->where('is_correct', false)->count();
         $unanswered = $totalQuestions - $correctAnswers - $incorrectAnswers;
 
-        $totalPoints = $this->answers()->sum('points_earned');
+        $totalPoints = (clone $answersQuery)->sum('points_earned');
         
         // Handle max points calculation based on test type (legacy Test vs new ReadingTask)
         $maxPossiblePoints = 0;
@@ -91,11 +130,22 @@ class ReadingSubmission extends Model
             foreach ($passages as $passage) {
                 foreach ($passage['question_groups'] ?? [] as $group) {
                     foreach ($group['questions'] ?? [] as $question) {
-                        $maxPossiblePoints += (
-                            $question['points']
-                            ?? $question['points_value']
-                            ?? 1
-                        );
+                        $items = $question['items'] ?? null;
+                        if (is_array($items) && count($items) > 0) {
+                            foreach ($items as $item) {
+                                $maxPossiblePoints += (
+                                    $item['points']
+                                    ?? $item['points_value']
+                                    ?? 1
+                                );
+                            }
+                        } else {
+                            $maxPossiblePoints += (
+                                $question['points']
+                                ?? $question['points_value']
+                                ?? 1
+                            );
+                        }
                     }
                 }
             }

@@ -224,6 +224,30 @@ class ReadingSubmissionService
         foreach ($task->passages as $passage) {
             foreach ($passage['question_groups'] ?? [] as $group) {
                 foreach ($group['questions'] ?? [] as $question) {
+                    $items = $question['items'] ?? null;
+
+                    // For matching_* questions that have items (e.g. matching_heading),
+                    // treat each item as a separate graded question so scoring/counts match the UI.
+                    if (is_array($items) && count($items) > 0) {
+                        $parentKey = $question['id'] ?? $question['question_number'] ?? null;
+                        foreach ($items as $idx => $item) {
+                            $itemNum = $item['question_number'] ?? ($idx + 1);
+                            $itemKey = $item['id']
+                                ?? ($parentKey !== null ? ((string) $parentKey . '-item-' . (string) $itemNum) : (string) $itemNum);
+                            $submission->answers()->create([
+                                'reading_task_question_id' => $itemKey,
+                                'question_id' => null,
+                                'student_answer' => null,
+                                'correct_answer' => $item['correct_answers']
+                                    ?? $item['correct_answer']
+                                    ?? [],
+                                'is_correct' => null,
+                                'points_earned' => 0,
+                            ]);
+                        }
+                        continue;
+                    }
+
                     $submission->answers()->create([
                         'reading_task_question_id' => $question['id'] ?? $question['question_number'] ?? null,
                         'question_id' => null,
