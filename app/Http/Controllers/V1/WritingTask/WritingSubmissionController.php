@@ -26,22 +26,15 @@ class WritingSubmissionController extends Controller implements HasMiddleware
     /**
      * Submit student writing.
      */
-    public function submit(SubmitWritingRequest $request, string $taskId)
+    public function submit(SubmitWritingRequest $request, string $id)
     {
-        // Resolve task if the ID provided is an assignment_id
-        $task = WritingTask::find($taskId);
-        if (!$task) {
-            $assignment = \App\Models\Assignment::find($taskId);
-            if ($assignment && $assignment->task_type === 'writing_task') {
-                $task = WritingTask::find($assignment->task_id);
-            }
-        }
+        $idResolver = $this->resolveTaskAndAssignment($id, 'writing_task');
+        $task = $idResolver['task'];
+        $assignmentId = $idResolver['assignmentId'];
 
         if (!$task) {
-            $task = WritingTask::findOrFail($taskId); // Fallback to 404 with error if not found
+            return response()->json(['message' => 'Task not found'], 404);
         }
-
-        $assignmentId = $request->input('assignment_id') ?? ($task->id !== $taskId ? $taskId : null);
 
         // Check if student can access this task
         if (!$this->studentCanAccessTask($task, Auth::user(), $assignmentId)) {
@@ -70,10 +63,15 @@ class WritingSubmissionController extends Controller implements HasMiddleware
     /**
      * Save draft (auto-save functionality).
      */
-    public function saveDraft(Request $request, string $taskId)
+    public function saveDraft(Request $request, string $id)
     {
-        $task = WritingTask::findOrFail($taskId);
-        $assignmentId = $request->input('assignment_id');
+        $idResolver = $this->resolveTaskAndAssignment($id, 'writing_task');
+        $task = $idResolver['task'];
+        $assignmentId = $idResolver['assignmentId'];
+
+        if (!$task) {
+            return response()->json(['message' => 'Task not found'], 404);
+        }
 
         // Check if student can access this task
         if (!$this->studentCanAccessTask($task, Auth::user(), $assignmentId)) {
@@ -88,7 +86,9 @@ class WritingSubmissionController extends Controller implements HasMiddleware
 
         try {
             $service = new WritingSubmissionService();
-            $submission = $service->saveDraft($task, $request->all());
+            $submission = $service->saveDraft($task, array_merge($request->all(), [
+                'assignment_id' => $assignmentId
+            ]));
 
             return response()->json([
                 'message' => 'Draft saved successfully',
@@ -105,10 +105,15 @@ class WritingSubmissionController extends Controller implements HasMiddleware
     /**
      * Create retake submission.
      */
-    public function createRetake(Request $request, string $taskId)
+    public function createRetake(Request $request, string $id)
     {
-        $task = WritingTask::findOrFail($taskId);
-        $assignmentId = $request->input('assignment_id');
+        $idResolver = $this->resolveTaskAndAssignment($id, 'writing_task');
+        $task = $idResolver['task'];
+        $assignmentId = $idResolver['assignmentId'];
+
+        if (!$task) {
+            return response()->json(['message' => 'Task not found'], 404);
+        }
 
         // Check if student can access this task
         if (!$this->studentCanAccessTask($task, Auth::user(), $assignmentId)) {
@@ -122,7 +127,9 @@ class WritingSubmissionController extends Controller implements HasMiddleware
 
         try {
             $service = new WritingSubmissionService();
-            $submission = $service->createRetakeSubmission($task, $request->retake_option, $request->all());
+            $submission = $service->createRetakeSubmission($task, $request->retake_option, array_merge($request->all(), [
+                'assignment_id' => $assignmentId
+            ]));
 
             return response()->json([
                 'message' => 'Retake created successfully',
@@ -215,6 +222,48 @@ class WritingSubmissionController extends Controller implements HasMiddleware
     }
 
     /**
+     * Get my submissions for a task.
+     */
+    public function getMySubmissions(Request $request, string $taskId)
+    {
+        $task = WritingTask::findOrFail($taskId);
+
+        $submissions = WritingSubmission::where('writing_task_id', $taskId)
+            ->where('student_id', Auth::id())
+            ->with(['review'])
+            ->orderBy('attempt_number', 'asc')
+            ->get();
+
+        return response()->json([
+            'message' => 'Submissions retrieved successfully',
+            'data' => WritingSubmissionResource::collection($submissions),
+        ], 200);
+    }
+
+    /**
+     * Get my submissions by assignment.
+     */
+    public function getMySubmissionsByAssignment(Request $request, string $assignmentId)
+    {
+        // Resolve assignment_id if it's a StudentAssignment ID
+        $studentAssignment = \App\Models\StudentAssignment::find($assignmentId);
+        if ($studentAssignment) {
+            $assignmentId = $studentAssignment->assignment_id;
+        }
+
+        $submissions = WritingSubmission::where('assignment_id', $assignmentId)
+            ->where('student_id', Auth::id())
+            ->with(['review', 'writingTask'])
+            ->orderBy('attempt_number', 'asc')
+            ->get();
+
+        return response()->json([
+            'message' => 'Submissions retrieved successfully',
+            'data' => WritingSubmissionResource::collection($submissions),
+        ], 200);
+    }
+
+    /**
      * Check if student can access a task.
      */
     private function studentCanAccessTask(WritingTask $task, $user, ?string $assignmentId = null): bool
@@ -223,9 +272,12 @@ class WritingSubmissionController extends Controller implements HasMiddleware
             return true;
         }
 
-        // 1. Check if specific assignment_id is provided and valid
+        // 1. Check if specific assignment_id or student_assignment_id is provided and valid
         if ($assignmentId) {
-            $hasAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+            $hasAssignment = \App\Models\StudentAssignment::where(function($q) use ($assignmentId) {
+                $q->where('assignment_id', $assignmentId)
+                  ->orWhere('id', $assignmentId);
+            })
                 ->where('student_id', $user->id)
                 ->exists();
             if ($hasAssignment) return true;
@@ -242,10 +294,53 @@ class WritingSubmissionController extends Controller implements HasMiddleware
 
         // 3. Fallback: Check classroom-based assignments (Legacy)
         $hasLegacyAssignment = $task->assignments()
-            ->whereHas('classroom.students', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
+            ->whereHas('class.enrollments', function ($q) use ($user) {
+                $q->where('student_id', $user->id)
+                  ->where('status', 'active');
             })->exists();
 
         return $hasLegacyAssignment || $task->is_published;
+    }
+    /**
+     * Resolve task and assignment ID based on provide ID (can be task_id, assignment_id, or student_assignment_id)
+     */
+    private function resolveTaskAndAssignment(string $id, string $type): array
+    {
+        // 1. Check if ID is a StudentAssignment ID
+        $studentAssignment = \App\Models\StudentAssignment::find($id);
+        if ($studentAssignment) {
+            $assignment = $studentAssignment->assignment;
+            return [
+                'task' => WritingTask::find($assignment?->task_id),
+                'assignmentId' => $studentAssignment->assignment_id,
+                'studentAssignment' => $studentAssignment
+            ];
+        }
+
+        // 2. Check if ID is an Assignment ID
+        $assignment = \App\Models\Assignment::find($id);
+        if ($assignment) {
+            return [
+                'task' => WritingTask::find($assignment->task_id),
+                'assignmentId' => $assignment->id,
+                'studentAssignment' => null
+            ];
+        }
+
+        // 3. Check if ID is a Task ID
+        $task = WritingTask::find($id);
+        if ($task) {
+            return [
+                'task' => $task,
+                'assignmentId' => request()->input('assignment_id'),
+                'studentAssignment' => null
+            ];
+        }
+
+        return [
+            'task' => null,
+            'assignmentId' => null,
+            'studentAssignment' => null
+        ];
     }
 }

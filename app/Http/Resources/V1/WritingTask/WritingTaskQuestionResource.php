@@ -22,6 +22,7 @@ class WritingTaskQuestionResource extends JsonResource
             'question_type_label' => $this->getQuestionTypeLabel(),
             'question_number' => $this->question_number,
             'question_text' => $this->question_text,
+            'prompt' => $this->question_text, // Alias for frontend compatibility
             'instructions' => $this->instructions,
             'word_limit' => $this->word_limit,
             'min_word_count' => $this->min_word_count,

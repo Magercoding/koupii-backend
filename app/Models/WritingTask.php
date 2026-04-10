@@ -47,6 +47,8 @@ class WritingTask extends Model
         'time_limit_seconds',
         'allow_submission_files',
         'questions', // New JSON field
+        'passages',
+        'passage_images',
         'title',
         'description',
         'instructions',
@@ -60,6 +62,8 @@ class WritingTask extends Model
         'task_type' => 'string',
         'images' => 'array',
         'questions' => 'array', // New JSON field
+        'passages' => 'array',
+        'passage_images' => 'array',
         'retake_options' => 'array',
         'is_published' => 'boolean',
         'allow_retake' => 'boolean',
@@ -89,7 +93,7 @@ class WritingTask extends Model
         return $this->hasMany(WritingSubmission::class, 'writing_task_id');
     }
 
-    public function questions()
+    public function taskQuestions()
     {
         return $this->hasMany(WritingTaskQuestion::class, 'writing_task_id');
     }

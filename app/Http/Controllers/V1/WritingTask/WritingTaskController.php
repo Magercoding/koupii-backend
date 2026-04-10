@@ -33,18 +33,27 @@ class WritingTaskController extends Controller implements HasMiddleware
     public function index(Request $request)
     {
         $user = $request->user();
+        $classId = $request->query('class_id');
 
-        $query = WritingTask::with(['creator', 'class']);
+        $query = WritingTask::with(['creator', 'assignments']);
 
         // Role-based access control
         if ($user->role === 'admin') {
             // Admin sees all tasks
+            if ($classId) {
+                $query->whereHas('assignments', function ($q) use ($classId) {
+                    $q->where('class_id', $classId);
+                });
+            }
         } elseif ($user->role === 'student') {
             // Students see only published tasks assigned to their classrooms and where they are active members
             $query->where('is_published', true)
-                ->whereHas('class.enrollments', function ($q) use ($user) {
-                    $q->where('users.id', $user->id)
-                      ->where('class_enrollments.status', 'active');
+                ->whereHas('assignments.class.enrollments', function ($q) use ($user, $classId) {
+                    $q->where('student_id', $user->id)
+                      ->where('status', 'active');
+                    if ($classId) {
+                        $q->where('class_id', $classId);
+                    }
                 })
                 ->with([
                     'submissions' => function ($q) use ($user) {
@@ -53,15 +62,41 @@ class WritingTaskController extends Controller implements HasMiddleware
                 ]);
         } else {
             // Teachers see only their own tasks
-            $query->where('creator_id', $user->id)
-                ->with(['submissions.review', 'assignments']);
+            $query->where('creator_id', $user->id);
+            
+            if ($classId) {
+                $query->whereHas('assignments', function ($q) use ($classId) {
+                    $q->where('class_id', $classId);
+                });
+            }
+
+            $query->with(['submissions.review', 'assignments']);
         }
 
         $tasks = $query->orderBy('created_at', 'desc')->get();
 
+        // Get user's classes for the filter dropdown
+        $classes = [];
+        if ($user->role === 'teacher') {
+            $classes = DB::table('classes')
+                ->where('teacher_id', $user->id)
+                ->select('id', 'name')
+                ->get();
+        } elseif ($user->role === 'student') {
+            $classes = DB::table('classes')
+                ->join('class_enrollments', 'classes.id', '=', 'class_enrollments.class_id')
+                ->where('class_enrollments.student_id', $user->id)
+                ->where('class_enrollments.status', 'active')
+                ->select('classes.id', 'classes.name')
+                ->get();
+        }
+
         return response()->json([
             'message' => 'Writing tasks retrieved successfully',
             'data' => WritingTaskResource::collection($tasks),
+            'meta' => [
+                'classes' => $classes
+            ]
         ], 200);
     }
 
@@ -94,7 +129,7 @@ class WritingTaskController extends Controller implements HasMiddleware
 
         $query = WritingTask::with([
             'creator',
-            'class',
+            'assignments',
             'submissions.student',
             'submissions.review',
             'questions.resources'
@@ -103,9 +138,9 @@ class WritingTaskController extends Controller implements HasMiddleware
         // Role-based access control
         if ($user->role === 'student') {
             $query->where('is_published', true)
-                ->whereHas('class.enrollments', function ($q) use ($user) {
-                    $q->where('users.id', $user->id)
-                      ->where('class_enrollments.status', 'active');
+                ->whereHas('assignments.class.enrollments', function ($q) use ($user) {
+                    $q->where('student_id', $user->id)
+                      ->where('status', 'active');
                 });
         } elseif ($user->role !== 'admin') {
             $query->where('creator_id', $user->id);

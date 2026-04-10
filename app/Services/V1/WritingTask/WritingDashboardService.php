@@ -16,7 +16,7 @@ class WritingDashboardService
     {
         $studentId = Auth::id();
 
-        // Get all assigned tasks for student through their classes
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Assignment> $assignments */
         $assignments = Assignment::where('type', 'writing')
             ->whereHas('class.enrollments', function ($query) use ($studentId) {
                 $query->where('student_id', $studentId)->where('status', 'active');
@@ -27,7 +27,7 @@ class WritingDashboardService
             ])
             ->get();
 
-        return $assignments->map(function ($assignment) use ($studentId) {
+        return $assignments->map(function (\App\Models\Assignment $assignment) use ($studentId) {
             $task = $assignment->getTask();
             $submission = $task ? WritingSubmission::where('writing_task_id', $task->id)
                 ->where('student_id', $studentId)->latest('attempt_number')->first() : null;
@@ -60,20 +60,37 @@ class WritingDashboardService
         })->toArray();
     }
 
-    /**
-     * Get teacher dashboard data.
-     */
-    public function getTeacherDashboard(): array
+    public function getTeacherDashboard(?string $classId = null): array
     {
         $teacherId = Auth::id();
+        $user = Auth::user();
 
-        $tasks = WritingTask::where('creator_id', $teacherId)
-            ->with(['class', 'submissions.student', 'submissions.review'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = WritingTask::where('creator_id', $teacherId)
+            ->with(['assignments.class', 'assignments.classroom', 'submissions.student', 'submissions.latestReview'])
+            ->orderBy('created_at', 'desc');
 
-        return $tasks->map(function ($task) {
+        if ($classId && $classId !== 'all') {
+            $query->whereHas('assignments', function ($q) use ($classId, $teacherId) {
+                $q->where(function($sq) use ($classId) {
+                    $sq->where('class_id', $classId)->orWhere('classroom_id', $classId);
+                })->whereHas('class', function($cq) use ($teacherId) {
+                    $cq->where('teacher_id', $teacherId);
+                });
+            });
+        }
+
+        $tasks = $query->get();
+
+        $dashboardTasks = $tasks->map(function ($task) use ($classId) {
             $submissions = $task->submissions;
+
+            // If a specific class is selected, filter submissions to that class only
+            if ($classId && $classId !== 'all') {
+                $submissions = $submissions->filter(function ($sub) use ($classId) {
+                    return $sub->student && $sub->student->enrollments()->where('class_id', $classId)->exists();
+                });
+            }
+
             $totalSubmissions = $submissions->count();
             $reviewedSubmissions = $submissions->where('status', 'reviewed')->count();
             $pendingSubmissions = $submissions->where('status', 'submitted')->count();
@@ -89,16 +106,28 @@ class WritingDashboardService
                 'total_submissions' => $totalSubmissions,
                 'pending_reviews' => $pendingSubmissions,
                 'reviewed_submissions' => $reviewedSubmissions,
-                'average_score' => $submissions->whereNotNull('review.score')->avg('review.score'),
+                'average_score' => $submissions->whereNotNull('latestReview.score')->avg('latestReview.score'),
                 'classrooms' => $task->assignments->map(function ($assignment) {
+                    $class = $assignment->class ?: $assignment->classroom;
                     return [
-                        'id' => $assignment->classroom->id,
-                        'name' => $assignment->classroom->name,
+                        'id' => $class->id ?? null,
+                        'name' => $class->name ?? 'Unknown Class',
                         'assigned_at' => $assignment->assigned_at,
                     ];
                 })->toArray(),
             ];
         })->toArray();
+
+        // Get list of teacher's classes for the filter
+        $classes = \Illuminate\Support\Facades\DB::table('classes')
+            ->where('teacher_id', $teacherId)
+            ->select('id', 'name')
+            ->get();
+
+        return [
+            'tasks' => $dashboardTasks,
+            'classes' => $classes
+        ];
     }
 
     /**
@@ -113,7 +142,7 @@ class WritingDashboardService
         $completedReviews = WritingSubmission::where('status', 'reviewed')->count();
 
         // Get recent tasks
-        $recentTasks = WritingTask::with(['creator', 'class'])
+        $recentTasks = WritingTask::with(['creator', 'assignments.class'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();

@@ -228,6 +228,30 @@ class StudentAssignment extends Model
     }
 
     // Private helper methods
+    /**
+     * Get the writing task associated with this assignment through the base assignment.
+     */
+    public function writingTask()
+    {
+        return $this->hasOneThrough(
+            WritingTask::class,
+            Assignment::class,
+            'id', // Local key on assignments matches assignment_id here
+            'id', // Local key on writing_tasks matches task_id on assignments
+            'assignment_id', // Foreign key on student_assignments
+            'task_id' // Foreign key on assignments
+        );
+    }
+
+    /**
+     * Get all writing submissions for this student assignment.
+     */
+    public function writingSubmissions()
+    {
+        return $this->hasMany(WritingSubmission::class, 'assignment_id', 'assignment_id')
+            ->where('student_id', $this->student_id);
+    }
+
     private function recordStatusChange(string $oldStatus, string $newStatus): void
     {
         AssignmentAuditTrail::create([

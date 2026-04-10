@@ -299,18 +299,28 @@ class MissionSeeder extends Seeder
         // D. WRITING TASK
         $writingTask = WritingTask::create([
             'id' => (string) Str::uuid(),
-            'title' => 'Public Transportation vs Roads',
+            'title' => 'Economic Growth vs Environmental Protection',
             'description' => 'IELTS Writing Task 2 Essay prompt.',
-            'instructions' => 'Write at least 250 words on the following topic.',
+            'instructions' => 'Write at least 250 words on the provided topic. Ensure you discuss both views and provide your own opinion.',
             'difficulty' => 'advanced',
             'task_type' => 'essay',
-            'prompt' => 'Governments should invest more in public transportation than in roads. To what extent do you agree or disagree?',
-            'min_word_count' => 250,
-            'suggest_time_minutes' => 40,
+            'prompt' => 'Some people believe that economic growth is the only way to end world poverty, while others think that economic growth is damaging the environment and must be stopped. Discuss both views and give your opinion.',
+            'word_limit' => 500,
             'is_published' => true,
             'creator_id' => $teacher->id,
-            'word_limit' => 500,
-            'max_retake_attempts' => 2,
+            'passages' => [
+                [
+                    'title' => 'The Global Development Paradox',
+                    'content' => "In the modern era, the pursuit of economic prosperity has become a primary goal for nations worldwide. The argument in favor of continuous growth is rooted in the belief that industrial expansion creates jobs, raises living standards, and provides the resources necessary to eliminate extreme poverty. Countries like China and India are often cited as prime examples where rapid economic development has lifted millions out of destitution.\n\nOn the other hand, a growing movement of environmentalists and scientists warns that this model of growth is unsustainable. They point to the alarming rate of carbon emissions, the depletion of natural resources, and the irreversible loss of biodiversity. According to this perspective, prioritizing GDP over planetary health will ultimately lead to a climate catastrophe that will harm the very people it intended to help.\n\nThe challenge, therefore, lies in finding a 'Green Growth' model—one that fosters human wellbeing without exceeding the Earth's ecological limits.",
+                    'sample_answer' => "The question of whether economic growth is a necessity for poverty alleviation or a threat to environmental stability is a central theme in global discourse. In my opinion, while growth is essential for developing nations, it must be decoupled from environmental destruction through innovation and sustainable practices.\n\nProponents of economic growth argue that it is the most effective tool against poverty. Historical data suggests that as economies expand, wealth tends to trickle down, improving access to education and healthcare. Without a robust economy, governments lack the funds to invest in infrastructure or social safety nets. For an impoverished family in a developing nation, a new factory nearby represents hope and a path to a better life, far outweighing abstract concerns about global warming.\n\nConversely, critics highlight the environmental cost of traditional industrialization. The current model relies heavily on fossil fuels and mass consumption, leading to severe air pollution and rising sea levels. If we continue on this path, the environmental damage might become so severe that it offsets any economic gains. For instance, extreme weather events like floods and droughts already cost the global economy billions of dollars annually and disproportionately affect the poor.\n\nIn conclusion, I believe that we do not have to choose between prosperity and the planet. The solution is 'sustainable development'—investing in renewable energy and a circular economy. By transitioning to green technologies, nations can continue to grow and lift people out of poverty while ensuring that the environment remains habitable for future generations.",
+                    'questions' => [
+                        [
+                            'question_number' => 1,
+                            'question_text' => 'Discuss both views and give your opinion.',
+                        ]
+                    ]
+                ]
+            ]
         ]);
 
         // Create Writing Question
@@ -319,8 +329,8 @@ class MissionSeeder extends Seeder
             'writing_task_id' => $writingTask->id,
             'question_type' => 'essay',
             'question_number' => 1,
-            'question_text' => 'Governments should invest more in public transportation than in roads. To what extent do you agree or disagree?',
-            'min_word_count' => 250,
+            'question_text' => 'Discuss both views and give your opinion.',
+            'word_limit' => 500,
         ]);
 
         // 3. Create Assignments and Link to Students

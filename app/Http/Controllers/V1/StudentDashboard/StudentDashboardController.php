@@ -105,15 +105,32 @@ class StudentDashboardController extends Controller
             ], 404);
         }
 
-        // Get or create student assignment record
-        $studentAssignment = StudentAssignment::firstOrCreate([
+        // Resolve the actual assignment_id if a StudentAssignment ID was provided
+        $resolvedAssignmentId = $assignmentId;
+        $studentAssignment = StudentAssignment::where([
             'student_id' => $studentId,
             'assignment_id' => $assignmentId,
-            'assignment_type' => $type
-        ], [
-            'status' => StudentAssignment::STATUS_NOT_STARTED,
-            'attempt_count' => 0
-        ]);
+        ])->first();
+
+        if (!$studentAssignment) {
+            $potentialSA = StudentAssignment::find($assignmentId);
+            if ($potentialSA) {
+                $studentAssignment = $potentialSA;
+                $resolvedAssignmentId = $potentialSA->assignment_id;
+            }
+        }
+
+        // Get or create student assignment record if still not found
+        if (!$studentAssignment) {
+            $studentAssignment = StudentAssignment::firstOrCreate([
+                'student_id' => $studentId,
+                'assignment_id' => $resolvedAssignmentId,
+                'assignment_type' => $type
+            ], [
+                'status' => StudentAssignment::STATUS_NOT_STARTED,
+                'attempt_count' => 0
+            ]);
+        }
 
         // Self-healing for inconsistent state (in_progress but already completed)
         if ($studentAssignment->status === StudentAssignment::STATUS_IN_PROGRESS && $studentAssignment->completed_at !== null) {
@@ -166,16 +183,32 @@ class StudentDashboardController extends Controller
             ], 403);
         }
 
-        // Get or create student assignment
-        $studentAssignment = StudentAssignment::firstOrCreate([
+        // Resolve the actual assignment_id if a StudentAssignment ID was provided
+        $resolvedAssignmentId = $assignmentId;
+        $studentAssignment = StudentAssignment::where([
             'student_id' => $studentId,
             'assignment_id' => $assignmentId,
-            'assignment_type' => $type
-        ], [
-            'status' => StudentAssignment::STATUS_IN_PROGRESS,
-            'attempt_count' => 0,
-            'started_at' => now()
-        ]);
+        ])->first();
+
+        if (!$studentAssignment) {
+            $potentialSA = StudentAssignment::find($assignmentId);
+            if ($potentialSA) {
+                $studentAssignment = $potentialSA;
+                $resolvedAssignmentId = $potentialSA->assignment_id;
+            }
+        }
+
+        // Get or create student assignment
+        if (!$studentAssignment) {
+            $studentAssignment = StudentAssignment::create([
+                'student_id' => $studentId,
+                'assignment_id' => $resolvedAssignmentId,
+                'assignment_type' => $type,
+                'status' => StudentAssignment::STATUS_IN_PROGRESS,
+                'attempt_count' => 0,
+                'started_at' => now()
+            ]);
+        }
 
         // If already exists, just update status to in_progress (don't increment attempts here;
         // the specific submission service like ListeningSubmissionService handles attempt tracking)
@@ -185,8 +218,13 @@ class StudentDashboardController extends Controller
                 'last_activity_at' => now(),
             ];
 
+            // Set started_at if not already set
+            if (!$studentAssignment->started_at) {
+                $updateData['started_at'] = now();
+            }
+
             // If it was already finished, increment attempt count for a retake
-            if (in_array($studentAssignment->status, [StudentAssignment::STATUS_SUBMITTED, StudentAssignment::STATUS_COMPLETED])) {
+            if (in_array($studentAssignment->status, [StudentAssignment::STATUS_SUBMITTED, StudentAssignment::STATUS_COMPLETED, StudentAssignment::STATUS_GRADED])) {
                 $nextAttempt = ($studentAssignment->attempt_count ?? 0) + 1;
                 $updateData['attempt_count'] = $nextAttempt;
                 $updateData['attempt_number'] = $nextAttempt;
@@ -261,6 +299,14 @@ class StudentDashboardController extends Controller
     private function checkStudentAccess(string $assignmentId, string $type, string $userId): bool
     {
         $assignment = \App\Models\Assignment::find($assignmentId);
+        
+        if (!$assignment) {
+            $studentAssignment = \App\Models\StudentAssignment::find($assignmentId);
+            if ($studentAssignment) {
+                $assignment = $studentAssignment->assignment;
+            }
+        }
+
         if (!$assignment) {
             return false;
         }

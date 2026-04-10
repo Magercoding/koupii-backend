@@ -33,6 +33,7 @@ class WritingAttempt extends Model
     protected $fillable = [
         'writing_task_id',
         'student_id',
+        'assignment_id',
         'attempt_number',
         'attempt_type',
         'selected_questions',

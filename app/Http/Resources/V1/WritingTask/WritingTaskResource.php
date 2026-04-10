@@ -36,6 +36,8 @@ class WritingTaskResource extends JsonResource
             'is_published' => $this->is_published,
             'is_overdue' => $this->isOverdue(),
             'due_date' => $this->due_date,
+            'passages' => $this->passages,
+            'passage_images' => $this->passage_images,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
 

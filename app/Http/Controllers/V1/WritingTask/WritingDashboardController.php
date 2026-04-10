@@ -53,9 +53,11 @@ class WritingDashboardController extends Controller implements HasMiddleware
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $classId = $request->query('class_id');
+
         try {
             $service = new WritingDashboardService();
-            $dashboard = $service->getTeacherDashboard();
+            $dashboard = $service->getTeacherDashboard($classId);
 
             return response()->json([
                 'message' => 'Teacher dashboard retrieved successfully',

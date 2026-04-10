@@ -70,7 +70,14 @@ class WritingSubmissionService
                     ->first();
 
                 if ($studentAssignment) {
-                    $studentAssignment->submit(); // Uses the model's submission logic
+                    $studentAssignment->update([
+                        'status' => \App\Models\StudentAssignment::STATUS_SUBMITTED,
+                        'completed_at' => now(),
+                        'last_activity_at' => now(),
+                        'started_at' => $studentAssignment->started_at ?? now(),
+                        'attempt_number' => $submission->attempt_number,
+                        'attempt_count' => max($studentAssignment->attempt_count ?? 0, $submission->attempt_number),
+                    ]);
                 }
             }
 
@@ -83,20 +90,68 @@ class WritingSubmissionService
      */
     public function saveDraft(WritingTask $task, array $data): WritingSubmission
     {
-        $submission = WritingSubmission::updateOrCreate(
-            [
-                'writing_task_id' => $task->id,
-                'student_id' => Auth::id(),
-                'status' => 'to_do'
-            ],
-            [
-                'id' => Str::uuid(),
+        $assignmentId = $data['assignment_id'] ?? null;
+        
+        $matchCriteria = [
+            'writing_task_id' => $task->id,
+            'student_id' => Auth::id(),
+            'status' => 'to_do'
+        ];
+
+        if ($assignmentId) {
+            $matchCriteria['assignment_id'] = $assignmentId;
+        }
+
+        $submission = WritingSubmission::where($matchCriteria)->first();
+
+        if ($submission) {
+            $submission->update([
                 'content' => $data['content'],
                 'files' => $data['files'] ?? null,
                 'word_count' => $this->countWords($data['content']),
                 'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
-            ]
-        );
+            ]);
+        } else {
+            $attemptNumberQuery = WritingSubmission::where('writing_task_id', $task->id)
+                ->where('student_id', Auth::id());
+                
+            if ($assignmentId) {
+                $attemptNumberQuery->where('assignment_id', $assignmentId);
+            }
+            
+            $attemptNumber = $attemptNumberQuery->max('attempt_number') + 1;
+
+            $submission = WritingSubmission::create(array_merge($matchCriteria, [
+                'id' => Str::uuid(),
+                'attempt_number' => $attemptNumber,
+                'content' => $data['content'],
+                'files' => $data['files'] ?? null,
+                'word_count' => $this->countWords($data['content']),
+                'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
+            ]));
+        }
+
+        // Sync with StudentAssignment
+        if ($assignmentId) {
+            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                ->where('student_id', Auth::id())
+                ->first();
+
+            if ($studentAssignment) {
+                $updateData = [
+                    'last_activity_at' => now(),
+                    'attempt_number' => $submission->attempt_number,
+                    'attempt_count' => max($studentAssignment->attempt_count ?? 0, $submission->attempt_number),
+                ];
+
+                if ($studentAssignment->status === \App\Models\StudentAssignment::STATUS_NOT_STARTED || !$studentAssignment->started_at) {
+                    $updateData['status'] = \App\Models\StudentAssignment::STATUS_IN_PROGRESS;
+                    $updateData['started_at'] = $studentAssignment->started_at ?? now();
+                }
+
+                $studentAssignment->update($updateData);
+            }
+        }
 
         return $submission;
     }
@@ -204,6 +259,19 @@ class WritingSubmissionService
      */
     private function countWords(string $content): int
     {
+        // Try to decode as JSON in case of multiple questions
+        $data = json_decode($content, true);
+        
+        if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+            $total = 0;
+            foreach ($data as $value) {
+                if (is_string($value)) {
+                    $total += str_word_count(strip_tags($value));
+                }
+            }
+            return $total;
+        }
+
         return str_word_count(strip_tags($content));
     }
 

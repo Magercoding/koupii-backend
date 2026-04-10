@@ -85,7 +85,7 @@ class WritingTaskAssignmentController extends Controller implements HasMiddlewar
      */
     public function getAssignments(string $id)
     {
-        $task = WritingTask::with('class')->findOrFail($id);
+        $task = WritingTask::with('assignments')->findOrFail($id);
 
         // Check authorization
         if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {

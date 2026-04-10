@@ -118,6 +118,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Enrollment records for the student
+     */
+    public function enrollments()
+    {
+        return $this->hasMany(ClassEnrollment::class, 'student_id');
+    }
+
+    /**
      * Student assignments
      */
     public function studentAssignments()

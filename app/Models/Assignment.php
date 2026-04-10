@@ -90,6 +90,16 @@ class Assignment extends Model
         return $this->belongsTo(User::class, 'assigned_by');
     }
 
+    public function writingTask(): BelongsTo
+    {
+        return $this->belongsTo(WritingTask::class, 'task_id');
+    }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(WritingSubmission::class, 'assignment_id');
+    }
+
     public function studentAssignments(): HasMany
     {
         return $this->hasMany(StudentAssignment::class, 'assignment_id');

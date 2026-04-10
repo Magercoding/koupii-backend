@@ -38,7 +38,14 @@ class StoreWritingTaskRequest extends BaseRequest
             'is_published' => 'boolean',
             'due_date' => 'nullable|date|after:now',
             
-            // Multiple questions support (similar to Reading/Listening)
+            // Multiple passages support (IELTS Style)
+            'passages' => 'nullable|array',
+            'passages.*.title' => 'required_with:passages|string|max:255',
+            'passages.*.description' => 'required_with:passages|string',
+            'passages.*.questions' => 'required_with:passages|array',
+            'passages.*.questions.*.question_text' => 'required_with:passages|string|max:2000',
+
+            // Multiple questions support (legacy/alternative)
             'questions' => 'nullable|array',
             'questions.*.question_type' => 'required_with:questions|string|in:essay,short_answer,creative_writing,argumentative,descriptive,narrative',
             'questions.*.question_text' => 'required_with:questions|string|max:2000',
@@ -82,6 +89,12 @@ class StoreWritingTaskRequest extends BaseRequest
         ]);
 
         // Only parse JSON strings if they are actually strings (for multipart/form-data)
+        if ($this->has('passages') && is_string($this->input('passages'))) {
+            $this->merge([
+                'passages' => json_decode($this->input('passages'), true)
+            ]);
+        }
+
         if ($this->has('questions') && is_string($this->input('questions'))) {
             $this->merge([
                 'questions' => json_decode($this->input('questions'), true)

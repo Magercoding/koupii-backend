@@ -8,6 +8,7 @@ use App\Http\Controllers\V1\WritingTask\WritingReviewController;
 use App\Http\Controllers\V1\WritingTask\WritingDashboardController;
 use App\Http\Controllers\V1\WritingTask\WritingAttemptController;
 use App\Http\Controllers\V1\WritingTask\WritingFeedbackController;
+use App\Http\Controllers\V1\WritingTask\WritingAnalyticsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -73,9 +74,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Review Management Routes
     Route::prefix('writing-reviews')->name('writing-reviews.')->group(function () {
-        Route::get('/pending', [WritingReviewController::class, 'getPendingReviews'])->name('pending');
+        Route::get('/list', [WritingReviewController::class, 'getReviews'])->name('list');
         Route::post('/bulk', [WritingReviewController::class, 'bulkReview'])->name('bulk');
         Route::get('/statistics', [WritingReviewController::class, 'getReviewStatistics'])->name('statistics');
+        
+        // Assignment-level Review
+        Route::get('/assignments/{assignmentId}', [WritingReviewController::class, 'showAssignment'])->name('assignment.show');
+        Route::post('/assignments/{assignmentId}/submit', [WritingReviewController::class, 'submitAssignmentReview'])->name('assignment.submit');
     });
 
     // Dashboard Routes
@@ -97,7 +102,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Task Analytics Routes
     Route::prefix('writing-task-analytics')->name('writing-task-analytics.')->group(function () {
-        Route::get('/{id}/statistics', [WritingTaskController::class, 'getTaskStatistics'])->name('statistics');
+        Route::get('/student', [WritingAnalyticsController::class, 'studentAnalytics'])->name('student');
+        Route::get('/teacher', [WritingAnalyticsController::class, 'teacherAnalytics'])->name('teacher');
+        Route::get('/{id}/statistics', [WritingAnalyticsController::class, 'taskReport'])->name('statistics');
         Route::get('/{id}/progress', [WritingTaskController::class, 'getTaskProgress'])->name('progress');
         Route::get('/{id}/submissions-summary', [WritingTaskController::class, 'getSubmissionsSummary'])->name('submissions-summary');
         Route::get('/teacher/{teacherId}/overview', [WritingTaskController::class, 'getTeacherOverview'])->name('teacher-overview');
@@ -124,6 +131,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{attemptId}', [WritingAttemptController::class, 'show'])->name('show');
         Route::post('/{attemptId}/submit', [WritingAttemptController::class, 'submit'])->name('submit');
         Route::get('/task/{taskId}/retake-options', [WritingAttemptController::class, 'getRetakeOptions'])->name('retake-options');
+    });
+
+    // Writing Submissions Routes
+    Route::prefix('writing-submissions')->name('writing-submissions.')->group(function () {
+        Route::get('/my/{taskId}', [WritingSubmissionController::class, 'getMySubmissions'])->name('my-submissions');
+        Route::get('/assignment/{assignmentId}', [WritingSubmissionController::class, 'getMySubmissionsByAssignment'])->name('my-submissions-assignment');
     });
 
     // Writing Feedback Routes (Scoring and feedback system)

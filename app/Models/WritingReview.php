@@ -28,6 +28,7 @@ class WritingReview extends Model
 
     protected $fillable = [
         'submission_id',
+        'assignment_id',
         'teacher_id',
         'score',
         'comments',
@@ -44,6 +45,11 @@ class WritingReview extends Model
     public function submission()
     {
         return $this->belongsTo(WritingSubmission::class, 'submission_id');
+    }
+
+    public function assignment()
+    {
+        return $this->belongsTo(StudentAssignment::class, 'assignment_id');
     }
 
     public function teacher()

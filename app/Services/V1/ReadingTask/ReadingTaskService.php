@@ -18,7 +18,7 @@ class ReadingTaskService
      */
     public function getReadingTasks(array $filters = []): LengthAwarePaginator
     {
-        $query = ReadingTask::with(['creator', 'class']);
+        $query = ReadingTask::with(['creator', 'assignments']);
 
         // Apply filters
         if (!empty($filters['test_id'])) {

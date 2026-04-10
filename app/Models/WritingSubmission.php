@@ -36,6 +36,7 @@ class WritingSubmission extends Model
     protected $fillable = [
         'writing_task_id',
         'student_id',
+        'assignment_id',
         'attempt_id', // Link to WritingAttempt
         'question_id', // Specific question being answered
         'content',
@@ -55,6 +56,16 @@ class WritingSubmission extends Model
         'submitted_at' => 'datetime',
     ];
 
+    public function writingTask()
+    {
+        return $this->task();
+    }
+
+    public function review()
+    {
+        return $this->latestReview();
+    }
+
     public function task()
     {
         return $this->belongsTo(WritingTask::class, 'writing_task_id');
@@ -63,6 +74,17 @@ class WritingSubmission extends Model
     public function student()
     {
         return $this->belongsTo(User::class, 'student_id');
+    }
+
+    public function assignment()
+    {
+        return $this->belongsTo(Assignment::class, 'assignment_id');
+    }
+
+    public function studentAssignment()
+    {
+        return $this->belongsTo(StudentAssignment::class, 'assignment_id', 'assignment_id')
+            ->where('student_id', $this->student_id);
     }
 
     /**
