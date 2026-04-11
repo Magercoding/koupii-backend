@@ -19,6 +19,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('student')->name('student.')->group(function () {
         Route::get('/dashboard', [StudentDashboardController::class, 'dashboard'])
             ->name('dashboard');
+
+        Route::get('/dashboard/statistics/reading', [StudentDashboardController::class, 'readingStatistics'])
+            ->name('dashboard.reading-stats');
         
         Route::get('/assignments/{assignmentId}/{type}/details', [StudentDashboardController::class, 'getAssignmentDetails'])
             ->name('assignment.details');

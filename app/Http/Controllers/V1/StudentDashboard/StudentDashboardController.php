@@ -7,74 +7,167 @@ use App\Models\StudentAssignment;
 use App\Models\ClassEnrollment;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class StudentDashboardController extends Controller
 {
     /**
      * Get student dashboard with assignments from all enrolled classes
      */
-    public function dashboard(): JsonResponse
+    public function dashboard(Request $request): JsonResponse
     {
         $studentId = auth()->id();
-        
+        $search = $request->query('search');
+        $module = $request->query('module');
+        $status = $request->query('status');
+        $perPage = $request->query('size', 10);
+
         // Get all classes the student is enrolled in
-        $enrolledClasses = ClassEnrollment::where('student_id', $studentId)
-            ->with('class')
+        $enrolledClassIds = ClassEnrollment::where('student_id', $studentId)
+            ->where('status', 'active')
+            ->pluck('class_id');
+
+        // --- Summary Stats Calculation ---
+        // Fetch all assignments for these classes once to calculate counts efficiently
+        $allAssignments = \App\Models\Assignment::whereIn('class_id', $enrolledClassIds)
+            ->with(['studentAssignments' => function($query) use ($studentId) {
+                $query->where('student_id', $studentId);
+            }])
             ->get();
 
-        $assignments = collect();
+        $completedCount = 0;
+        $pendingCount = 0;
+        $overdueCount = 0;
+        $scoreSum = 0;
+        $scoredCount = 0;
 
-        foreach ($enrolledClasses as $enrollment) {
-            $classId = $enrollment->class_id;
-            $className = $enrollment->class->name;
+        foreach ($allAssignments as $assignment) {
+            $studentAssignment = $assignment->studentAssignments->first();
+            $asgnStatus = $studentAssignment?->status ?? 'pending';
 
-            // Get assignments from the unified Assignment model
-            $classAssignments = \App\Models\Assignment::where('class_id', $classId)
-                ->with(['studentAssignments' => function($query) use ($studentId) {
-                    $query->where('student_id', $studentId);
-                }])
-                ->get()
-                ->map(function($assignment) use ($className) {
-                    $studentAssignment = $assignment->studentAssignments->first();
-                    $task = $assignment->getTask();
-                    
-                    return [
-                        'id' => $assignment->id,
-                        'type' => $assignment->type ?? $assignment->task_type,
-                        'title' => $assignment->title ?? $task?->title,
-                        'description' => $assignment->description ?? $task?->description,
-                        'class_name' => $className,
-                        'due_date' => $assignment->due_date,
-                        'assigned_date' => $assignment->created_at,
-                        'status' => $studentAssignment?->status ?? 'pending',
-                        'score' => $studentAssignment?->score,
-                        'completion_date' => $studentAssignment?->completed_at,
-                        'attempt_count' => $studentAssignment?->attempt_count ?? 0,
-                        'max_attempts' => $assignment->max_attempts,
-                        'time_limit' => $task->time_limit_seconds ?? null,
-                        'word_limit' => $task->word_limit ?? $task->min_word_count ?? null,
-                        'difficulty' => $task->difficulty ?? $task->difficulty_level ?? null,
-                    ];
-                });
-
-            // Merge all assignments
-            $assignments = $assignments->merge($classAssignments);
+            if (in_array($asgnStatus, ['completed', 'submitted', 'graded', 'done'])) {
+                $completedCount++;
+                if ($studentAssignment && $studentAssignment->score !== null) {
+                    $scoreSum += $studentAssignment->score;
+                    $scoredCount++;
+                }
+            } else {
+                if ($assignment->due_date && $assignment->due_date->isPast()) {
+                    $overdueCount++;
+                } else {
+                    $pendingCount++;
+                }
+            }
         }
 
-        // Sort assignments by due date
-        $assignments = $assignments->sortBy('due_date');
+        $averageOverallScore = $scoredCount > 0 ? round($scoreSum / $scoredCount, 1) : 0;
+
+        // Calculate Time Spent across modules
+        $readingSeconds = DB::table('reading_submissions')->where('student_id', $studentId)->sum('time_taken_seconds');
+        $listeningSeconds = DB::table('listening_submissions')->where('student_id', $studentId)->sum('time_taken_seconds');
+        $speakingSeconds = DB::table('speaking_submissions')->where('student_id', $studentId)->sum('total_time_seconds');
+        $writingSeconds = DB::table('student_assignments')
+            ->where('student_id', $studentId)
+            ->where('assignment_type', 'writing_task')
+            ->sum('time_spent_seconds');
+        
+        $totalSeconds = $readingSeconds + $listeningSeconds + $speakingSeconds + $writingSeconds;
+        $hours = floor($totalSeconds / 3600);
+        $minutes = floor(($totalSeconds / 60) % 60);
+        $timeSpentFormatted = "{$hours}h" . ($minutes > 0 ? " {$minutes}m" : "");
+        if ($hours == 0 && $minutes == 0) $timeSpentFormatted = "0h";
+
+        // --- Assignments List Query with Filters ---
+        $query = \App\Models\Assignment::whereIn('class_id', $enrolledClassIds)
+            ->with(['studentAssignments' => function($q) use ($studentId) {
+                $q->where('student_id', $studentId);
+            }, 'class']);
+
+        if ($search) {
+            $query->where('title', 'like', "%{$search}%");
+        }
+
+        if ($module) {
+            $modules = is_array($module) ? $module : explode(',', $module);
+            $query->whereIn('type', $modules);
+        }
+
+        if ($status) {
+            $statuses = is_array($status) ? $status : explode(',', $status);
+            
+            // Map frontend statuses to backend statuses
+            // Frontend keys: 'done', 'todo', 'review'
+            $statusMap = [
+                'done' => ['completed', 'submitted', 'graded', 'done'],
+                'todo' => ['pending', 'not_started', 'in_progress'],
+                'review' => ['reviewed']
+            ];
+
+            $mappedStatuses = [];
+            foreach ($statuses as $s) {
+                if (isset($statusMap[$s])) {
+                    $mappedStatuses = array_merge($mappedStatuses, $statusMap[$s]);
+                } else {
+                    $mappedStatuses[] = $s;
+                }
+            }
+
+            $query->where(function($q) use ($studentId, $mappedStatuses) {
+                if (in_array('pending', $mappedStatuses) || in_array('not_started', $mappedStatuses)) {
+                    $q->whereDoesntHave('studentAssignments', function($sq) use ($studentId) {
+                        $sq->where('student_id', $studentId);
+                    })->orWhereHas('studentAssignments', function($sq) use ($studentId, $mappedStatuses) {
+                        $sq->where('student_id', $studentId)->whereIn('status', $mappedStatuses);
+                    });
+                } else {
+                    $q->whereHas('studentAssignments', function($sq) use ($studentId, $mappedStatuses) {
+                        $sq->where('student_id', $studentId)->whereIn('status', $mappedStatuses);
+                    });
+                }
+            });
+        }
+
+        $paginatedAssignments = $query->orderBy('due_date')->paginate($perPage);
+
+        $assignmentsData = collect($paginatedAssignments->items())->map(function($assignment) use ($studentId) {
+            $studentAssignment = $assignment->studentAssignments->first();
+            $task = $assignment->getTask();
+            
+            return [
+                'id' => $assignment->id,
+                'type' => $assignment->type ?? $assignment->task_type,
+                'title' => $assignment->getAssignmentTitle(),
+                'description' => $assignment->description ?? $task?->description,
+                'class_name' => $assignment->class?->name ?? 'Unknown Class',
+                'due_date' => $assignment->due_date,
+                'assigned_date' => $assignment->created_at,
+                'status' => $studentAssignment?->status ?? 'pending',
+                'score' => $studentAssignment?->score,
+                'completion_date' => $studentAssignment?->completed_at,
+                'attempt_count' => $studentAssignment?->attempt_count ?? 0,
+                'max_attempts' => $assignment->max_attempts,
+            ];
+        });
 
         return response()->json([
             'message' => 'Dashboard data retrieved successfully',
             'data' => [
                 'student_name' => auth()->user()->name,
-                'enrolled_classes' => $enrolledClasses->count(),
-                'total_assignments' => $assignments->count(),
-                'pending_assignments' => $assignments->where('status', 'pending')->count(),
-                'completed_assignments' => $assignments->where('status', 'completed')->count(),
-                'overdue_assignments' => $assignments->where('due_date', '<', now())
-                    ->where('status', '!=', 'completed')->count(),
-                'assignments' => $assignments->values()
+                'enrolled_classes' => $enrolledClassIds->count(),
+                'total_assignments' => $allAssignments->count(),
+                'completed_assignments' => $completedCount,
+                'pending_assignments' => $pendingCount,
+                'overdue_assignments' => $overdueCount,
+                'average_score' => $averageOverallScore,
+                'total_time_spent' => $timeSpentFormatted,
+                'assignments' => $assignmentsData->values(),
+                'pagination' => [
+                    'current_page' => $paginatedAssignments->currentPage(),
+                    'last_page' => $paginatedAssignments->lastPage(),
+                    'per_page' => $paginatedAssignments->perPage(),
+                    'total' => $paginatedAssignments->total(),
+                ]
             ]
         ]);
     }
@@ -470,6 +563,130 @@ class StudentDashboardController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
         }
+    }
+
+    /**
+     * Get reading statistics for student dashboard
+     */
+    public function readingStatistics(Request $request): JsonResponse
+    {
+        $userId = auth()->id();
+
+        // Basic Stats
+        $baseSubmissions = DB::table('reading_submissions')
+            ->where('student_id', $userId)
+            ->whereNotNull('submitted_at');
+
+        $tasksCompleted = (clone $baseSubmissions)->count();
+        
+        $totalSeconds = (clone $baseSubmissions)->sum('time_taken_seconds');
+        $hours = floor($totalSeconds / 3600);
+        $minutes = floor(($totalSeconds / 60) % 60);
+        $timeSpent = "{$hours}h" . ($minutes > 0 ? " {$minutes}m" : "");
+        if ($hours == 0 && $minutes == 0) $timeSpent = "0h";
+
+        $avgScore = (clone $baseSubmissions)->avg('percentage');
+
+        // Recent Submissions
+        $recentSubmissions = DB::table('reading_submissions')
+            ->leftJoin('reading_tasks', 'reading_submissions.reading_task_id', '=', 'reading_tasks.id')
+            ->leftJoin('tests', 'reading_submissions.test_id', '=', 'tests.id')
+            ->where('reading_submissions.student_id', $userId)
+            ->whereNotNull('reading_submissions.submitted_at')
+            ->select(
+                DB::raw('COALESCE(reading_tasks.title, tests.title) as task_title'),
+                'reading_submissions.percentage as score',
+                'reading_submissions.submitted_at'
+            )
+            ->orderBy('reading_submissions.submitted_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // Performance Trend (last 6 months)
+        $performanceTrends = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i);
+            $monthStart = $date->copy()->startOfMonth();
+            $monthEnd = $date->copy()->endOfMonth();
+
+            $monthlyAvg = DB::table('reading_submissions')
+                ->where('student_id', $userId)
+                ->whereBetween('submitted_at', [$monthStart, $monthEnd])
+                ->avg('percentage');
+
+            $performanceTrends[] = [
+                'month' => $date->format('M'),
+                'avgScore' => round($monthlyAvg ?? 0, 1)
+            ];
+        }
+
+        // Category Performance
+        $categoryPerf = $this->getCategoryPerformance($userId);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'tasks_completed' => $tasksCompleted,
+                'time_spent' => $timeSpent,
+                'average_score' => round($avgScore ?? 0, 1),
+                'recent_submissions' => $recentSubmissions,
+                'performance_trends' => $performanceTrends,
+                'category_performance' => $categoryPerf
+            ]
+        ]);
+    }
+
+    private function getCategoryPerformance($userId)
+    {
+        // 1. Get legacy test question performance
+        $stats = DB::table('reading_question_answers')
+            ->join('reading_submissions', 'reading_question_answers.submission_id', '=', 'reading_submissions.id')
+            ->join('test_questions', 'reading_question_answers.question_id', '=', 'test_questions.id')
+            ->where('reading_submissions.student_id', $userId)
+            ->whereNotNull('reading_submissions.submitted_at')
+            ->select(
+                'test_questions.question_type as category',
+                DB::raw('COUNT(*) as total'),
+                DB::raw('SUM(CASE WHEN reading_question_answers.is_correct = 1 THEN 1 ELSE 0 END) as correct')
+            )
+            ->groupBy('test_questions.question_type')
+            ->get();
+
+        $results = [];
+        foreach ($stats as $stat) {
+            $categoryName = $this->formatCategoryName($stat->category);
+            $results[] = [
+                'category' => $categoryName,
+                'score' => round(($stat->correct / $stat->total) * 100, 1)
+            ];
+        }
+
+        if (empty($results)) {
+            return [
+                ['category' => 'Multiple Choice', 'score' => 0],
+                ['category' => 'Identifying Information', 'score' => 0],
+                ['category' => 'Matching Headings', 'score' => 0],
+                ['category' => 'Sentence Completion', 'score' => 0]
+            ];
+        }
+
+        return $results;
+    }
+
+    private function formatCategoryName($raw)
+    {
+        $map = [
+            'multiple_choice' => 'Multiple Choice',
+            'tfng' => 'True/False/Not Given',
+            'y n ng' => 'Yes/No/Not Given',
+            'matching_heading' => 'Matching Headings',
+            'short_answer' => 'Short Answer',
+            'completion' => 'Completion',
+        ];
+
+        if (isset($map[$raw])) return $map[$raw];
+
+        return ucwords(str_replace(['_', '-'], ' ', $raw));
     }
 
     /**
