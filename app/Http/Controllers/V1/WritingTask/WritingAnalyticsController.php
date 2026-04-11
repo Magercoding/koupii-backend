@@ -19,11 +19,23 @@ class WritingAnalyticsController extends Controller
     public function studentAnalytics(Request $request)
     {
         $studentId = Auth::id();
+        $month = $request->query('month');
         
         // 1. Score Progress (Trend)
-        $submissions = WritingSubmission::where('student_id', $studentId)
-            ->where('status', 'reviewed')
-            ->with(['latestReview', 'task'])
+        $query = WritingSubmission::where('student_id', $studentId)
+            ->where('status', 'reviewed');
+
+        if ($month) {
+            try {
+                $startDate = Carbon::parse($month . '-01')->startOfMonth();
+                $endDate = Carbon::parse($month . '-01')->endOfMonth();
+                $query->whereBetween('submitted_at', [$startDate, $endDate]);
+            } catch (\Exception $e) {
+                // Ignore invalid date
+            }
+        }
+
+        $submissions = $query->with(['latestReview', 'task'])
             ->orderBy('submitted_at', 'asc')
             ->get();
 
@@ -119,6 +131,7 @@ class WritingAnalyticsController extends Controller
     {
         $teacherId = Auth::id();
         $classId = $request->query('class_id');
+        $month = $request->query('month');
         
         // Get all classes taught by this teacher for the filter dropdown
         $classes = DB::table('classes')
@@ -142,7 +155,7 @@ class WritingAnalyticsController extends Controller
             });
         }
 
-        $tasks = $tasksQuery->with(['submissions' => function ($q) use ($classId, $startDate, $endDate) {
+        $tasks = $tasksQuery->with(['submissions' => function ($q) use ($classId, $startDate, $endDate, $month) {
             if ($classId && $classId !== 'all') {
                 $q->whereHas('student', function ($sq) use ($classId) {
                     $sq->whereHas('enrollments', function ($eq) use ($classId) {
@@ -156,6 +169,14 @@ class WritingAnalyticsController extends Controller
             }
             if ($endDate) {
                 $q->whereDate('submitted_at', '<=', $endDate);
+            }
+
+            if ($month) {
+                try {
+                    $mStart = Carbon::parse($month . '-01')->startOfMonth();
+                    $mEnd = Carbon::parse($month . '-01')->endOfMonth();
+                    $q->whereBetween('submitted_at', [$mStart, $mEnd]);
+                } catch (\Exception $e) {}
             }
 
             $q->with(['latestReview', 'task']);

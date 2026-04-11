@@ -44,11 +44,11 @@ class WritingTaskResource extends JsonResource
             // Questions - Handle relationship vs JSON column naming collision
             'prompt' => $this->prompt,
             'task_prompt' => $this->prompt, // Alias just in case
-            'questions' => $this->relationLoaded('questions') 
-                ? WritingTaskQuestionResource::collection($this->getRelation('questions')) 
+            'questions' => $this->relationLoaded('taskQuestions') 
+                ? WritingTaskQuestionResource::collection($this->getRelation('taskQuestions')) 
                 : ($this->questions ?? []),
-            'questions_count' => $this->relationLoaded('questions') 
-                ? $this->getRelation('questions')->count() 
+            'questions_count' => $this->relationLoaded('taskQuestions') 
+                ? $this->getRelation('taskQuestions')->count() 
                 : (is_array($this->questions) ? count($this->questions) : 0),
 
             // Retake settings

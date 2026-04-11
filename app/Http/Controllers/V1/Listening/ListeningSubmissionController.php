@@ -149,7 +149,7 @@ class ListeningSubmissionController extends Controller implements HasMiddleware
      */
     public function show(Request $request, string $submissionId)
     {
-        $submission = ListeningSubmission::with(['task', 'student', 'review', 'answers'])
+        $submission = ListeningSubmission::with(['task.questions', 'student', 'review', 'answers'])
             ->findOrFail($submissionId);
 
         $user = Auth::user();

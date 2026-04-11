@@ -132,7 +132,7 @@ class WritingTaskController extends Controller implements HasMiddleware
             'assignments',
             'submissions.student',
             'submissions.review',
-            'questions.resources'
+            'taskQuestions.resources'
         ])->where('id', $id);
 
         // Role-based access control

@@ -123,7 +123,7 @@ class WritingAttemptController extends Controller
     public function show(string $attemptId): JsonResponse
     {
         $attempt = WritingAttempt::with([
-            'writingTask.questions',
+            'writingTask.taskQuestions',
             'submissions.feedback',
             'submissions.question'
         ])->findOrFail($attemptId);
@@ -178,7 +178,7 @@ class WritingAttemptController extends Controller
      */
     public function getRetakeOptions(string $taskId): JsonResponse
     {
-        $writingTask = WritingTask::with('questions')->findOrFail($taskId);
+        $writingTask = WritingTask::with('taskQuestions')->findOrFail($taskId);
 
         if (!$writingTask->allow_retake) {
             return response()->json([
@@ -194,7 +194,7 @@ class WritingAttemptController extends Controller
                 'whole_essay' => 'Rewrite Whole Essay',
                 'choose_questions' => 'Choose Any Multiple Questions'
             ],
-            'questions' => $writingTask->questions->map(function ($question) {
+            'questions' => $writingTask->taskQuestions->map(function ($question) {
                 return [
                     'id' => $question->id,
                     'question_number' => $question->question_number,

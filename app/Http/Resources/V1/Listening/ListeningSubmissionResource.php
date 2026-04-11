@@ -46,6 +46,17 @@ class ListeningSubmissionResource extends JsonResource
                     'timerType' => $this->task->timer_type,
                     'timeLimitSeconds' => $this->task->time_limit_seconds,
                     'audioUrl' => $this->task->audio_url,
+                    'questions' => $this->task->questions->map(function ($q) {
+                        return [
+                            'id' => $q->id,
+                            'type' => $q->question_type,
+                            'text' => $q->question_text,
+                            'options' => $q->options,
+                            'correctAnswers' => $q->correct_answers,
+                            'explanation' => $q->explanation,
+                            'order' => $q->order_index,
+                        ];
+                    }),
                 ];
             }),
             

@@ -117,3 +117,8 @@ require __DIR__ . '/../v1/test.php';
  * Assignment System & Student Dashboard
  */
 require __DIR__ . '/../v1/assignment.php';
+
+/**
+ * Teacher Dashboard Statistics
+ */
+require __DIR__ . '/../v1/dashboard.php';
