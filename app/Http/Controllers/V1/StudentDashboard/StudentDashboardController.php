@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1\StudentDashboard;
 
 use App\Http\Controllers\Controller;
+use App\Models\ReadingSubmission;
 use App\Models\StudentAssignment;
 use App\Models\ClassEnrollment;
 use Illuminate\Http\Request;
@@ -240,6 +241,16 @@ class StudentDashboardController extends Controller
             $resolvedTask = \App\Models\Test::find($assignmentData->test_id);
         }
 
+        $latestReadingSubmissionId = null;
+        if ($type === 'reading_task') {
+            $latestReadingSubmissionId = ReadingSubmission::query()
+                ->where('student_id', $studentId)
+                ->where('assignment_id', $resolvedAssignmentId)
+                ->whereNotNull('submitted_at')
+                ->orderByDesc('submitted_at')
+                ->value('id');
+        }
+
         return response()->json([
             'message' => 'Assignment details retrieved successfully',
             'data' => [
@@ -249,6 +260,7 @@ class StudentDashboardController extends Controller
                 'difficulty' => $resolvedTask?->difficulty ?? $resolvedTask?->difficulty_level,
                 'due_date' => $assignmentData->due_date,
                 'max_attempts' => $assignmentData->max_attempts ?? 3,
+                'latest_reading_submission_id' => $latestReadingSubmissionId,
                 'student_progress' => [
                     'status' => $studentAssignment->status,
                     'attempt_count' => $studentAssignment->attempt_count,
@@ -477,6 +489,9 @@ class StudentDashboardController extends Controller
                 ];
             })->toArray();
 
+            $timerSettings = $this->normalizeTimerSettings($test->timer_settings);
+            $timeLimitSeconds = $this->resolveTimerSettingsTotalSeconds($timerSettings);
+
             return response()->json([
                 'data' => [
                     'id' => $test->id,
@@ -485,7 +500,8 @@ class StudentDashboardController extends Controller
                     'difficulty' => $test->difficulty,
                     'difficulty_level' => $test->difficulty,
                     'timer_type' => $test->timer_mode,
-                    'time_limit_seconds' => null,
+                    'timer_settings' => $timerSettings !== [] ? $timerSettings : null,
+                    'time_limit_seconds' => $timeLimitSeconds,
                     'allow_retake' => $test->allow_repetition,
                     'is_published' => $test->is_published,
                     'passages' => $passages,
@@ -496,6 +512,26 @@ class StudentDashboardController extends Controller
 
         if (!$task) {
             return response()->json(['message' => 'Task not found'], 404);
+        }
+
+        // ReadingTask rows may have empty time_limit_seconds while the linked Test stores duration in timer_settings.
+        if ($task instanceof \App\Models\ReadingTask
+            && (int) ($task->time_limit_seconds ?? 0) <= 0
+            && $task->test_id
+        ) {
+            $linkedTest = \App\Models\Test::query()->find($task->test_id);
+            if ($linkedTest) {
+                $fromSettings = $this->resolveTimerSettingsTotalSeconds(
+                    $this->normalizeTimerSettings($linkedTest->timer_settings)
+                );
+                if ($fromSettings !== null) {
+                    $task->time_limit_seconds = $fromSettings;
+                }
+                $taskTimer = (string) ($task->timer_type ?? '');
+                if (($taskTimer === '' || $taskTimer === 'none') && $linkedTest->timer_mode) {
+                    $task->timer_type = $linkedTest->timer_mode;
+                }
+            }
         }
 
         return response()->json(['data' => $task]);
@@ -519,42 +555,126 @@ class StudentDashboardController extends Controller
         }
 
         $submissionService = app(\App\Services\V1\ReadingTest\ReadingSubmissionService::class);
-        $attemptNumber = $request->input('attempt_number', 1);
 
         try {
             if ($assignment->task_id) {
                 $task = \App\Models\ReadingTask::findOrFail($assignment->task_id);
-                $submission = $submissionService->startReadingTask($task, $studentId, [
-                    'assignment_id' => $assignmentId,
-                    'attempt_number' => $attemptNumber,
-                ]);
+
+                $inProgress = ReadingSubmission::query()
+                    ->where('reading_task_id', $task->id)
+                    ->where('student_id', $studentId)
+                    ->where('assignment_id', $assignmentId)
+                    ->where('status', 'in_progress')
+                    ->first();
+
+                if ($inProgress) {
+                    $submission = $inProgress->load(['answers', 'readingTask']);
+                } else {
+                    $maxAttempt = (int) (ReadingSubmission::query()
+                        ->where('reading_task_id', $task->id)
+                        ->where('student_id', $studentId)
+                        ->where('assignment_id', $assignmentId)
+                        ->max('attempt_number') ?? 0);
+
+                    $priorCount = (int) ReadingSubmission::query()
+                        ->where('reading_task_id', $task->id)
+                        ->where('student_id', $studentId)
+                        ->where('assignment_id', $assignmentId)
+                        ->count();
+
+                    $cap = $this->resolveMaxAttemptsCapForAssignment(
+                        $assignment,
+                        $task->max_retake_attempts !== null ? (int) $task->max_retake_attempts : null,
+                    );
+                    if ($priorCount >= $cap) {
+                        return response()->json(['message' => 'Maximum attempts reached for this assignment'], 422);
+                    }
+
+                    $nextAttempt = $maxAttempt + 1;
+
+                    $submission = ReadingSubmission::create([
+                        'reading_task_id' => $task->id,
+                        'assignment_id' => $assignmentId,
+                        'student_id' => $studentId,
+                        'attempt_number' => $nextAttempt,
+                        'status' => 'in_progress',
+                        'started_at' => now(),
+                    ]);
+                    $submissionService->initializeAnswersFromTaskPublic($submission);
+                    $submission->load(['readingTask', 'answers']);
+
+                    $studentAssignment = StudentAssignment::where('assignment_id', $assignmentId)
+                        ->where('student_id', $studentId)
+                        ->first();
+                    if ($studentAssignment) {
+                        $isNewlyStarted = $nextAttempt > (int) $studentAssignment->attempt_count;
+                        $updateData = [
+                            'last_activity_at' => now(),
+                            'attempt_number' => $nextAttempt,
+                            'attempt_count' => max((int) $studentAssignment->attempt_count, $nextAttempt),
+                            'status' => StudentAssignment::STATUS_IN_PROGRESS,
+                        ];
+                        if (!$studentAssignment->started_at) {
+                            $updateData['started_at'] = now();
+                        }
+                        if ($isNewlyStarted) {
+                            $updateData['score'] = 0;
+                            $updateData['completed_at'] = null;
+                        }
+                        $studentAssignment->update($updateData);
+                    }
+                }
             } elseif ($assignment->test_id) {
                 $test = \App\Models\Test::findOrFail($assignment->test_id);
 
-                // Check for existing in-progress submission
-                $existing = \App\Models\ReadingSubmission::where('test_id', $test->id)
+                $inProgress = ReadingSubmission::query()
+                    ->where('test_id', $test->id)
                     ->where('student_id', $studentId)
                     ->where('assignment_id', $assignmentId)
-                    ->whereIn('status', ['in_progress'])
+                    ->where('status', 'in_progress')
                     ->first();
 
-                if ($existing) {
-                    $submission = $existing->load('answers');
+                if ($inProgress) {
+                    $submission = $inProgress->load(['answers', 'test']);
                 } else {
-                    $submission = \App\Models\ReadingSubmission::create([
+                    $maxAttempt = (int) (ReadingSubmission::query()
+                        ->where('test_id', $test->id)
+                        ->where('student_id', $studentId)
+                        ->where('assignment_id', $assignmentId)
+                        ->max('attempt_number') ?? 0);
+
+                    $priorCount = (int) ReadingSubmission::query()
+                        ->where('test_id', $test->id)
+                        ->where('student_id', $studentId)
+                        ->where('assignment_id', $assignmentId)
+                        ->count();
+
+                    $cap = $this->resolveMaxAttemptsCapForAssignment(
+                        $assignment,
+                        $test->max_repetition_count !== null ? (int) $test->max_repetition_count : null,
+                    );
+                    if ($priorCount >= $cap) {
+                        return response()->json(['message' => 'Maximum attempts reached for this assignment'], 422);
+                    }
+
+                    $nextAttempt = $maxAttempt + 1;
+
+                    $submission = ReadingSubmission::create([
                         'test_id' => $test->id,
                         'assignment_id' => $assignmentId,
                         'student_id' => $studentId,
-                        'attempt_number' => $attemptNumber,
+                        'attempt_number' => $nextAttempt,
                         'status' => 'in_progress',
                         'started_at' => now(),
                     ]);
                     $submissionService->initializeAnswersFromTestPublic($submission);
-                    $submission->load('answers');
+                    $submission->load(['answers', 'test']);
                 }
             } else {
                 return response()->json(['message' => 'Assignment has no associated task or test'], 422);
             }
+
+            $submission->loadMissing(['answers', 'test', 'readingTask']);
 
             return response()->json([
                 'success' => true,
@@ -704,8 +824,80 @@ class StudentDashboardController extends Controller
     }
 
     /**
-     * Normalize task type string
+     * Class assignment max_attempts is the source of truth for how many reading submissions a student may create.
+     * When the task/test defines a positive cap, use the tighter of the two.
      */
+    private function resolveMaxAttemptsCapForAssignment(
+        \App\Models\Assignment $assignment,
+        ?int $taskOrTestMaxAttempts,
+    ): int {
+        $fromAssignment = (int) ($assignment->max_attempts ?? 3);
+        if ($fromAssignment < 1) {
+            $fromAssignment = 1;
+        }
+        if ($taskOrTestMaxAttempts !== null && $taskOrTestMaxAttempts > 0) {
+            return min($fromAssignment, $taskOrTestMaxAttempts);
+        }
+
+        return $fromAssignment;
+    }
+
+    /**
+     * JSON columns may decode as array, stdClass, or remain a JSON string — normalize for timer math.
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeTimerSettings(mixed $raw): array
+    {
+        if ($raw === null || $raw === []) {
+            return [];
+        }
+        if (is_array($raw)) {
+            return $raw;
+        }
+        if (is_object($raw)) {
+            $decoded = json_decode(json_encode($raw), true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * tests.timer_settings uses either hours/minutes/seconds (reading builder) or time_limit in seconds (unified test API).
+     */
+    private function resolveTimerSettingsTotalSeconds(?array $timerSettings): ?int
+    {
+        if (!is_array($timerSettings) || $timerSettings === []) {
+            return null;
+        }
+
+        if (isset($timerSettings['time_limit']) && is_numeric($timerSettings['time_limit'])) {
+            $v = max(0, (int) $timerSettings['time_limit']);
+
+            return $v > 0 ? $v : null;
+        }
+
+        if (isset($timerSettings['time_limit_seconds']) && is_numeric($timerSettings['time_limit_seconds'])) {
+            $v = max(0, (int) $timerSettings['time_limit_seconds']);
+
+            return $v > 0 ? $v : null;
+        }
+
+        $h = (int) ($timerSettings['hours'] ?? 0);
+        $m = (int) ($timerSettings['minutes'] ?? 0);
+        $s = (int) ($timerSettings['seconds'] ?? 0);
+        $total = max(0, ($h * 3600) + ($m * 60) + $s);
+
+        return $total > 0 ? $total : null;
+    }
+
     private function normalizeType(string $type): string
     {
         return match($type) {

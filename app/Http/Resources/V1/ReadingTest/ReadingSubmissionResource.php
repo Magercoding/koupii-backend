@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\V1\ReadingTest;
 
+use App\Models\Test;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,8 +17,9 @@ class ReadingSubmissionResource extends JsonResource
             'assignment_id' => $this->assignment_id,
             'attempt_number' => $this->attempt_number,
             'status' => $this->status,
-            'started_at' => $this->started_at?->format('Y-m-d H:i:s'),
-            'submitted_at' => $this->submitted_at?->format('Y-m-d H:i:s'),
+            // ISO-8601 UTC so browsers parse one unambiguous instant (avoids countdown stuck at 00:00:00).
+            'started_at' => $this->started_at?->utc()->toIso8601String(),
+            'submitted_at' => $this->submitted_at?->utc()->toIso8601String(),
             'time_taken_seconds' => $this->time_taken_seconds,
             'total_score' => $this->total_score,
             'percentage' => $this->percentage,
@@ -32,7 +34,9 @@ class ReadingSubmissionResource extends JsonResource
             'test' => $this->whenLoaded('test', function () {
                 $isStudent = auth()->user()->role === 'student';
                 $canSeeAnswers = !$isStudent || in_array($this->status, ['submitted', 'completed', 'reviewed']);
-                
+
+                $timerSettings = self::coerceTimerSettingsArray($this->test->timer_settings);
+
                 return [
                     'id' => $this->test->id,
                     'title' => $this->test->title,
@@ -40,7 +44,8 @@ class ReadingSubmissionResource extends JsonResource
                     'difficulty' => $this->test->difficulty,
                     'type' => $this->test->type,
                     'timer_mode' => $this->test->timer_mode,
-                    'timer_settings' => $this->test->timer_settings,
+                    'timer_settings' => $timerSettings !== [] ? $timerSettings : $this->test->timer_settings,
+                    'time_limit_seconds' => self::resolveTimerSettingsTotalSeconds($timerSettings),
                     'allow_repetition' => $this->test->allow_repetition,
                     'max_repetition_count' => $this->test->max_repetition_count,
                     'passages' => PassageResource::collection($this->test->passages)
@@ -73,14 +78,36 @@ class ReadingSubmissionResource extends JsonResource
                     return $passage;
                 })->toArray();
 
+                $resolvedLimit = (int) ($this->readingTask->time_limit_seconds ?? 0);
+                $outTimerType = $this->readingTask->timer_type;
+                if ($resolvedLimit <= 0 && $this->readingTask->test_id) {
+                    $linked = Test::query()->find($this->readingTask->test_id);
+                    if ($linked) {
+                        $fromTs = self::resolveTimerSettingsTotalSeconds(
+                            self::coerceTimerSettingsArray($linked->timer_settings)
+                        );
+                        if ($fromTs !== null) {
+                            $resolvedLimit = $fromTs;
+                        }
+                        $tt = (string) ($this->readingTask->timer_type ?? '');
+                        if (($tt === '' || $tt === 'none') && $linked->timer_mode) {
+                            $outTimerType = $linked->timer_mode;
+                        }
+                    }
+                }
+                $suggestMin = (int) ($this->readingTask->suggest_time_minutes ?? 0);
+                if ($resolvedLimit <= 0 && $suggestMin > 0) {
+                    $resolvedLimit = $suggestMin * 60;
+                }
+
                 return [
                     'id' => $this->readingTask->id,
                     'title' => $this->readingTask->title,
                     'description' => $this->readingTask->description,
                     'difficulty' => $this->readingTask->difficulty,
                     'task_type' => $this->readingTask->task_type,
-                    'timer_type' => $this->readingTask->timer_type,
-                    'time_limit_seconds' => $this->readingTask->time_limit_seconds,
+                    'timer_type' => $outTimerType,
+                    'time_limit_seconds' => $resolvedLimit > 0 ? $resolvedLimit : $this->readingTask->time_limit_seconds,
                     'allow_retake' => $this->readingTask->allow_retake,
                     'max_retake_attempts' => $this->readingTask->max_retake_attempts,
                     'passages' => $passages,
@@ -105,5 +132,59 @@ class ReadingSubmissionResource extends JsonResource
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function coerceTimerSettingsArray(mixed $raw): array
+    {
+        if ($raw === null || $raw === []) {
+            return [];
+        }
+        if (is_array($raw)) {
+            return $raw;
+        }
+        if (is_object($raw)) {
+            $decoded = json_decode(json_encode($raw), true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $timerSettings
+     */
+    private static function resolveTimerSettingsTotalSeconds(array $timerSettings): ?int
+    {
+        if ($timerSettings === []) {
+            return null;
+        }
+
+        if (isset($timerSettings['time_limit']) && is_numeric($timerSettings['time_limit'])) {
+            $v = max(0, (int) $timerSettings['time_limit']);
+
+            return $v > 0 ? $v : null;
+        }
+
+        if (isset($timerSettings['time_limit_seconds']) && is_numeric($timerSettings['time_limit_seconds'])) {
+            $v = max(0, (int) $timerSettings['time_limit_seconds']);
+
+            return $v > 0 ? $v : null;
+        }
+
+        $h = (int) ($timerSettings['hours'] ?? 0);
+        $m = (int) ($timerSettings['minutes'] ?? 0);
+        $s = (int) ($timerSettings['seconds'] ?? 0);
+        $total = max(0, ($h * 3600) + ($m * 60) + $s);
+
+        return $total > 0 ? $total : null;
     }
 }

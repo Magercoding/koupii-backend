@@ -127,13 +127,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
         if ($user->role === 'student') {
             $isAssigned = $this->isStudentAssigned($task, $user);
             
-            if (!$task->is_published || !$isAssigned) {
-                \Illuminate\Support\Facades\Log::warning('ReadingTask: Access Denied for student', [
-                    'user_id' => $user->id,
-                    'task_id' => $task->id,
-                    'is_published' => $task->is_published,
-                    'is_assigned' => $isAssigned
-                ]);
+            if (!$isAssigned) {
                 return response()->json(['message' => 'Access denied'], 403);
             }
         }

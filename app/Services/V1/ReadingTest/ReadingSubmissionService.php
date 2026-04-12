@@ -194,6 +194,14 @@ class ReadingSubmissionService
     }
 
     /**
+     * Initialize answer records from ReadingTask JSON (public alias for assignment API)
+     */
+    public function initializeAnswersFromTaskPublic(ReadingSubmission $submission): void
+    {
+        $this->initializeAnswersFromTask($submission);
+    }
+
+    /**
      * Initialize answer records from Legacy Test
      */
     private function initializeAnswersFromTest(ReadingSubmission $submission): void
@@ -290,11 +298,14 @@ class ReadingSubmissionService
                     ->first();
 
                 if ($studentAssignment) {
+                    $attemptNo = (int) ($submission->attempt_number ?? 0);
                     $studentAssignment->update([
                         'status' => \App\Models\StudentAssignment::STATUS_SUBMITTED,
                         'score' => $submission->percentage ?? 0,
                         'completed_at' => now(),
                         'last_activity_at' => now(),
+                        'attempt_count' => max((int) $studentAssignment->attempt_count, $attemptNo),
+                        'attempt_number' => $attemptNo > 0 ? $attemptNo : $studentAssignment->attempt_number,
                     ]);
                 }
             }
