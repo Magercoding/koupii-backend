@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1\Class;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Class\ClassRequest;
 use App\Http\Resources\V1\Class\ClassResource;
+use App\Http\Resources\V1\User\UserResource;
 use App\Models\ClassEnrollment;
 use App\Models\Classes;
 use App\Services\V1\Class\ClassService;
@@ -90,15 +91,8 @@ class ClassController extends Controller
 
         $paginated = $query->paginate($request->input('per_page', 15));
 
-        return response()->json([
-            'data' => $paginated->items(),
-            'meta' => [
-                'current_page' => $paginated->currentPage(),
-                'last_page' => $paginated->lastPage(),
-                'per_page' => $paginated->perPage(),
-                'total' => $paginated->total(),
-            ]
-        ]);
+        // Use UserResource so avatar URLs match /profile (full url()), not raw storage paths
+        return UserResource::collection($paginated);
     }
 
     public function update(ClassRequest $request, ClassService $service, $id)

@@ -164,7 +164,7 @@ class ReadingQuestionAnswer extends Model
             'true_false_not_given' => $this->compareTrueFalseNotGiven($studentAnswer, $correctAnswer),
             'yes_no_not_given' => $this->compareYesNoNotGiven($studentAnswer, $correctAnswer),
             'matching_heading', 'matching_information', 'matching_features', 'matching_sentence_ending' => $this->compareMatching($studentAnswer, $correctAnswer),
-            'sentence_completion', 'paragraph_summary_completion', 'note_completion', 'table_completion', 'flowchart_completion', 'diagram_label_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
+            'sentence_completion', 'paragraph_completion', 'paragraph_summary_completion', 'note_completion', 'table_completion', 'flowchart_completion', 'diagram_label_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
             'short_answer_question' => $this->compareShortAnswer($studentAnswer, $correctAnswer),
             default => false
         };
