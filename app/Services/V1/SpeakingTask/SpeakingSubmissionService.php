@@ -31,7 +31,18 @@ class SpeakingSubmissionService
             'review.teacher:id,name',
             'recordings'
         ])
-            ->when($filters['speaking_task_id'] ?? $filters['test_id'] ?? null, fn($q, $testId) => $q->where('speaking_task_id', $testId))
+            ->whereHas('student', fn($q) => $q->where('role', 'student'))
+            ->when($filters['speaking_task_id'] ?? $filters['test_id'] ?? null, function ($q, $taskId) {
+                $q->where('speaking_task_id', $taskId);
+                
+                // Only show the latest attempt per student for this task
+                $q->whereIn('id', function($query) use ($taskId) {
+                    $query->select(DB::raw('MAX(id)'))
+                        ->from('speaking_submissions')
+                        ->where('speaking_task_id', $taskId)
+                        ->groupBy('student_id');
+                });
+            })
             ->when($filters['student_id'] ?? null, fn($q, $studentId) => $q->where('student_id', $studentId))
             ->when($filters['status'] ?? null, fn($q, $status) => $q->where('status', $status))
             ->when($filters['teacher_id'] ?? null, function ($q, $teacherId) {

@@ -21,7 +21,14 @@ class SpeakingSubmissionPolicy
 
         if ($user->role === 'teacher') {
             // Teacher can view if they created the task
-            return $submission->speakingTask?->created_by === $user->id;
+            if ($submission->speakingTask?->created_by === $user->id) {
+                return true;
+            }
+
+            // Or if they are the teacher of the class assigned this task
+            return $submission->assignment?->class?->teacher_id === $user->id || 
+                   $submission->assignment?->assigned_by === $user->id ||
+                   $submission->studentAssignment?->assignment?->assigned_by === $user->id;
         }
 
         // Student can view their own submission
@@ -46,8 +53,15 @@ class SpeakingSubmissionPolicy
             return true;
         }
 
-        // Only teachers who created the task (or assigned it) can review
-        return $user->role === 'teacher' && $submission->speakingTask?->created_by === $user->id;
+        if ($user->role === 'teacher') {
+            // Only teachers who created the task (or assigned it) can review
+            return $submission->speakingTask?->created_by === $user->id ||
+                   $submission->assignment?->class?->teacher_id === $user->id ||
+                   $submission->assignment?->assigned_by === $user->id ||
+                   $submission->studentAssignment?->assignment?->assigned_by === $user->id;
+        }
+
+        return false;
     }
 
     /**

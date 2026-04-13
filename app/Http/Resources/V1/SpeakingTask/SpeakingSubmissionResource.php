@@ -17,6 +17,8 @@ class SpeakingSubmissionResource extends JsonResource
             'attempt_number' => $this->attempt_number,
             'started_at' => $this->started_at,
             'submitted_at' => $this->submitted_at,
+            'test_id' => $this->speaking_task_id ?? $this->test_id,
+            'speaking_task_id' => $this->speaking_task_id ?? $this->test_id,
             'total_time_seconds' => $this->total_time_seconds,
             'total_time_formatted' => $this->total_time_seconds 
                 ? $this->formatTime($this->total_time_seconds) 
