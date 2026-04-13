@@ -22,6 +22,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         Route::get('/dashboard/statistics/reading', [StudentDashboardController::class, 'readingStatistics'])
             ->name('dashboard.reading-stats');
+
+        Route::get('/dashboard/statistics/speaking', [StudentDashboardController::class, 'speakingStatistics'])
+            ->name('dashboard.speaking-stats');
         
         Route::get('/assignments/{assignmentId}/{type}/details', [StudentDashboardController::class, 'getAssignmentDetails'])
             ->name('assignment.details');

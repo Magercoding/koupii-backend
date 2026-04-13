@@ -59,14 +59,25 @@ class TeacherDashboardController extends Controller
             })
             ->whereNotNull('writing_submissions.submitted_at');
 
+        $speakingBase = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_submissions.submitted_at');
+
         $tasksCompleted = (clone $readingBase)->count() 
                         + (clone $listeningBase)->count() 
-                        + (clone $writingBase)->count();
+                        + (clone $writingBase)->count()
+                        + (clone $speakingBase)->count();
 
         // 4. Time Spent
         $totalSeconds = (clone $readingBase)->sum('reading_submissions.time_taken_seconds') 
                       + (clone $listeningBase)->sum('listening_submissions.time_taken_seconds') 
-                      + (clone $writingBase)->sum('writing_submissions.time_taken_seconds');
+                      + (clone $writingBase)->sum('writing_submissions.time_taken_seconds')
+                      + (clone $speakingBase)->sum('speaking_submissions.total_time_seconds');
         
         $hours = floor($totalSeconds / 3600);
         $minutes = floor(($totalSeconds / 60) % 60);
@@ -92,8 +103,23 @@ class TeacherDashboardController extends Controller
         $writingScoreSum = $writingScoreData->total_score ?? 0;
         $writingReviewCount = $writingScoreData->review_count ?? 0;
 
-        $scoredCount = ((clone $readingBase)->count() + (clone $listeningBase)->count() + $writingReviewCount);
-        $totalScore = $readingPercentageSum + $listeningPercentageSum + $writingScoreSum;
+        $speakingScoreData = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->join('speaking_reviews', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_submissions.submitted_at')
+            ->selectRaw('SUM(speaking_reviews.total_score) as total_score, COUNT(speaking_reviews.id) as review_count')
+            ->first();
+
+        $speakingScoreSum = $speakingScoreData->total_score ?? 0;
+        $speakingReviewCount = $speakingScoreData->review_count ?? 0;
+
+        $scoredCount = ((clone $readingBase)->count() + (clone $listeningBase)->count() + $writingReviewCount + $speakingReviewCount);
+        $totalScore = $readingPercentageSum + $listeningPercentageSum + $writingScoreSum + $speakingScoreSum;
 
         $averageScore = $scoredCount > 0 ? round($totalScore / $scoredCount, 1) : 0;
 
@@ -597,6 +623,231 @@ class TeacherDashboardController extends Controller
                 'struggling_students' => $strugglingStudents,
                 'performance_trends' => $performanceTrends,
                 'popular_tasks' => $popularTasks,
+            ]
+        ]);
+    }
+    /**
+     * Speaking module statistics for teacher dashboard.
+     */
+    public function speakingStatistics(Request $request)
+    {
+        $userId = auth()->id();
+
+        $tasksCreated = DB::table('speaking_tasks')->where('created_by', $userId)->count();
+
+        $base = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_submissions.submitted_at');
+
+        $tasksCompleted = (clone $base)->count();
+        $totalSeconds = (clone $base)->sum('speaking_submissions.total_time_seconds');
+
+        $hours = floor($totalSeconds / 3600);
+        $minutes = floor(($totalSeconds / 60) % 60);
+        $timeSpent = "{$hours}h" . ($minutes > 0 ? " {$minutes}m" : "");
+        if ($hours == 0 && $minutes == 0) $timeSpent = "0h";
+
+        $totalStudents = (clone $base)->distinct('speaking_submissions.student_id')
+            ->count('speaking_submissions.student_id');
+
+        // Speaking scores come from speaking_reviews
+        $scoreData = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->join('speaking_reviews', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_submissions.submitted_at')
+            ->selectRaw('ROUND(AVG(speaking_reviews.total_score), 1) as avg_score, COUNT(speaking_reviews.id) as review_count')
+            ->first();
+
+        $pendingReviews = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->leftJoin('speaking_reviews', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_submissions.submitted_at')
+            ->whereNull('speaking_reviews.id')
+            ->count();
+
+        // Recent submissions
+        $recentSubmissions = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->join('users', 'speaking_submissions.student_id', '=', 'users.id')
+            ->leftJoin('speaking_reviews', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_submissions.submitted_at')
+            ->select(
+                'users.name as student_name',
+                'speaking_tasks.title as task_title',
+                'speaking_reviews.total_score as score',
+                'speaking_submissions.submitted_at',
+                DB::raw('IF(speaking_reviews.id IS NULL, "pending", "reviewed") as review_status')
+            )
+            ->orderBy('speaking_submissions.submitted_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Top performers
+        $topPerformers = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->join('speaking_reviews', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+            ->join('users', 'speaking_submissions.student_id', '=', 'users.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_submissions.submitted_at')
+            ->select(
+                'users.name as student_name',
+                DB::raw('ROUND(AVG(speaking_reviews.total_score), 1) as average_score'),
+                DB::raw('COUNT(*) as total_submissions')
+            )
+            ->groupBy('speaking_submissions.student_id', 'users.name')
+            ->orderByDesc('average_score')
+            ->limit(5)
+            ->get();
+
+        // Struggling students
+        $strugglingStudents = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->join('speaking_reviews', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+            ->join('users', 'speaking_submissions.student_id', '=', 'users.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_submissions.submitted_at')
+            ->select(
+                'users.name as student_name',
+                DB::raw('ROUND(AVG(speaking_reviews.total_score), 1) as average_score'),
+                DB::raw('COUNT(*) as total_submissions')
+            )
+            ->groupBy('speaking_submissions.student_id', 'users.name')
+            ->havingRaw('AVG(speaking_reviews.total_score) < 5')
+            ->orderBy('average_score', 'asc')
+            ->limit(5)
+            ->get();
+
+        // Performance Trend (last 6 months)
+        $performanceTrends = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i);
+            $monthStart = $date->copy()->startOfMonth();
+            $monthEnd = $date->copy()->endOfMonth();
+
+            $monthlyAvg = DB::table('speaking_submissions')
+                ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+                ->join('speaking_reviews', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+                ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+                ->where('speaking_tasks.created_by', $userId)
+                ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                    return $q->where('assignments.class_id', $request->class_id);
+                })
+                ->whereBetween('speaking_submissions.submitted_at', [$monthStart, $monthEnd])
+                ->avg('speaking_reviews.total_score');
+
+            $performanceTrends[] = [
+                'month' => $date->format('M'),
+                'score' => round($monthlyAvg ?? 0, 1)
+            ];
+        }
+
+        // Popular Tasks
+        $popularTasks = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_submissions.submitted_at')
+            ->select(
+                'speaking_tasks.title as task_title',
+                DB::raw('COUNT(*) as submission_count')
+            )
+            ->groupBy('speaking_tasks.id', 'speaking_tasks.title')
+            ->orderByDesc('submission_count')
+            ->limit(5)
+            ->get();
+
+        // Skill Mastery / Criteria Mastery
+        $reviews = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->join('speaking_reviews', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+            ->leftJoin('assignments', 'speaking_submissions.assignment_id', '=', 'assignments.id')
+            ->where('speaking_tasks.created_by', $userId)
+            ->when($request->class_id && $request->class_id !== 'all', function ($q) use ($request) {
+                return $q->where('assignments.class_id', $request->class_id);
+            })
+            ->whereNotNull('speaking_reviews.skill_scores')
+            ->select('speaking_reviews.skill_scores')
+            ->get();
+
+        $criteriaTotals = ['fluency' => 0, 'pronunciation' => 0, 'vocabulary' => 0, 'grammar' => 0];
+        $criteriaCounts = ['fluency' => 0, 'pronunciation' => 0, 'vocabulary' => 0, 'grammar' => 0];
+
+        foreach ($reviews as $review) {
+            $scores = json_decode($review->skill_scores, true);
+            if ($scores && is_array($scores)) {
+                foreach ($criteriaTotals as $key => $val) {
+                    if (isset($scores[$key])) {
+                        $criteriaTotals[$key] += (float)$scores[$key];
+                        $criteriaCounts[$key]++;
+                    }
+                }
+            }
+        }
+
+        $criteriaMastery = [];
+        $labels = [
+            'fluency' => 'Fluency & Coherence',
+            'pronunciation' => 'Pronunciation',
+            'vocabulary' => 'Lexical Resource',
+            'grammar' => 'Grammatical Range'
+        ];
+        foreach ($criteriaTotals as $key => $total) {
+            $count = $criteriaCounts[$key] ?? 0;
+            $avg = $count > 0 ? ($total / $count) : 0;
+            $criteriaMastery[] = [
+                'id' => $key,
+                'label' => $labels[$key],
+                'score' => round(($avg / 9) * 100, 0)
+            ];
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'tasks_created' => $tasksCreated,
+                'tasks_completed' => $tasksCompleted,
+                'total_students' => $totalStudents,
+                'time_spent' => $timeSpent,
+                'average_score' => round($scoreData->avg_score ?? 0, 1),
+                'reviewed_count' => $scoreData->review_count ?? 0,
+                'pending_reviews' => $pendingReviews,
+                'recent_submissions' => $recentSubmissions,
+                'top_performers' => $topPerformers,
+                'struggling_students' => $strugglingStudents,
+                'performance_trends' => $performanceTrends,
+                'popular_tasks' => $popularTasks,
+                'criteria_mastery' => $criteriaMastery,
             ]
         ]);
     }

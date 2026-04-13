@@ -759,6 +759,122 @@ class StudentDashboardController extends Controller
         ]);
     }
 
+    /**
+     * Get speaking statistics for student dashboard
+     */
+    public function speakingStatistics(Request $request): JsonResponse
+    {
+        $userId = auth()->id();
+
+        // 1. Basic Stats
+        $baseSubmissions = DB::table('speaking_submissions')
+            ->where('student_id', $userId)
+            ->whereNotNull('submitted_at');
+
+        $tasksCompleted = (clone $baseSubmissions)->count();
+        
+        $totalSeconds = (clone $baseSubmissions)->sum('total_time_seconds');
+        $hours = floor($totalSeconds / 3600);
+        $minutes = floor(($totalSeconds / 60) % 60);
+        $timeSpent = "{$hours}h" . ($minutes > 0 ? " {$minutes}m" : "");
+        if ($hours == 0 && $minutes == 0) $timeSpent = "0h";
+
+        // Average score from reviews
+        $avgScore = DB::table('speaking_reviews')
+            ->where('student_id', $userId)
+            ->avg('overall_score');
+
+        // 2. Recent Submissions
+        $recentSubmissions = DB::table('speaking_submissions')
+            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->leftJoin('speaking_reviews', 'speaking_submissions.id', '=', 'speaking_reviews.speaking_submission_id')
+            ->where('speaking_submissions.student_id', $userId)
+            ->whereNotNull('speaking_submissions.submitted_at')
+            ->select(
+                'speaking_tasks.title as task_title',
+                'speaking_reviews.overall_score as score',
+                'speaking_submissions.submitted_at',
+                'speaking_submissions.review_status'
+            )
+            ->orderBy('speaking_submissions.submitted_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // 3. Performance Trend (last 6 months)
+        $performanceTrends = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $monthDate = Carbon::now()->subMonths($i);
+            $monthStart = $monthDate->copy()->startOfMonth();
+            $monthEnd = $monthDate->copy()->endOfMonth();
+
+            $monthlyAvg = DB::table('speaking_reviews')
+                ->where('student_id', $userId)
+                ->whereBetween('created_at', [$monthStart, $monthEnd])
+                ->avg('overall_score');
+
+            $performanceTrends[] = [
+                'month' => $monthDate->format('M'),
+                'score' => round($monthlyAvg ?? 0, 1)
+            ];
+        }
+
+        // 4. Criteria mastery (Skill Scores)
+        $criteriaMastery = $this->getSpeakingCriteriaMastery($userId);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'tasks_completed' => $tasksCompleted,
+                'time_spent' => $timeSpent,
+                'average_score' => round($avgScore ?? 0, 1),
+                'recent_submissions' => $recentSubmissions,
+                'performance_trends' => $performanceTrends,
+                'criteria_mastery' => $criteriaMastery
+            ]
+        ]);
+    }
+
+    private function getSpeakingCriteriaMastery($studentId)
+    {
+        $reviews = DB::table('speaking_reviews')
+            ->where('student_id', $studentId)
+            ->whereNotNull('skill_scores')
+            ->get();
+
+        $scores = [
+            'fluency' => ['total' => 0, 'count' => 0],
+            'pronunciation' => ['total' => 0, 'count' => 0],
+            'vocabulary' => ['total' => 0, 'count' => 0],
+            'grammar' => ['total' => 0, 'count' => 0],
+        ];
+
+        foreach ($reviews as $review) {
+            $skills = json_decode($review->skill_scores, true);
+            if (!$skills) continue;
+
+            foreach ($scores as $key => &$data) {
+                if (isset($skills[$key])) {
+                    $data['total'] += (float) $skills[$key];
+                    $data['count']++;
+                }
+            }
+        }
+
+        return [
+            ['label' => 'Fluency & Coherence', 'score' => $this->calcPercentage($scores['fluency'])],
+            ['label' => 'Pronunciation', 'score' => $this->calcPercentage($scores['pronunciation'])],
+            ['label' => 'Lexical Resource', 'score' => $this->calcPercentage($scores['vocabulary'])],
+            ['label' => 'Grammatical Range', 'score' => $this->calcPercentage($scores['grammar'])],
+        ];
+    }
+
+    private function calcPercentage($data)
+    {
+        if ($data['count'] === 0) return 0;
+        // IELTS scores are usually 0-9
+        return round(($data['total'] / ($data['count'] * 9)) * 100, 1);
+    }
+
     private function getCategoryPerformance($userId)
     {
         // 1. Get legacy test question performance

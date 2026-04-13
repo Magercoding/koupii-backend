@@ -8,4 +8,5 @@ Route::middleware(['auth:sanctum', 'role:teacher,admin'])->prefix('dashboard')->
     Route::get('/statistics/reading', [TeacherDashboardController::class, 'readingStatistics']);
     Route::get('/statistics/writing', [TeacherDashboardController::class, 'writingStatistics']);
     Route::get('/statistics/listening', [TeacherDashboardController::class, 'listeningStatistics']);
+    Route::get('/statistics/speaking', [TeacherDashboardController::class, 'speakingStatistics']);
 });
