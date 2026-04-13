@@ -261,6 +261,9 @@ class StudentDashboardController extends Controller
                 'due_date' => $assignmentData->due_date,
                 'max_attempts' => $assignmentData->max_attempts ?? 3,
                 'latest_reading_submission_id' => $latestReadingSubmissionId,
+                'task' => $type === 'speaking_task' && $resolvedTask 
+                    ? new \App\Http\Resources\V1\SpeakingTask\SpeakingTaskResource($resolvedTask) 
+                    : $resolvedTask,
                 'student_progress' => [
                     'status' => $studentAssignment->status,
                     'attempt_count' => $studentAssignment->attempt_count,
@@ -815,11 +818,18 @@ class StudentDashboardController extends Controller
     private function getTaskByType(string $assignmentId, string $type)
     {
         $assignment = \App\Models\Assignment::find($assignmentId);
+        
+        if (!$assignment) {
+            $studentAssignment = \App\Models\StudentAssignment::find($assignmentId);
+            if ($studentAssignment) {
+                $assignment = $studentAssignment->assignment;
+            }
+        }
+
         if (!$assignment) {
             return null;
         }
         
-        $task = $assignment->getTask();
         return $assignment;
     }
 

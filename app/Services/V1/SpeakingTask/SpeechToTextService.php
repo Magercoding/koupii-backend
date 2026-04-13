@@ -12,16 +12,24 @@ use Illuminate\Support\Facades\Storage;
 
 class SpeechToTextService
 {
-    private $speechClient;
+    private $speechClient = null;
+    private $isInitialized = false;
 
     public function __construct()
     {
         // Initialize Google Speech client if available
         try {
             if (class_exists(SpeechClient::class)) {
-                $this->speechClient = new SpeechClient([
-                    'credentials' => config('services.google.speech_credentials_path')
-                ]);
+                $credentialsPath = config('services.google.speech_credentials_path');
+                
+                if ($credentialsPath && file_exists($credentialsPath)) {
+                    $this->speechClient = new SpeechClient([
+                        'credentials' => $credentialsPath
+                    ]);
+                    $this->isInitialized = true;
+                } else {
+                    Log::warning('Google Cloud Speech credentials file not found: ' . $credentialsPath);
+                }
             } else {
                 Log::warning('Google Cloud Speech library is not installed.');
             }
@@ -31,13 +39,21 @@ class SpeechToTextService
     }
 
     /**
+     * Check if the service is available and ready for use
+     */
+    public function isAvailable(): bool
+    {
+        return $this->isInitialized && $this->speechClient !== null;
+    }
+
+    /**
      * Convert audio file to text using Google Speech-to-Text API
      */
     public function convertAudioToText(string $audioFilePath, string $languageCode = 'en-US'): array
     {
         try {
             // Read audio file
-            $audioContent = Storage::get($audioFilePath);
+            $audioContent = Storage::disk('speaking_recordings')->get($audioFilePath);
 
             // Create recognition audio object
             $audio = (new RecognitionAudio())

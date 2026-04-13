@@ -62,9 +62,9 @@ return [
 
         'speaking_recordings' => [
             'driver' => 'local',
-            'root' => storage_path('app/speaking_recordings'),
+            'root' => storage_path('app/public/speaking_recordings'),
             'url' => env('APP_URL').'/storage/speaking_recordings',
-            'visibility' => 'private',
+            'visibility' => 'public',
             'throw' => false,
             'report' => false,
         ],

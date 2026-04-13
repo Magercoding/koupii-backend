@@ -21,20 +21,24 @@ class SpeakingRecording extends Model
         'recording_started_at',
         'recording_ended_at',
         'transcript',
-        'transcript_confidence',
+        'confidence_score',
         'word_count',
         'speaking_rate',
         'fluency_score',
-        'pause_analysis'
+        'pause_analysis',
+        'speech_processed',
+        'speech_processed_at'
     ];
 
     protected $casts = [
         'recording_started_at' => 'datetime',
         'recording_ended_at' => 'datetime',
-        'transcript_confidence' => 'float',
-        'speaking_rate' => 'float',
-        'fluency_score' => 'float',
-        'pause_analysis' => 'array'
+        'confidence_score' => 'decimal:4',
+        'speaking_rate' => 'decimal:2',
+        'fluency_score' => 'decimal:2',
+        'pause_analysis' => 'array',
+        'speech_processed' => 'boolean',
+        'speech_processed_at' => 'datetime'
     ];
 
     public function submission(): BelongsTo
@@ -54,7 +58,7 @@ class SpeakingRecording extends Model
             return null;
         }
 
-        return Storage::disk('public')->url($this->audio_file_path);
+        return Storage::disk('speaking_recordings')->url($this->audio_file_path);
     }
 
     // Check if audio file exists
@@ -64,7 +68,7 @@ class SpeakingRecording extends Model
             return false;
         }
 
-        return Storage::disk('public')->exists($this->audio_file_path);
+        return Storage::disk('speaking_recordings')->exists($this->audio_file_path);
     }
 
     // Delete audio file from storage
@@ -74,7 +78,7 @@ class SpeakingRecording extends Model
             return true;
         }
 
-        return Storage::disk('public')->delete($this->audio_file_path);
+        return Storage::disk('speaking_recordings')->delete($this->audio_file_path);
     }
 
     // Format duration for display

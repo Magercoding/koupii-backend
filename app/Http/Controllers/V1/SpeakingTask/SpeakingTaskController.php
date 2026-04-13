@@ -88,13 +88,21 @@ class SpeakingTaskController extends Controller
 
             // Role-based access control
             if ($user->role === 'student') {
-                // Allow if task is published AND student is enrolled in a class that has this task assigned
-                $hasAccess = $task->is_published && \App\Models\Assignment::where('task_id', $speakingTask)
-                    ->whereHas('class', function ($q) use ($user) {
-                        $q->whereHas('enrollments', function ($e) use ($user) {
-                            $e->where('student_id', $user->id)->where('status', 'active');
-                        });
-                    })->exists();
+                // Allow if task is published AND:
+                // 1. Student is enrolled in a class that has this task assigned
+                // 2. OR student has a direct StudentAssignment record for this task
+                $hasAccess = $task->is_published && (
+                    \App\Models\Assignment::where('task_id', $speakingTask)
+                        ->whereHas('class', function ($q) use ($user) {
+                            $q->whereHas('enrollments', function ($e) use ($user) {
+                                $e->where('student_id', $user->id)->where('status', 'active');
+                            });
+                        })->exists() ||
+                    \App\Models\StudentAssignment::where('student_id', $user->id)
+                        ->whereHas('assignment', function($q) use ($speakingTask) {
+                            $q->where('task_id', $speakingTask);
+                        })->exists()
+                );
 
                 if (!$hasAccess) {
                     return response()->json([

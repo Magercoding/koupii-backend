@@ -36,10 +36,12 @@ return [
     ],
 
     'google' => [
-    'client_id' => env('GOOGLE_CLIENT_ID'),
-    'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-    'redirect' => 'http://example.com/callback-url',
-],
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URL', 'http://localhost:3000/api/auth/callback/google'),
+        'speech_credentials_path' => env('GOOGLE_APPLICATION_CREDENTIALS'),
+        'project_id' => env('GOOGLE_CLOUD_PROJECT_ID'),
+    ],
 
 
     'facebook' => [

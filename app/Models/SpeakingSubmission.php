@@ -12,9 +12,15 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class SpeakingSubmission extends Model
 {
     use HasFactory, HasUuids;
+    
+    public const STATUS_TO_DO = 'to_do';
+    public const STATUS_IN_PROGRESS = 'in_progress';
+    public const STATUS_SUBMITTED = 'submitted';
+    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_REVIEWED = 'reviewed';
 
     protected $fillable = [
-        'test_id',
+        'speaking_task_id',
         'student_id',
         'assignment_id',
         'attempt_number',
@@ -46,7 +52,7 @@ class SpeakingSubmission extends Model
 
     public function speakingTask(): BelongsTo
     {
-        return $this->belongsTo(SpeakingTask::class, 'test_id');
+        return $this->belongsTo(SpeakingTask::class, 'speaking_task_id');
     }
 
     public function student(): BelongsTo

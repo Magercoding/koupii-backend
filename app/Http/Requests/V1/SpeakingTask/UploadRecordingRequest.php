@@ -22,7 +22,7 @@ class UploadRecordingRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'question_id' => 'required|exists:speaking_questions,id',
+            'question_id' => 'required|string',
             'audio_file' => 'required|file|mimes:mp3,wav,m4a|max:51200', // 50MB max
             'duration_seconds' => 'nullable|integer|min:1',
             'recording_started_at' => 'nullable|date',

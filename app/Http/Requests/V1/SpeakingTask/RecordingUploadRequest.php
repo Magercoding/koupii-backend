@@ -12,7 +12,10 @@ class RecordingUploadRequest extends FormRequest
     public function authorize(): bool
     {
         // Check if user owns the speaking submission
-        $submission = $this->route('submission');
+        $submissionId = $this->input('submission_id');
+        if (!$submissionId) return false;
+
+        $submission = \App\Models\SpeakingSubmission::find($submissionId);
         return $submission && auth()->id() === $submission->student_id;
     }
 
@@ -29,8 +32,7 @@ class RecordingUploadRequest extends FormRequest
             ],
             'question_id' => [
                 'required',
-                'uuid',
-                'exists:speaking_questions,id'
+                'string'
             ],
             'audio_file' => [
                 'required',

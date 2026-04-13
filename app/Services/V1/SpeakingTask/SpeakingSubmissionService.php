@@ -31,7 +31,7 @@ class SpeakingSubmissionService
             'review.teacher:id,name',
             'recordings'
         ])
-            ->when($filters['test_id'] ?? null, fn($q, $testId) => $q->where('test_id', $testId))
+            ->when($filters['speaking_task_id'] ?? $filters['test_id'] ?? null, fn($q, $testId) => $q->where('speaking_task_id', $testId))
             ->when($filters['student_id'] ?? null, fn($q, $studentId) => $q->where('student_id', $studentId))
             ->when($filters['status'] ?? null, fn($q, $status) => $q->where('status', $status))
             ->when($filters['teacher_id'] ?? null, function ($q, $teacherId) {
@@ -62,7 +62,7 @@ class SpeakingSubmissionService
         ])
             ->whereHas('speakingTask', fn($q) => $q->where('created_by', $teacherId))
             ->where('status', 'submitted')
-            ->when($filters['test_id'] ?? null, fn($q, $testId) => $q->where('test_id', $testId))
+            ->when($filters['speaking_task_id'] ?? $filters['test_id'] ?? null, fn($q, $testId) => $q->where('speaking_task_id', $testId))
             ->latest('submitted_at')
             ->paginate($filters['per_page'] ?? 15);
     }
@@ -70,14 +70,50 @@ class SpeakingSubmissionService
     public function startSubmission(SpeakingTask $test, string $studentId, array $data): SpeakingSubmission
     {
         $assignmentId = $data['assignment_id'] ?? null;
-        $attemptNumber = $data['attempt_number'] ?? 1;
+        $attemptNumber = $data['attempt_number'] ?? null;
+        
+        \Log::info("Starting speaking submission", [
+            'task_id' => $test->id,
+            'student_id' => $studentId,
+            'assignment_id' => $assignmentId,
+            'attempt_number' => $attemptNumber
+        ]);
+
+        // If attempt number is not provided, or provided as 1 while student assignment is at a higher attempt,
+        // try to resolve it from the student assignment record
+        if ($assignmentId && (!$attemptNumber || $attemptNumber === 1)) {
+            $studentAssignment = \App\Models\StudentAssignment::where('student_id', $studentId)
+                ->where('assignment_id', $assignmentId)
+                ->first();
+            
+            if ($studentAssignment && ($studentAssignment->attempt_number > ($attemptNumber ?? 0))) {
+                // If the assignment exists and is at a higher attempt than provided, follow its current attempt
+                $attemptNumber = $studentAssignment->attempt_number;
+                \Log::info("Resolved higher attempt_number from StudentAssignment: " . $attemptNumber);
+            }
+        }
+
+        $attemptNumber = (int) ($attemptNumber ?? 1);
+
+        // Check for existing in-progress/to-do submission to resume
+        $existing = SpeakingSubmission::where('speaking_task_id', $test->id)
+            ->where('student_id', $studentId)
+            ->where('assignment_id', $assignmentId)
+            ->where('attempt_number', $attemptNumber)
+            ->whereIn('status', [SpeakingSubmission::STATUS_IN_PROGRESS, SpeakingSubmission::STATUS_TO_DO])
+            ->first();
+
+        if ($existing) {
+            \Log::info("Resuming existing submission: " . $existing->id);
+            return $existing;
+        }
 
         // Check if student can attempt this test
-        $this->validateSubmissionAttempt($test, $studentId, $attemptNumber);
+        $this->validateSubmissionAttempt($test, $studentId, $attemptNumber, $assignmentId);
 
         return DB::transaction(function () use ($test, $studentId, $attemptNumber, $assignmentId) {
             $submission = SpeakingSubmission::create([
-                'test_id' => $test->id,
+                'speaking_task_id' => $test->id,
                 'student_id' => $studentId,
                 'assignment_id' => $assignmentId,
                 'attempt_number' => $attemptNumber,
@@ -114,9 +150,24 @@ class SpeakingSubmissionService
         }
 
         return DB::transaction(function () use ($submission, $data) {
+            // Sanitize question_id (handle 'undefined' from frontend)
+            $questionId = $data['question_id'] ?? null;
+            if ($questionId === 'undefined' || empty($questionId)) {
+                $questionId = null;
+            }
+
             // Upload the audio file
             $audioFile = $data['audio_file'];
-            $fileName = $this->generateFileName($submission, $data['question_id'], $audioFile);
+            $fileName = $this->generateFileName($submission, $questionId ?? 'unknown', $audioFile);
+            
+            // Log for debugging
+            Log::info("Uploading speaking recording", [
+                'submission_id' => $submission->id,
+                'question_id' => $questionId,
+                'file_name' => $fileName,
+                'original_extension' => $audioFile->getClientOriginalExtension()
+            ]);
+
             $filePath = $audioFile->storeAs('speaking_recordings', $fileName, 'speaking_recordings');
 
             // Get file info
@@ -126,33 +177,33 @@ class SpeakingSubmissionService
             // Create recording record first
             $recording = SpeakingRecording::create([
                 'submission_id' => $submission->id,
-                'question_id' => $data['question_id'],
-                'file_path' => $filePath,
-                'file_name' => $fileName,
-                'file_size' => $fileSize,
+                'question_id' => $questionId,
+                'audio_file_path' => $filePath,
                 'duration_seconds' => $duration,
                 'speech_processed' => false,
             ]);
 
-            // Process speech-to-text asynchronously
-            try {
-                $speechData = $this->processRecording($recording);
-                
-                $recording->update([
-                    'transcript' => $speechData['transcript'],
-                    'confidence_score' => $speechData['confidence_score'],
-                    'fluency_score' => $speechData['fluency_score'],
-                    'speaking_rate' => $speechData['speaking_rate'],
-                    'pause_analysis' => $speechData['pause_analysis'],
-                    'speech_processed' => true,
-                    'speech_processed_at' => now(),
-                ]);
-            } catch (Exception $e) {
-                Log::error('Speech processing failed for recording', [
-                    'recording_id' => $recording->id,
-                    'error' => $e->getMessage()
-                ]);
-                // Don't throw error, recording is still valid without speech processing
+            // Process speech-to-text if service is available
+            if ($this->speechToTextService->isAvailable()) {
+                try {
+                    $speechData = $this->processRecording($recording);
+                    
+                    $recording->update([
+                        'transcript' => $speechData['transcript'],
+                        'confidence_score' => $speechData['confidence_score'],
+                        'fluency_score' => $speechData['fluency_score'],
+                        'speaking_rate' => $speechData['speaking_rate'],
+                        'pause_analysis' => $speechData['pause_analysis'],
+                        'speech_processed' => true,
+                        'speech_processed_at' => now(),
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Speech processing failed for recording', [
+                        'recording_id' => $recording->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    // Don't throw error, recording is still valid without speech processing
+                }
             }
 
             return $recording;
@@ -167,7 +218,7 @@ class SpeakingSubmissionService
 
         DB::transaction(function () use ($submission) {
             $submission->update([
-                'status' => 'submitted',
+                'status' => SpeakingSubmission::STATUS_SUBMITTED,
                 'submitted_at' => now(),
                 'total_time_seconds' => $this->calculateTotalTime($submission),
             ]);
@@ -178,7 +229,15 @@ class SpeakingSubmissionService
                     ->where('student_id', $submission->student_id)
                     ->first();
                 if ($studentAssignment) {
+                    // Step 1: Complete the assignment first (updates time spent)
+                    $studentAssignment->complete();
+                    // Step 2: Submit it for review
                     $studentAssignment->submit();
+                    
+                    Log::info('Synchronized StudentAssignment status after Speaking submission', [
+                        'student_assignment_id' => $studentAssignment->id,
+                        'new_status' => $studentAssignment->status
+                    ]);
                 }
             }
         });
@@ -198,23 +257,16 @@ class SpeakingSubmissionService
                 ['submission_id' => $submission->id],
                 [
                     'teacher_id' => $teacherId,
-                    'overall_score' => $reviewData['overall_score'],
-                    'pronunciation_score' => $reviewData['pronunciation_score'] ?? null,
-                    'fluency_score' => $reviewData['fluency_score'] ?? null,
-                    'grammar_score' => $reviewData['grammar_score'] ?? null,
-                    'vocabulary_score' => $reviewData['vocabulary_score'] ?? null,
-                    'content_score' => $reviewData['content_score'] ?? null,
-                    'feedback' => $reviewData['feedback'] ?? null,
-                    'detailed_comments' => $reviewData['detailed_comments'] ?? null,
-                    'strengths' => $reviewData['strengths'] ?? null,
-                    'areas_for_improvement' => $reviewData['areas_for_improvement'] ?? null,
+                    'total_score' => $reviewData['total_score'] ?? $reviewData['overall_score'] ?? 0,
+                    'overall_feedback' => $reviewData['overall_feedback'] ?? $reviewData['feedback'] ?? null,
+                    'question_scores' => $reviewData['question_scores'] ?? null,
                     'reviewed_at' => now(),
                 ]
             );
 
             // Update submission status
             $submission->update([
-                'status' => 'reviewed'
+                'status' => SpeakingSubmission::STATUS_REVIEWED
             ]);
 
             return $review;
@@ -224,8 +276,8 @@ class SpeakingSubmissionService
     public function getSubmissionForReview(string $submissionId): SpeakingSubmission
     {
         return SpeakingSubmission::with([
-            'assignment.speakingTask',
-            'assignment.classroom',
+            'speakingTask',
+            'assignment.class',
             'student:id,name,email',
             'recordings.question',
             'review'
@@ -235,7 +287,8 @@ class SpeakingSubmissionService
     public function getSubmissionWithDetails(string $submissionId): SpeakingSubmission
     {
         return SpeakingSubmission::with([
-            'assignment.speakingTask',
+            'speakingTask',
+            'assignment.class',
             'student:id,name,email',
             'recordings.question',
             'review.teacher:id,name'
@@ -257,7 +310,8 @@ class SpeakingSubmissionService
     public function getStudentSubmissions(string $studentId, array $filters = []): Collection
     {
         return SpeakingSubmission::with([
-            'assignment.speakingTask:id,title,difficulty_level',
+            'speakingTask:id,title,difficulty_level',
+            'assignment',
             'review:id,submission_id,overall_score'
         ])
             ->where('student_id', $studentId)
@@ -266,56 +320,73 @@ class SpeakingSubmissionService
             ->get();
     }
 
-    private function validateSubmissionAttempt(SpeakingTask $test, string $studentId, int $attemptNumber): void
+    private function validateSubmissionAttempt(SpeakingTask $test, string $studentId, int $attemptNumber, ?string $assignmentId = null): void
     {
         // Verify student has access to this task
         $user = \App\Models\User::find($studentId);
         
         if ($user && $user->role === 'student') {
-            // 1. Check StudentAssignment table (New system - direct or group)
+            $authorized = false;
+            // 1. Check StudentAssignment table
             $hasStudentAssignment = \App\Models\StudentAssignment::where('student_id', $studentId)
                 ->whereHas('assignment', function ($q) use ($test) {
                     $q->where('task_id', $test->id)
                       ->where('task_type', 'speaking_task');
                 })->exists();
 
-            if ($hasStudentAssignment) return;
+            if ($hasStudentAssignment) {
+                $authorized = true;
+            } else {
+                // 2. Check Assignment table
+                $hasGlobalAssignment = \App\Models\Assignment::where('task_id', $test->id)
+                    ->where('task_type', 'speaking_task')
+                    ->whereHas('class.students', function ($query) use ($studentId) {
+                        $query->where('users.id', $studentId);
+                    })->exists();
 
-            // 2. Check Assignment table (Class-based link)
-            $hasGlobalAssignment = \App\Models\Assignment::where('task_id', $test->id)
-                ->where('task_type', 'speaking_task')
-                ->whereHas('class.students', function ($query) use ($studentId) {
-                    $query->where('users.id', $studentId);
-                })->exists();
+                if ($hasGlobalAssignment) {
+                    $authorized = true;
+                }
+            }
 
-            if ($hasGlobalAssignment) return;
+            if (!$authorized) {
+                // 3. Fallback: Check classroom-based assignments (Legacy)
+                $hasLegacyAccess = $test->assignments()
+                    ->whereHas('classroom.students', function ($query) use ($studentId) {
+                        $query->where('users.id', $studentId);
+                    })->exists();
 
-            // 3. Fallback: Check classroom-based assignments (Legacy)
-            $hasLegacyAccess = $test->assignments()
-                ->whereHas('classroom.students', function ($query) use ($studentId) {
-                    $query->where('users.id', $studentId);
-                })->exists();
-
-            if (!$hasLegacyAccess && !$test->is_published) {
-                throw new Exception('Unauthorized access to this task');
+                if (!$hasLegacyAccess && !$test->is_published) {
+                    abort(403, 'Unauthorized access to this task');
+                }
             }
         }
 
-        // Check if this specific attempt already exists
-        $existingSubmission = SpeakingSubmission::where('test_id', $test->id)
+        $existingSubmission = SpeakingSubmission::where('speaking_task_id', $test->id)
             ->where('student_id', $studentId)
             ->where('attempt_number', $attemptNumber)
+            ->when($assignmentId, fn($q) => $q->where('assignment_id', $assignmentId))
             ->first();
 
-        if ($existingSubmission) {
-            throw new Exception('This attempt has already been started');
+        if ($existingSubmission && in_array($existingSubmission->status, [
+            SpeakingSubmission::STATUS_SUBMITTED, 
+            SpeakingSubmission::STATUS_COMPLETED,
+            SpeakingSubmission::STATUS_REVIEWED
+        ])) {
+            abort(400, 'This attempt has already been submitted and cannot be restarted');
         }
     }
 
     private function generateFileName(SpeakingSubmission $submission, string $questionId, $audioFile): string
     {
         $timestamp = now()->format('YmdHis');
-        $extension = $audioFile->getClientOriginalExtension();
+        $originalExtension = $audioFile->getClientOriginalExtension();
+        
+        // Sanitize extension (e.g., 'webm;codecs=opus' -> 'webm')
+        $extension = preg_replace('/;.*$/', '', $originalExtension);
+        if (empty($extension)) {
+            $extension = 'webm';
+        }
 
         return "submission_{$submission->id}_question_{$questionId}_{$timestamp}.{$extension}";
     }
@@ -335,7 +406,7 @@ class SpeakingSubmissionService
     public function processRecording(\App\Models\SpeakingRecording $recording): array
     {
         // Convert audio to text
-        $speechData = $this->speechToTextService->convertAudioToText($recording->file_path);
+        $speechData = $this->speechToTextService->convertAudioToText($recording->audio_file_path);
 
         if (!$speechData['success']) {
             throw new Exception($speechData['message'] ?? 'Speech-to-text failed');

@@ -19,6 +19,7 @@ class AuthServiceProvider extends ServiceProvider
     protected $policies = [
         ClassInvitation::class => ClassInvitationPolicy::class,
         Test::class => TestPolicy::class,
+        \App\Models\SpeakingSubmission::class => \App\Policies\SpeakingSubmissionPolicy::class,
     ];
 
     /**

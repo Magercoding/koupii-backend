@@ -289,10 +289,49 @@ class MissionSeeder extends Seeder
             'time_limit_seconds' => 120, // 2 mins
             'topic' => 'History and Culture',
             'situation_context' => 'You are giving a short presentation to tourists.',
-            'questions' => [
-                ['text' => 'Describe a historical building in your hometown. Where is it? Why is it important?']
-            ],
             'is_published' => true,
+            'questions' => [
+                [
+                    'id' => '019d80ea-0fb9-734a-a6b1-5736af531ab0',
+                    'title' => 'Part 1: Introduction',
+                    'instructions' => 'In this part, the examiner asks the candidate about him/herself, his/her home, work or studies and other familiar topics.',
+                    'order_index' => 0,
+                    'questions' => [
+                        [
+                            'id' => '019d8125-9008-7379-9125-c567f22bc9f9',
+                            'order_index' => 0,
+                            'topic' => 'Hometown',
+                            'prompt' => 'Tell me about your hometown. What is it like?',
+                            'preparation_time_seconds' => 0,
+                            'response_time_seconds' => 60,
+                        ],
+                        [
+                            'id' => '019d8125-9008-7379-9125-c567f22bc9fa',
+                            'order_index' => 1,
+                            'topic' => 'Work or Study',
+                            'prompt' => 'Do you work or are you a student?',
+                            'preparation_time_seconds' => 0,
+                            'response_time_seconds' => 60,
+                        ],
+                    ],
+                ],
+                [
+                    'id' => '019d80ea-0fb9-734a-a6b1-5736af531ab1',
+                    'title' => 'Part 2: Long Turn',
+                    'instructions' => 'The examiner gives the candidate a task card which asks the candidate to talk about a particular topic.',
+                    'order_index' => 1,
+                    'questions' => [
+                        [
+                            'id' => '019d8125-9008-7379-9125-c567f22bc9fb',
+                            'order_index' => 0,
+                            'topic' => 'Historical Building',
+                            'prompt' => 'Describe a historical building in your hometown. Where is it? Why is it important?',
+                            'preparation_time_seconds' => 60,
+                            'response_time_seconds' => 120,
+                        ],
+                    ],
+                ]
+            ],
             'created_by' => $teacher->id,
         ]);
 
