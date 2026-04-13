@@ -18,11 +18,13 @@ class SpeakingReview extends Model
         'teacher_id',
         'total_score',
         'overall_feedback',
+        'skill_scores',
         'question_scores',
         'reviewed_at'
     ];
 
     protected $casts = [
+        'skill_scores' => 'array',
         'question_scores' => 'array',
         'reviewed_at' => 'datetime'
     ];

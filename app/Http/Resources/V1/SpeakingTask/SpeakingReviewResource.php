@@ -15,6 +15,7 @@ class SpeakingReviewResource extends JsonResource
             'teacher_id' => $this->teacher_id,
             'total_score' => $this->total_score,
             'overall_feedback' => $this->overall_feedback,
+            'skill_scores' => $this->skill_scores,
             'question_scores' => $this->question_scores,
             'reviewed_at' => $this->reviewed_at?->format('Y-m-d H:i:s'),
             'teacher' => $this->whenLoaded('teacher', function () {

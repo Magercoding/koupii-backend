@@ -258,8 +258,8 @@ class SpeakingSubmissionService
 
     public function reviewSubmission(SpeakingSubmission $submission, array $reviewData, string $teacherId): SpeakingReview
     {
-        if ($submission->status !== 'submitted') {
-            throw new Exception('Can only review submitted submissions');
+        if (!in_array($submission->status, ['submitted', 'reviewed'])) {
+            throw new Exception('Can only review submitted or already reviewed submissions');
         }
 
         return DB::transaction(function () use ($submission, $reviewData, $teacherId) {
@@ -270,6 +270,7 @@ class SpeakingSubmissionService
                     'teacher_id' => $teacherId,
                     'total_score' => $reviewData['total_score'] ?? $reviewData['overall_score'] ?? 0,
                     'overall_feedback' => $reviewData['overall_feedback'] ?? $reviewData['feedback'] ?? null,
+                    'skill_scores' => $reviewData['grading_rubric'] ?? $reviewData['skill_scores'] ?? null,
                     'question_scores' => $reviewData['question_scores'] ?? null,
                     'reviewed_at' => now(),
                 ]

@@ -97,18 +97,14 @@ class SpeakingSubmissionResource extends JsonResource
                 function() {
                     return [
                         'id' => $this->review->id,
-                        'overall_score' => $this->review->overall_score,
-                        'pronunciation_score' => $this->review->pronunciation_score,
-                        'fluency_score' => $this->review->fluency_score,
-                        'grammar_score' => $this->review->grammar_score,
-                        'vocabulary_score' => $this->review->vocabulary_score,
-                        'content_score' => $this->review->content_score,
-                        'feedback' => $this->review->feedback,
-                        'detailed_comments' => $this->review->detailed_comments,
+                        'total_score' => $this->review->total_score,
+                        'overall_feedback' => $this->review->overall_feedback,
+                        'skill_scores' => $this->review->skill_scores,
+                        'question_scores' => $this->review->question_scores,
                         'reviewed_at' => $this->review->reviewed_at,
-                        'reviewed_by' => $this->review->reviewedBy ? [
-                            'id' => $this->review->reviewedBy->id,
-                            'name' => $this->review->reviewedBy->name,
+                        'teacher' => $this->review->teacher ? [
+                            'id' => $this->review->teacher->id,
+                            'name' => $this->review->teacher->name,
                         ] : null,
                     ];
                 }
