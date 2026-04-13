@@ -11,8 +11,22 @@ class ReviewSpeakingRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Check if user is authorized to review speaking submissions
-        return $this->user()->can('review', $this->route('submission'));
+        // For store, we get submission_id from request
+        // For update, we can get it from the review model in the route
+        $submissionId = $this->input('submission_id');
+        $submission = null;
+
+        if ($submissionId) {
+            $submission = \App\Models\SpeakingSubmission::find($submissionId);
+        } elseif ($review = $this->route('review')) {
+            $submission = $review->submission;
+        }
+
+        if (!$submission) {
+            return false;
+        }
+
+        return $this->user()->can('review', $submission);
     }
 
     /**
