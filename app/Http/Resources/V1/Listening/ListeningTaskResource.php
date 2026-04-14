@@ -30,6 +30,7 @@ class ListeningTaskResource extends JsonResource
             'timer_type'         => $this->timer_type,
             'time_limit_seconds' => $this->time_limit_seconds,
             'difficulty_level'   => $this->difficulty_level ?? $this->difficulty,
+            'difficulty'         => $this->difficulty_level ?? $this->difficulty,
             'is_published'       => $this->is_published,
             // Support both column names
             'audio_url'          => $this->audio_url ?? $this->audio_file_url,

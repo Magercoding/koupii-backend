@@ -19,6 +19,7 @@ class SpeakingTask extends Model
         'description',
         'instructions',
         'difficulty_level',
+        'timer_type',
         'time_limit_seconds',
         'topic',
         'situation_context',

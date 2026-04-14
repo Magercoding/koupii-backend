@@ -23,8 +23,9 @@ class StoreWritingTaskRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
+            'title'       => 'required|string|max:255',
+            'description' => 'nullable|string',  // Task 8.4: changed from required to nullable
+            'difficulty'  => 'required|string|in:beginner,elementary,intermediate,advanced',
             'instructions' => 'nullable|string',
             'sample_answer' => 'nullable|string',
             'word_limit' => 'nullable|integer|min:50|max:5000',
@@ -32,20 +33,26 @@ class StoreWritingTaskRequest extends BaseRequest
             'max_retake_attempts' => 'nullable|integer|min:1|max:5',
             'retake_options' => 'nullable|array',
             'retake_options.*' => Rule::in(['rewrite_all', 'group_similar', 'choose_any']),
-            'timer_type' => ['required', Rule::in(['none', 'countdown', 'countup'])],
-            'time_limit_seconds' => 'nullable|integer|min:300|max:28800', // 5 minutes to 8 hours
+            'timer_mode'     => 'nullable|string|in:none,countdown,countup',
+            'timer_settings' => 'nullable',
+            'timer_type' => ['nullable', Rule::in(['none', 'countdown', 'countup'])],
+            'time_limit_seconds' => 'nullable|integer|min:300|max:28800',
             'allow_submission_files' => 'boolean',
             'is_published' => 'boolean',
-            'due_date' => 'nullable|date|after:now',
-            
-            // Multiple passages support (IELTS Style)
-            'passages' => 'nullable|array',
-            'passages.*.title' => 'required_with:passages|string|max:255',
-            'passages.*.description' => 'required_with:passages|string',
-            'passages.*.questions' => 'required_with:passages|array',
-            'passages.*.questions.*.question_text' => 'required_with:passages|string|max:2000',
+            'class_id'    => 'nullable|uuid|exists:classes,id',
+            'due_date'    => 'nullable|date|after:now',
+            'max_repetition_count' => 'nullable|integer|min:1',
 
-            // Multiple questions support (legacy/alternative)
+            // Passages (required, min 1) — Task 8.4
+            'passages'                              => 'required|array|min:1',
+            'passages.*.title'                      => 'required|string|max:255',
+            'passages.*.description'                => 'nullable|string',
+            'passages.*.image_context'              => 'nullable|file|mimes:jpeg,png,webp|max:5120',
+            'passages.*.questions'                  => 'required|array|min:1',
+            'passages.*.questions.*.question_text'  => 'required|string|max:2000',
+            'passages.*.questions.*.question_number'=> 'nullable|integer',
+
+            // Legacy questions support (optional)
             'questions' => 'nullable|array',
             'questions.*.question_type' => 'required_with:questions|string|in:essay,short_answer,creative_writing,argumentative,descriptive,narrative',
             'questions.*.question_text' => 'required_with:questions|string|max:2000',
@@ -63,17 +70,23 @@ class StoreWritingTaskRequest extends BaseRequest
     public function messages(): array
     {
         return [
-            'title.required' => 'Task title is required',
-            'description.required' => 'Task description is required',
-            'word_limit.min' => 'Word limit must be at least 50 words',
-            'word_limit.max' => 'Word limit cannot exceed 5000 words',
-            'max_retake_attempts.max' => 'Maximum retake attempts cannot exceed 5',
-            'timer_type.required' => 'Timer type is required',
-            'timer_type.in' => 'Invalid timer type selected',
-            'time_limit_seconds.min' => 'Time limit must be at least 5 minutes',
-            'time_limit_seconds.max' => 'Time limit cannot exceed 8 hours',
-            'due_date.after' => 'Due date must be in the future',
-            'retake_options.*.in' => 'Invalid retake option selected',
+            'title.required'              => 'Task title is required',
+            'difficulty.required'         => 'Difficulty level is required',
+            'difficulty.in'               => 'Invalid difficulty level',
+            'passages.required'           => 'At least one passage is required',
+            'passages.min'                => 'At least one passage is required',
+            'passages.*.title.required'   => 'Each passage must have a title',
+            'passages.*.questions.required' => 'Each passage must have at least one question',
+            'passages.*.questions.min'    => 'Each passage must have at least one question',
+            'passages.*.image_context.mimes' => 'Passage image must be a JPEG, PNG, or WEBP file',
+            'passages.*.image_context.max'   => 'Passage image must not exceed 5 MB',
+            'word_limit.min'              => 'Word limit must be at least 50 words',
+            'word_limit.max'              => 'Word limit cannot exceed 5000 words',
+            'max_retake_attempts.max'     => 'Maximum retake attempts cannot exceed 5',
+            'time_limit_seconds.min'      => 'Time limit must be at least 5 minutes',
+            'time_limit_seconds.max'      => 'Time limit cannot exceed 8 hours',
+            'due_date.after'              => 'Due date must be in the future',
+            'retake_options.*.in'         => 'Invalid retake option selected',
         ];
     }
 
@@ -98,6 +111,12 @@ class StoreWritingTaskRequest extends BaseRequest
         if ($this->has('questions') && is_string($this->input('questions'))) {
             $this->merge([
                 'questions' => json_decode($this->input('questions'), true)
+            ]);
+        }
+
+        if ($this->has('timer_settings') && is_string($this->input('timer_settings'))) {
+            $this->merge([
+                'timer_settings' => json_decode($this->input('timer_settings'), true)
             ]);
         }
 

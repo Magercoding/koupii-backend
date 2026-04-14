@@ -55,7 +55,7 @@ class SpeakingTaskController extends Controller
     {
         try {
             $taskData = $request->validated();
-            $task = $this->speakingTaskService->createSpeakingTask($taskData);
+            $task = $this->speakingTaskService->createSpeakingTask($taskData, $request);
 
             return response()->json([
                 'status' => 'success',

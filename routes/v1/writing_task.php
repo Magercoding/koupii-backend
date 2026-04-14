@@ -65,6 +65,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         });
     });
 
+    // Writing Tests alias routes (frontend posts to /writing-tests, canonical is /writing-tasks)
+    Route::prefix('writing-tests')->name('writing-tests.')->group(function () {
+        Route::post('/', [WritingTaskController::class, 'store'])->name('store');
+        Route::post('/{id}', [WritingTaskController::class, 'update'])->name('update');
+    });
+
     // Bulk Operations Routes
     Route::prefix('writing-tasks-bulk')->name('writing-tasks.bulk.')->group(function () {
         Route::post('/assign', [WritingTaskAssignmentController::class, 'bulkAssign'])->name('assign');

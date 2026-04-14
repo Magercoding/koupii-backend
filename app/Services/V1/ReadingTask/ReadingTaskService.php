@@ -5,6 +5,7 @@ namespace App\Services\V1\ReadingTask;
 use App\Models\ReadingTask;
 use App\Models\Test;
 use App\Helpers\FileUploadHelper;
+use App\Traits\CreatesStudentAssignments;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,7 @@ use Illuminate\Support\Str;
 
 class ReadingTaskService
 {
+    use CreatesStudentAssignments;
     /**
      * Get reading tasks with filters and pagination
      */
@@ -107,6 +109,7 @@ class ReadingTaskService
                             'type'        => 'reading',
                             'max_attempts'=> $taskData['max_repetition_count'] ?? 3,
                         ]);
+                        $this->createStudentAssignmentsForAssignment($assignment);
                         \Illuminate\Support\Facades\Log::info('Assignment created successfully', ['assignment_id' => $assignment->id]);
                     } catch (\Exception $e) {
                         \Illuminate\Support\Facades\Log::error('Failed to create assignment', ['error' => $e->getMessage()]);

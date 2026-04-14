@@ -3,16 +3,22 @@
 namespace App\Services\V1\Listening;
 
 use App\Models\ListeningTask;
+use App\Models\ListeningQuestion;
+use App\Models\Assignment;
 use App\Models\Test;
+use App\Traits\CreatesStudentAssignments;
 use App\Helpers\Listening\ListeningTestHelper;
+use App\Helpers\FileUploadHelper;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ListeningTaskService
 {
+    use CreatesStudentAssignments;
     /**
      * Get listening tasks with filters and pagination
      */
@@ -69,14 +75,124 @@ class ListeningTaskService
 
     /**
      * Create a new listening task (controller interface)
+     * Handles nested passages → question_groups → questions structure from the frontend form.
      */
     public function create(array $taskData, $request = null): ListeningTask
     {
-        // Add created_by from authenticated user (listening_tasks uses created_by column)
-        $taskData['created_by'] = Auth::id();
-        $taskData['is_published'] = $taskData['is_published'] ?? false;
-        
-        return $this->createListeningTask($taskData);
+        return DB::transaction(function () use ($taskData, $request) {
+            $isPublished = isset($taskData['is_published']) ? (bool) $taskData['is_published'] : false;
+
+            // Convert timer_settings → time_limit_seconds
+            $timeLimitSeconds = null;
+            if (!empty($taskData['timer_settings']) && is_array($taskData['timer_settings'])) {
+                $hours   = (int) ($taskData['timer_settings']['hours']   ?? 0);
+                $minutes = (int) ($taskData['timer_settings']['minutes'] ?? 0);
+                $seconds = (int) ($taskData['timer_settings']['seconds'] ?? 0);
+                $timeLimitSeconds = ($hours * 3600) + ($minutes * 60) + $seconds;
+            }
+
+            // 1. Create the ListeningTask record
+            $task = ListeningTask::create([
+                'title'              => $taskData['title'],
+                'description'        => $taskData['description'] ?? null,
+                'instructions'       => $taskData['instructions'] ?? null,
+                'difficulty_level'   => $taskData['difficulty'] ?? $taskData['difficulty_level'] ?? null,
+                'difficulty'         => $taskData['difficulty'] ?? $taskData['difficulty_level'] ?? null,
+                'timer_type'         => $taskData['timer_mode'] ?? 'none',
+                'time_limit_seconds' => $timeLimitSeconds,
+                'allow_retake'       => isset($taskData['allow_repetition'])
+                    ? in_array($taskData['allow_repetition'], ['on', true, 1, '1'], true)
+                    : false,
+                'max_retake_attempts' => isset($taskData['max_repetition_count'])
+                    ? (int) $taskData['max_repetition_count']
+                    : 0,
+                'is_published'       => $isPublished,
+                'created_by'         => Auth::id(),
+            ]);
+
+            // 2. Handle audio file upload and iterate passages → question_groups → questions
+            if (!empty($taskData['passages']) && is_array($taskData['passages'])) {
+                $questionOrder = 0;
+
+                foreach ($taskData['passages'] as $pIndex => $passage) {
+                    // Handle audio file upload for this passage
+                    if ($request && $request->hasFile("passages.{$pIndex}.audio_file")) {
+                        $audioFile = $request->file("passages.{$pIndex}.audio_file");
+                        $audioUrl  = FileUploadHelper::upload($audioFile, "listening/audio/{$task->id}");
+                        $task->update(['audio_url' => $audioUrl]);
+                    }
+
+                    // Iterate question groups
+                    if (!empty($passage['question_groups']) && is_array($passage['question_groups'])) {
+                        foreach ($passage['question_groups'] as $gIndex => $group) {
+                            // Persist transcript at task level if present
+                            if (!empty($group['transcript'])) {
+                                $task->update(['transcript' => json_encode($group['transcript'])]);
+                            }
+
+                            // Create questions
+                            if (!empty($group['questions']) && is_array($group['questions'])) {
+                                foreach ($group['questions'] as $question) {
+                                    $questionOrder++;
+
+                                    ListeningQuestion::create([
+                                        'listening_task_id' => $task->id,
+                                        'question_type'     => $question['question_type'] ?? 'multiple_choice',
+                                        'question_text'     => $question['question_text'] ?? '',
+                                        'options'           => $question['options'] ?? null,
+                                        'correct_answers'   => $this->normalizeCorrectAnswer($question['correct_answer'] ?? null),
+                                        'points'            => (int) ($question['points'] ?? $question['points_value'] ?? 1),
+                                        'order_index'       => $question['question_number'] ?? $questionOrder,
+                                        'explanation'       => $question['breakdown']['explanation'] ?? null,
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Create Assignment record when class_id is provided (Task 2.2)
+            if (!empty($taskData['class_id'])) {
+                Log::info('Attempting to assign listening task to class', [
+                    'class_id' => $taskData['class_id'],
+                    'task_id'  => $task->id,
+                ]);
+
+                $classExists = DB::table('classes')->where('id', $taskData['class_id'])->exists();
+
+                if ($classExists) {
+                    Log::info('Class exists, creating assignment');
+                    try {
+                        $assignment = Assignment::create([
+                            'id'           => Str::uuid(),
+                            'class_id'     => $taskData['class_id'],
+                            'task_id'      => $task->id,
+                            'task_type'    => 'listening_task',
+                            'assigned_by'  => Auth::id(),
+                            'title'        => $task->title,
+                            'due_date'     => $taskData['due_date'] ?? null,
+                            'is_published' => $isPublished,
+                            'status'       => $isPublished ? 'active' : 'inactive',
+                            'source_type'  => 'manual',
+                            'type'         => 'listening',
+                            'max_attempts' => $taskData['max_repetition_count'] ?? 3,
+                        ]);
+                        $this->createStudentAssignmentsForAssignment($assignment);
+                        Log::info('Assignment created successfully', ['assignment_id' => $assignment->id]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to create assignment', ['error' => $e->getMessage()]);
+                        throw $e;
+                    }
+                } else {
+                    Log::warning('Class does not exist', ['class_id' => $taskData['class_id']]);
+                }
+            } else {
+                Log::info('No class_id provided for listening task');
+            }
+
+            return $task->load(['creator', 'questions']);
+        });
     }
 
     /**

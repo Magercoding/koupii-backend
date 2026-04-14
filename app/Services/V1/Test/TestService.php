@@ -9,6 +9,7 @@ use App\Models\QuestionGroup;
 use App\Models\TestQuestion;
 use App\Models\ListeningTask;
 use App\Models\WritingTask;
+use App\Models\SpeakingTask;
 use App\Events\TestAssignedToClass;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -139,116 +140,98 @@ class TestService
     public function getTestsForUser($filters = [])
     {
         $userId = auth()->id();
+        $requestedType = $filters['type'] ?? null;
 
-        // 1. Build the base Test query
-        $query = Test::query()
+        $columns = [
+            'id', 'title', 'description', 'type', 'difficulty',
+            'is_published', 'created_at', 'updated_at', 'creator_id',
+        ];
+
+        // Base Test query (reading + speaking legacy tests)
+        $testQuery = Test::select(array_merge($columns, [
+                DB::raw("COALESCE(class_id, NULL) as class_id"),
+            ]))
             ->where('creator_id', $userId);
 
-        // 2. Build ListeningTask union part
+        // ListeningTask query
         $listeningQuery = ListeningTask::select([
-                'id', 
-                'title', 
-                'description', 
-                DB::raw("'listening' as type"), 
-                'difficulty', 
-                DB::raw("'listening_task' as test_type"), 
-                'timer_type as timer_mode',
-                DB::raw("json_object('time_limit_seconds', time_limit_seconds) as timer_settings"),
-                'allow_retake as allow_repetition',
-                'max_attempts_per_audio as max_repetition_count',
-                DB::raw("0 as is_public"),
-                'is_published', 
-                DB::raw("retake_options as settings"),
-                'created_at', 
-                'updated_at',
+                'id', 'title', 'description',
+                DB::raw("'listening' as type"),
+                DB::raw("COALESCE(difficulty_level, difficulty, 'beginner') as difficulty"),
+                'is_published', 'created_at', 'updated_at',
+                'created_by as creator_id',
                 DB::raw("NULL as class_id"),
-                'created_by as creator_id'
             ])
             ->where('created_by', $userId);
 
-        // 3. Build WritingTask union part
+        // WritingTask query
         $writingQuery = WritingTask::select([
-                'id', 
-                'title', 
-                'description', 
-                DB::raw("'writing' as type"), 
-                'difficulty', 
-                DB::raw("'writing_task' as test_type"), 
-                'timer_type as timer_mode',
-                DB::raw("json_object('time_limit_seconds', time_limit_seconds) as timer_settings"),
-                'allow_retake as allow_repetition',
-                'max_retake_attempts as max_repetition_count',
-                DB::raw("0 as is_public"),
-                'is_published', 
-                DB::raw("retake_options as settings"),
-                'created_at', 
-                'updated_at',
+                'id', 'title', 'description',
+                DB::raw("'writing' as type"),
+                DB::raw("COALESCE(difficulty, 'beginner') as difficulty"),
+                'is_published', 'created_at', 'updated_at',
+                'creator_id',
                 DB::raw("NULL as class_id"),
-                'creator_id as creator_id'
             ])
             ->where('creator_id', $userId);
 
-        // Apply filters to EACH query part before union for better performance
-        $requestedType = $filters['type'] ?? null;
-        $activeQueries = [];
+        // SpeakingTask query
+        $speakingQuery = \App\Models\SpeakingTask::select([
+                'id', 'title', 'description',
+                DB::raw("'speaking' as type"),
+                DB::raw("COALESCE(difficulty_level, 'beginner') as difficulty"),
+                'is_published', 'created_at', 'updated_at',
+                'created_by as creator_id',
+                DB::raw("NULL as class_id"),
+            ])
+            ->where('created_by', $userId);
 
-        // Determine which tables to query based on type filter
-        if (!$requestedType || in_array($requestedType, ['reading', 'speaking'])) {
-            $activeQueries['test'] = $query->select([
-                'id', 'title', 'description', 'type', 'difficulty', 'test_type', 
-                'timer_mode', 'timer_settings', 'allow_repetition', 'max_repetition_count',
-                'is_public', 'is_published', 'settings', 'created_at', 'updated_at', 
-                'class_id', 'creator_id'
-            ]);
-        }
-        
-        if (!$requestedType || $requestedType === 'listening') {
-            $activeQueries['listening'] = $listeningQuery;
-        }
-
-        if (!$requestedType || $requestedType === 'writing') {
-            $activeQueries['writing'] = $writingQuery;
-        }
-
-        // Apply shared filters to each active query
-        foreach ($activeQueries as $key => $q) {
-            if (isset($filters['difficulty']) && in_array($filters['difficulty'], ['beginner', 'intermediate', 'advanced'])) {
-                $q->where('difficulty', $filters['difficulty']);
+        // Apply shared filters
+        $applyFilters = function ($q) use ($filters) {
+            if (!empty($filters['search'])) {
+                $q->where('title', 'like', '%' . $filters['search'] . '%');
             }
             if (isset($filters['is_published'])) {
                 $q->where('is_published', $filters['is_published']);
             }
-            if (isset($filters['search'])) {
-                $q->where('title', 'like', '%' . $filters['search'] . '%');
-            }
-            if (isset($filters['class_id']) && $key === 'test') {
-                $q->where('class_id', $filters['class_id']);
-            }
+        };
+
+        // Determine which queries to include based on type filter
+        $activeQueries = [];
+        if (!$requestedType || in_array($requestedType, ['reading', 'speaking', 'test'])) {
+            $applyFilters($testQuery);
+            $activeQueries[] = $testQuery;
+        }
+        if (!$requestedType || $requestedType === 'listening') {
+            $applyFilters($listeningQuery);
+            $activeQueries[] = $listeningQuery;
+        }
+        if (!$requestedType || $requestedType === 'writing') {
+            $applyFilters($writingQuery);
+            $activeQueries[] = $writingQuery;
+        }
+        if (!$requestedType || $requestedType === 'speaking') {
+            $applyFilters($speakingQuery);
+            $activeQueries[] = $speakingQuery;
         }
 
-        // Combine using unionAll
-        $finalQuery = null;
-        $first = true;
+        if (empty($activeQueries)) {
+            return DB::table('tests')->whereRaw('1 = 0');
+        }
 
+        // Build union
+        $finalQuery = array_shift($activeQueries);
         foreach ($activeQueries as $q) {
-            if ($first) {
-                $finalQuery = $q;
-                $first = false;
-            } else {
-                $finalQuery->unionAll($q);
-            }
+            $finalQuery->unionAll($q);
         }
 
-        // If no queries are active (shouldn't happen with logic above), return empty result
-        if (!$finalQuery) {
-            return Test::whereRaw('1 = 0');
-        }
+        // Wrap in subquery for ordering + pagination
+        $sql = $finalQuery->toSql();
+        $bindings = $finalQuery->getBindings();
 
-        // Return the combined query, ordered by latest
-        // We use fromSub to allow further operations like pagination and relations on the combined set
-        return Test::fromSub($finalQuery, 'combined')
-            ->with(['class', 'creator'])
-            ->latest('created_at');
+        return DB::table(DB::raw("({$sql}) as combined"))
+            ->addBinding($bindings, 'where')
+            ->orderByDesc('created_at');
     }
 
     private function createPassages(Test $test, array $passages)

@@ -212,7 +212,7 @@ class TeacherDashboardController extends Controller
             ->whereNotNull('reading_submissions.submitted_at')
             ->select(
                 'users.name as student_name',
-                DB::raw('ROUND(AVG(reading_submissions.percentage), 1) as average_score'),
+                DB::raw('ROUND(AVG(reading_submissions.percentage), 0) as average_score'),
                 DB::raw('COUNT(*) as total_submissions')
             )
             ->groupBy('reading_submissions.student_id', 'users.name')
@@ -236,7 +236,7 @@ class TeacherDashboardController extends Controller
             ->whereNotNull('reading_submissions.submitted_at')
             ->select(
                 'users.name as student_name',
-                DB::raw('ROUND(AVG(reading_submissions.percentage), 1) as average_score'),
+                DB::raw('ROUND(AVG(reading_submissions.percentage), 0) as average_score'),
                 DB::raw('COUNT(*) as total_submissions')
             )
             ->groupBy('reading_submissions.student_id', 'users.name')
@@ -268,7 +268,7 @@ class TeacherDashboardController extends Controller
 
             $performanceTrends[] = [
                 'month' => $date->format('M'),
-                'avgScore' => round($monthlyAvg ?? 0, 1)
+                'avgScore' => round($monthlyAvg ?? 0, 0)
             ];
         }
 
@@ -279,7 +279,7 @@ class TeacherDashboardController extends Controller
                 'tasks_completed' => $tasksCompleted,
                 'total_students' => $totalStudents,
                 'time_spent' => $timeSpent,
-                'average_score' => round($avgScore ?? 0, 1),
+                'average_score' => round($avgScore ?? 0, 0),
                 'recent_submissions' => $recentSubmissions,
                 'top_performers' => $topPerformers,
                 'struggling_students' => $strugglingStudents,
@@ -411,7 +411,7 @@ class TeacherDashboardController extends Controller
 
             $performanceTrends[] = [
                 'month' => $date->format('M'),
-                'avgScore' => round($monthlyAvg ?? 0, 1)
+                'avgScore' => round($monthlyAvg ?? 0, 0)
             ];
         }
 
@@ -545,7 +545,7 @@ class TeacherDashboardController extends Controller
             ->whereNotNull('listening_submissions.submitted_at')
             ->select(
                 'users.name as student_name',
-                DB::raw('ROUND(AVG(listening_submissions.percentage), 1) as average_score'),
+                DB::raw('ROUND(AVG(listening_submissions.percentage), 0) as average_score'),
                 DB::raw('COUNT(*) as total_submissions')
             )
             ->groupBy('listening_submissions.student_id', 'users.name')
@@ -565,7 +565,7 @@ class TeacherDashboardController extends Controller
             ->whereNotNull('listening_submissions.submitted_at')
             ->select(
                 'users.name as student_name',
-                DB::raw('ROUND(AVG(listening_submissions.percentage), 1) as average_score'),
+                DB::raw('ROUND(AVG(listening_submissions.percentage), 0) as average_score'),
                 DB::raw('COUNT(*) as total_submissions')
             )
             ->groupBy('listening_submissions.student_id', 'users.name')
@@ -585,7 +585,7 @@ class TeacherDashboardController extends Controller
             ->whereNotNull('listening_submissions.submitted_at')
             ->select(
                 DB::raw("DATE_FORMAT(listening_submissions.submitted_at, '%Y-%m') as month"),
-                DB::raw('ROUND(AVG(listening_submissions.percentage), 1) as score')
+                DB::raw('ROUND(AVG(listening_submissions.percentage), 0) as score')
             )
             ->groupBy('month')
             ->orderBy('month', 'asc')
@@ -617,7 +617,7 @@ class TeacherDashboardController extends Controller
                 'tasks_completed' => $tasksCompleted,
                 'total_students' => $totalStudents,
                 'time_spent' => $timeSpent,
-                'average_score' => round($avgScore ?? 0, 1),
+                'average_score' => round($avgScore ?? 0, 0),
                 'recent_submissions' => $recentSubmissions,
                 'top_performers' => $topPerformers,
                 'struggling_students' => $strugglingStudents,
@@ -765,7 +765,7 @@ class TeacherDashboardController extends Controller
 
             $performanceTrends[] = [
                 'month' => $date->format('M'),
-                'score' => round($monthlyAvg ?? 0, 1)
+                'score' => round($monthlyAvg ?? 0, 0)
             ];
         }
 
@@ -852,4 +852,5 @@ class TeacherDashboardController extends Controller
         ]);
     }
 }
+
 

@@ -11,7 +11,7 @@ class StoreSpeakingTaskRequest extends BaseRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user() && in_array($this->user()->role, ['admin', 'teacher']);
     }
 
     /**
@@ -22,33 +22,27 @@ class StoreSpeakingTaskRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string|max:1000',
-            'instructions' => 'nullable|string|max:2000',
-            'difficulty' => 'required|string|in:beginner,elementary,intermediate,upper_intermediate,advanced,proficiency',
-            'timer_type' => 'required|string|in:none,per_question,total_test',
-            'time_limit_seconds' => 'nullable|integer|min:60|max:7200',
-            'allow_repetition' => 'boolean',
-            'max_repetition_count' => 'nullable|integer|min:1|max:5',
-            'is_published' => 'boolean',
-            
-            // Speaking sections
-            'sections' => 'required|array|min:1|max:10',
-            'sections.*.title' => 'required|string|max:255',
-            'sections.*.instructions' => 'nullable|string|max:1000',
-            'sections.*.order_index' => 'required|integer|min:0',
-            'sections.*.time_limit_seconds' => 'nullable|integer|min:30|max:1800',
-            
-            // Speaking questions
-            'sections.*.questions' => 'required|array|min:1|max:20',
-            'sections.*.questions.*.topic' => 'required|string|max:255',
-            'sections.*.questions.*.prompt' => 'required|string|max:2000',
-            'sections.*.questions.*.preparation_time_seconds' => 'nullable|integer|min:15|max:300',
-            'sections.*.questions.*.response_time_seconds' => 'required|integer|min:30|max:300',
-            'sections.*.questions.*.order_index' => 'required|integer|min:0',
-            'sections.*.questions.*.sample_answer' => 'nullable|string|max:2000',
-            'sections.*.questions.*.evaluation_criteria' => 'nullable|array',
-            'sections.*.questions.*.evaluation_criteria.*' => 'string|max:500'
+            'title'                  => 'required|string|max:255',
+            'description'            => 'nullable|string|max:1000',
+            'difficulty'             => 'required|string|in:beginner,elementary,intermediate,upper_intermediate,advanced,proficiency',
+            'is_published'           => 'boolean',
+            'class_id'               => 'nullable|string|exists:classes,id',
+            'due_date'               => 'nullable|date|after:now',
+            'timer_mode'             => 'nullable|in:countdown,countup,none',
+            'timer_settings'         => 'nullable|array',
+            'timer_settings.hours'   => 'nullable|integer|min:0|max:23',
+            'timer_settings.minutes' => 'nullable|integer|min:0|max:59',
+            'timer_settings.seconds' => 'nullable|integer|min:0|max:59',
+
+            // Passages structure
+            'passages'                                        => 'required|array|min:1',
+            'passages.*.title'                               => 'required|string|max:255',
+            'passages.*.description'                         => 'nullable|string|max:2000',
+            'passages.*.image_context'                       => 'nullable|file|mimes:jpeg,png,webp|max:5120',
+            'passages.*.questions'                           => 'required|array|min:1',
+            'passages.*.questions.*.question_text'           => 'required|string',
+            'passages.*.questions.*.voice_limit'             => 'required|integer|min:1',
+            'passages.*.questions.*.question_number'         => 'nullable|integer',
         ];
     }
 
@@ -58,29 +52,44 @@ class StoreSpeakingTaskRequest extends BaseRequest
     public function messages(): array
     {
         return [
-            'title.required' => 'The speaking task title is required.',
-            'title.max' => 'The title may not be greater than 255 characters.',
-            'difficulty.required' => 'The difficulty level is required.',
-            'difficulty.in' => 'The difficulty must be one of: beginner, elementary, intermediate, upper_intermediate, advanced, proficiency.',
-            'timer_type.required' => 'The timer type is required.',
-            'timer_type.in' => 'The timer type must be one of: none, per_question, total_test.',
-            'time_limit_seconds.min' => 'Time limit must be at least 1 minute (60 seconds).',
-            'time_limit_seconds.max' => 'Time limit may not exceed 2 hours (7200 seconds).',
-            'max_repetition_count.max' => 'Maximum repetition count cannot exceed 5 attempts.',
-            
-            'sections.required' => 'At least one speaking section is required.',
-            'sections.min' => 'At least one speaking section is required.',
-            'sections.max' => 'Maximum 10 sections allowed per speaking task.',
-            'sections.*.title.required' => 'Section title is required.',
-            'sections.*.questions.required' => 'At least one question is required per section.',
-            'sections.*.questions.min' => 'At least one question is required per section.',
-            'sections.*.questions.max' => 'Maximum 20 questions allowed per section.',
-            
-            'sections.*.questions.*.topic.required' => 'Question topic is required.',
-            'sections.*.questions.*.prompt.required' => 'Question prompt is required.',
-            'sections.*.questions.*.response_time_seconds.required' => 'Response time is required for each question.',
-            'sections.*.questions.*.response_time_seconds.min' => 'Minimum response time is 30 seconds.',
-            'sections.*.questions.*.response_time_seconds.max' => 'Maximum response time is 5 minutes (300 seconds).'
+            'title.required'                              => 'The speaking task title is required.',
+            'title.max'                                   => 'The title may not be greater than 255 characters.',
+            'difficulty.required'                         => 'The difficulty level is required.',
+            'difficulty.in'                               => 'The difficulty must be one of: beginner, elementary, intermediate, upper_intermediate, advanced, proficiency.',
+            'timer_mode.in'                               => 'Timer mode must be one of: countdown, countup, none.',
+            'passages.required'                           => 'At least one passage is required.',
+            'passages.min'                                => 'At least one passage is required.',
+            'passages.*.title.required'                   => 'Passage title is required.',
+            'passages.*.questions.required'               => 'At least one question is required per passage.',
+            'passages.*.questions.min'                    => 'At least one question is required per passage.',
+            'passages.*.questions.*.question_text.required' => 'Question text is required.',
+            'passages.*.questions.*.voice_limit.required' => 'Voice limit is required for each question.',
+            'passages.*.questions.*.voice_limit.min'      => 'Voice limit must be at least 1 second.',
+            'passages.*.image_context.mimes'              => 'Passage image must be jpeg, png, or webp.',
+            'passages.*.image_context.max'                => 'Passage image cannot exceed 5 MB.',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     *
+     * Casts boolean fields sent as strings from multipart/form-data,
+     * and normalises timer_settings when sent as a JSON string.
+     */
+    protected function prepareForValidation(): void
+    {
+        $merge = [
+            'is_published' => $this->boolean('is_published'),
+        ];
+
+        // timer_settings may arrive as a JSON string (e.g. from non-FormData clients)
+        if ($this->has('timer_settings') && is_string($this->input('timer_settings'))) {
+            $decoded = json_decode($this->input('timer_settings'), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $merge['timer_settings'] = $decoded;
+            }
+        }
+
+        $this->merge($merge);
     }
 }
