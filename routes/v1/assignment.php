@@ -23,6 +23,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/dashboard/statistics/reading', [StudentDashboardController::class, 'readingStatistics'])
             ->name('dashboard.reading-stats');
 
+        Route::get('/dashboard/statistics/listening', [StudentDashboardController::class, 'listeningStatistics'])
+            ->name('dashboard.listening-stats');
+
+        Route::get('/dashboard/statistics/writing', [StudentDashboardController::class, 'writingStatistics'])
+            ->name('dashboard.writing-stats');
+
         Route::get('/dashboard/statistics/speaking', [StudentDashboardController::class, 'speakingStatistics'])
             ->name('dashboard.speaking-stats');
         

@@ -251,6 +251,26 @@ class StudentDashboardController extends Controller
                 ->value('id');
         }
 
+        $latestSpeakingSubmissionId = null;
+        if ($type === 'speaking') {
+            $latestSpeakingSubmissionId = DB::table('speaking_submissions')
+                ->where('assignment_id', $assignmentId)
+                ->where('student_id', $studentId)
+                ->whereNull('submitted_at')
+                ->orderByDesc('created_at')
+                ->value('id');
+        }
+
+        $latestWritingSubmissionId = null;
+        if ($type === 'writing') {
+            $latestWritingSubmissionId = DB::table('writing_submissions')
+                ->where('assignment_id', $assignmentId)
+                ->where('student_id', $studentId)
+                ->whereNull('submitted_at')
+                ->orderByDesc('created_at')
+                ->value('id');
+        }
+
         return response()->json([
             'message' => 'Assignment details retrieved successfully',
             'data' => [
@@ -261,6 +281,8 @@ class StudentDashboardController extends Controller
                 'due_date' => $assignmentData->due_date,
                 'max_attempts' => $assignmentData->max_attempts ?? 3,
                 'latest_reading_submission_id' => $latestReadingSubmissionId,
+                'latest_speaking_submission_id' => $latestSpeakingSubmissionId,
+                'latest_writing_submission_id' => $latestWritingSubmissionId,
                 'task' => $type === 'speaking_task' && $resolvedTask 
                     ? new \App\Http\Resources\V1\SpeakingTask\SpeakingTaskResource($resolvedTask) 
                     : $resolvedTask,
@@ -760,6 +782,73 @@ class StudentDashboardController extends Controller
     }
 
     /**
+     * Get listening statistics for student dashboard
+     */
+    public function listeningStatistics(Request $request): JsonResponse
+    {
+        $userId = auth()->id();
+
+        // Basic Stats
+        $baseSubmissions = DB::table('listening_submissions')
+            ->where('student_id', $userId)
+            ->whereNotNull('submitted_at');
+
+        $tasksCompleted = (clone $baseSubmissions)->count();
+        
+        $totalSeconds = (clone $baseSubmissions)->sum('time_taken_seconds');
+        $hours = floor($totalSeconds / 3600);
+        $minutes = floor(($totalSeconds / 60) % 60);
+        $timeSpent = "{$hours}h" . ($minutes > 0 ? " {$minutes}m" : "");
+        if ($hours == 0 && $minutes == 0) $timeSpent = "0h";
+
+        $avgScore = (clone $baseSubmissions)->avg('percentage');
+
+        // Recent Submissions
+        $recentSubmissions = DB::table('listening_submissions')
+            ->join('listening_tasks', 'listening_submissions.listening_task_id', '=', 'listening_tasks.id')
+            ->where('listening_submissions.student_id', $userId)
+            ->whereNotNull('listening_submissions.submitted_at')
+            ->select(
+                'listening_tasks.title as task_title',
+                'listening_submissions.percentage as score',
+                'listening_submissions.submitted_at'
+            )
+            ->orderBy('listening_submissions.submitted_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // Performance Trend (last 6 months)
+        $performanceTrends = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i);
+            $monthStart = $date->copy()->startOfMonth();
+            $monthEnd = $date->copy()->endOfMonth();
+
+            $monthlyAvg = DB::table('listening_submissions')
+                ->where('student_id', $userId)
+                ->whereBetween('submitted_at', [$monthStart, $monthEnd])
+                ->avg('percentage');
+
+            $performanceTrends[] = [
+                'month' => $date->format('M'),
+                'avgScore' => round($monthlyAvg ?? 0, 1)
+            ];
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'tasks_completed' => $tasksCompleted,
+                'time_spent' => $timeSpent,
+                'average_score' => round($avgScore ?? 0, 1),
+                'recent_submissions' => $recentSubmissions,
+                'performance_trends' => $performanceTrends,
+                'category_performance' => [] // Fallback for now
+            ]
+        ]);
+    }
+
+    /**
      * Get speaking statistics for student dashboard
      */
     public function speakingStatistics(Request $request): JsonResponse
@@ -781,20 +870,21 @@ class StudentDashboardController extends Controller
 
         // Average score from reviews
         $avgScore = DB::table('speaking_reviews')
-            ->where('student_id', $userId)
-            ->avg('overall_score');
+            ->join('speaking_submissions', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+            ->where('speaking_submissions.student_id', $userId)
+            ->avg('speaking_reviews.total_score');
 
         // 2. Recent Submissions
         $recentSubmissions = DB::table('speaking_submissions')
             ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
-            ->leftJoin('speaking_reviews', 'speaking_submissions.id', '=', 'speaking_reviews.speaking_submission_id')
+            ->leftJoin('speaking_reviews', 'speaking_submissions.id', '=', 'speaking_reviews.submission_id')
             ->where('speaking_submissions.student_id', $userId)
             ->whereNotNull('speaking_submissions.submitted_at')
             ->select(
                 'speaking_tasks.title as task_title',
-                'speaking_reviews.overall_score as score',
+                'speaking_reviews.total_score as score',
                 'speaking_submissions.submitted_at',
-                'speaking_submissions.review_status'
+                'speaking_submissions.status as review_status'
             )
             ->orderBy('speaking_submissions.submitted_at', 'desc')
             ->limit(5)
@@ -808,9 +898,10 @@ class StudentDashboardController extends Controller
             $monthEnd = $monthDate->copy()->endOfMonth();
 
             $monthlyAvg = DB::table('speaking_reviews')
-                ->where('student_id', $userId)
-                ->whereBetween('created_at', [$monthStart, $monthEnd])
-                ->avg('overall_score');
+                ->join('speaking_submissions', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+                ->where('speaking_submissions.student_id', $userId)
+                ->whereBetween('speaking_reviews.created_at', [$monthStart, $monthEnd])
+                ->avg('speaking_reviews.total_score');
 
             $performanceTrends[] = [
                 'month' => $monthDate->format('M'),
@@ -834,11 +925,126 @@ class StudentDashboardController extends Controller
         ]);
     }
 
+    /**
+     * Get writing statistics for student dashboard
+     */
+    public function writingStatistics(Request $request): JsonResponse
+    {
+        $userId = auth()->id();
+
+        // 1. Basic Stats
+        $baseSubmissions = DB::table('writing_submissions')
+            ->where('student_id', $userId)
+            ->whereNotNull('submitted_at');
+
+        $tasksCompleted = (clone $baseSubmissions)->count();
+        
+        $totalSeconds = (clone $baseSubmissions)->sum('time_taken_seconds');
+        $hours = floor($totalSeconds / 3600);
+        $minutes = floor(($totalSeconds / 60) % 60);
+        $timeSpent = "{$hours}h" . ($minutes > 0 ? " {$minutes}m" : "");
+        if ($hours == 0 && $minutes == 0) $timeSpent = "0h";
+
+        // Average score from reviews
+        $avgScore = DB::table('writing_reviews')
+            ->join('writing_submissions', 'writing_reviews.submission_id', '=', 'writing_submissions.id')
+            ->where('writing_submissions.student_id', $userId)
+            ->avg('writing_reviews.score');
+
+        // 2. Recent Submissions
+        $recentSubmissions = DB::table('writing_submissions')
+            ->join('writing_tasks', 'writing_submissions.writing_task_id', '=', 'writing_tasks.id')
+            ->leftJoin('writing_reviews', 'writing_submissions.id', '=', 'writing_reviews.submission_id')
+            ->where('writing_submissions.student_id', $userId)
+            ->whereNotNull('writing_submissions.submitted_at')
+            ->select(
+                'writing_tasks.title as task_title',
+                'writing_reviews.score as score',
+                'writing_submissions.submitted_at',
+                'writing_submissions.status as review_status'
+            )
+            ->orderBy('writing_submissions.submitted_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // 3. Performance Trend (last 6 months)
+        $performanceTrends = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $monthDate = Carbon::now()->subMonths($i);
+            $monthStart = $monthDate->copy()->startOfMonth();
+            $monthEnd = $monthDate->copy()->endOfMonth();
+
+            $monthlyAvg = DB::table('writing_reviews')
+                ->join('writing_submissions', 'writing_reviews.submission_id', '=', 'writing_submissions.id')
+                ->where('writing_submissions.student_id', $userId)
+                ->whereBetween('writing_reviews.created_at', [$monthStart, $monthEnd])
+                ->avg('writing_reviews.score');
+
+            $performanceTrends[] = [
+                'month' => $monthDate->format('M'),
+                'score' => round($monthlyAvg ?? 0, 1)
+            ];
+        }
+
+        // 4. Criteria mastery
+        $criteriaMastery = $this->getWritingCriteriaMastery($userId);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'tasks_completed' => $tasksCompleted,
+                'time_spent' => $timeSpent,
+                'average_score' => round($avgScore ?? 0, 1),
+                'recent_submissions' => $recentSubmissions,
+                'performance_trends' => $performanceTrends,
+                'criteria_mastery' => $criteriaMastery
+            ]
+        ]);
+    }
+
+    private function getWritingCriteriaMastery($studentId)
+    {
+        $reviews = DB::table('writing_reviews')
+            ->join('writing_submissions', 'writing_reviews.submission_id', '=', 'writing_submissions.id')
+            ->where('writing_submissions.student_id', $studentId)
+            ->whereNotNull('writing_reviews.feedback_json')
+            ->get();
+
+        $scores = [
+            'task_achievement' => ['total' => 0, 'count' => 0],
+            'coherence_cohesion' => ['total' => 0, 'count' => 0],
+            'lexical_resource' => ['total' => 0, 'count' => 0],
+            'grammatical_range' => ['total' => 0, 'count' => 0],
+        ];
+
+        foreach ($reviews as $review) {
+            $feedback = json_decode($review->feedback_json, true);
+            if (!$feedback || !isset($feedback['scores'])) continue;
+
+            $skills = $feedback['scores'];
+            foreach ($scores as $key => &$data) {
+                if (isset($skills[$key])) {
+                    $data['total'] += (float) $skills[$key];
+                    $data['count']++;
+                }
+            }
+        }
+
+        return [
+            ['label' => 'Task Response', 'score' => $this->calcPercentage($scores['task_achievement'])],
+            ['label' => 'Coherence & Cohesion', 'score' => $this->calcPercentage($scores['coherence_cohesion'])],
+            ['label' => 'Lexical Resource', 'score' => $this->calcPercentage($scores['lexical_resource'])],
+            ['label' => 'Grammatical Range', 'score' => $this->calcPercentage($scores['grammatical_range'])],
+        ];
+    }
+
     private function getSpeakingCriteriaMastery($studentId)
     {
         $reviews = DB::table('speaking_reviews')
-            ->where('student_id', $studentId)
-            ->whereNotNull('skill_scores')
+            ->join('speaking_submissions', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+            ->where('speaking_submissions.student_id', $studentId)
+            ->whereNotNull('speaking_reviews.skill_scores')
+            ->select('speaking_reviews.skill_scores')
             ->get();
 
         $scores = [

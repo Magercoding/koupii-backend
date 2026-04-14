@@ -100,8 +100,8 @@ class TeacherDashboardController extends Controller
             ->selectRaw('SUM(writing_reviews.score) as total_score, COUNT(writing_reviews.id) as review_count')
             ->first();
 
-        $writingScoreSum = $writingScoreData->total_score ?? 0;
-        $writingReviewCount = $writingScoreData->review_count ?? 0;
+        $writingScoreSum = $writingScoreData ? ($writingScoreData->total_score ?? 0) : 0;
+        $writingReviewCount = $writingScoreData ? ($writingScoreData->review_count ?? 0) : 0;
 
         $speakingScoreData = DB::table('speaking_submissions')
             ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
@@ -115,8 +115,8 @@ class TeacherDashboardController extends Controller
             ->selectRaw('SUM(speaking_reviews.total_score) as total_score, COUNT(speaking_reviews.id) as review_count')
             ->first();
 
-        $speakingScoreSum = $speakingScoreData->total_score ?? 0;
-        $speakingReviewCount = $speakingScoreData->review_count ?? 0;
+        $speakingScoreSum = $speakingScoreData ? ($speakingScoreData->total_score ?? 0) : 0;
+        $speakingReviewCount = $speakingScoreData ? ($speakingScoreData->review_count ?? 0) : 0;
 
         $scoredCount = ((clone $readingBase)->count() + (clone $listeningBase)->count() + $writingReviewCount + $speakingReviewCount);
         $totalScore = $readingPercentageSum + $listeningPercentageSum + $writingScoreSum + $speakingScoreSum;
@@ -472,8 +472,8 @@ class TeacherDashboardController extends Controller
                 'tasks_completed' => $tasksCompleted,
                 'total_students' => $totalStudents,
                 'time_spent' => $timeSpent,
-                'average_score' => round($scoreData->avg_score ?? 0, 1),
-                'reviewed_count' => $scoreData->review_count ?? 0,
+                'average_score' => $scoreData ? round($scoreData->avg_score ?? 0, 1) : 0,
+                'reviewed_count' => $scoreData ? ($scoreData->review_count ?? 0) : 0,
                 'pending_reviews' => $pendingReviews,
                 'recent_submissions' => $recentSubmissions,
                 'top_performers' => $topPerformers,
@@ -839,8 +839,8 @@ class TeacherDashboardController extends Controller
                 'tasks_completed' => $tasksCompleted,
                 'total_students' => $totalStudents,
                 'time_spent' => $timeSpent,
-                'average_score' => round($scoreData->avg_score ?? 0, 1),
-                'reviewed_count' => $scoreData->review_count ?? 0,
+                'average_score' => $scoreData ? round($scoreData->avg_score ?? 0, 1) : 0,
+                'reviewed_count' => $scoreData ? ($scoreData->review_count ?? 0) : 0,
                 'pending_reviews' => $pendingReviews,
                 'recent_submissions' => $recentSubmissions,
                 'top_performers' => $topPerformers,
