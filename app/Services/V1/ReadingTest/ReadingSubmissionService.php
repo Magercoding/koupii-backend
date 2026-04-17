@@ -20,6 +20,7 @@ class ReadingSubmissionService
     {
         return ReadingSubmission::with(['test:id,title,difficulty,type', 'readingTask:id,title,difficulty', 'answers'])
             ->where('student_id', $studentId)
+            ->when($filters['assignment_id'] ?? null, fn($q, $assignmentId) => $q->where('assignment_id', $assignmentId))
             ->when($filters['status'] ?? null, fn($q, $status) => $q->where('status', $status))
             ->when($filters['type'] ?? null, function($q, $type) {
                 if ($type === 'reading_task') {

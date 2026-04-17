@@ -32,6 +32,7 @@ class WritingTask extends Model
 
     protected $fillable = [
         'test_id',
+        'class_id',
         'creator_id',
         'task_type',
         'topic',

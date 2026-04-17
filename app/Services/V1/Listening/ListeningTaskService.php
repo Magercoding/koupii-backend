@@ -93,6 +93,7 @@ class ListeningTaskService
 
             // 1. Create the ListeningTask record
             $task = ListeningTask::create([
+                'class_id'           => $taskData['class_id'] ?? null,
                 'title'              => $taskData['title'],
                 'description'        => $taskData['description'] ?? null,
                 'instructions'       => $taskData['instructions'] ?? null,
@@ -152,8 +153,8 @@ class ListeningTaskService
                 }
             }
 
-            // 3. Create Assignment record when class_id is provided (Task 2.2)
-            if (!empty($taskData['class_id'])) {
+            // 3. Create Assignment record only when explicitly requested
+            if (!empty($taskData['class_id']) && !empty($taskData['assign_on_create'])) {
                 Log::info('Attempting to assign listening task to class', [
                     'class_id' => $taskData['class_id'],
                     'task_id'  => $task->id,
@@ -187,8 +188,6 @@ class ListeningTaskService
                 } else {
                     Log::warning('Class does not exist', ['class_id' => $taskData['class_id']]);
                 }
-            } else {
-                Log::info('No class_id provided for listening task');
             }
 
             return $task->load(['creator', 'questions']);

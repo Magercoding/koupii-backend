@@ -25,6 +25,43 @@ class AssignmentFactory implements AssignmentFactoryInterface
             throw new \Exception("Test '{$test->title}' cannot be auto-assigned. Test must be published and assigned to a class.");
         }
 
+        $existing = Assignment::query()
+            ->where('class_id', $test->class_id)
+            ->where('test_id', $test->id)
+            ->where('source_type', 'auto_test')
+            ->where('status', 'active')
+            ->first();
+
+        if ($existing) {
+            $updates = [];
+            foreach ([
+                'title' => $options['title'] ?? null,
+                'description' => $options['description'] ?? null,
+                'due_date' => $options['due_date'] ?? null,
+                'close_date' => $options['close_date'] ?? null,
+                'is_published' => $options['is_published'] ?? null,
+                'max_attempts' => $options['max_attempts'] ?? null,
+                'instructions' => $options['instructions'] ?? null,
+                'assignment_settings' => $options['settings'] ?? null,
+            ] as $key => $value) {
+                if ($value !== null) {
+                    $updates[$key] = $value;
+                }
+            }
+
+            if (!empty($updates)) {
+                $existing->update($updates);
+            }
+
+            Log::info('Reused existing assignment for test', [
+                'assignment_id' => $existing->id,
+                'test_id' => $test->id,
+                'class_id' => $test->class_id,
+            ]);
+
+            return $existing;
+        }
+
         $assignmentData = [
             'class_id' => $test->class_id,
             'test_id' => $test->id,
@@ -82,8 +119,20 @@ class AssignmentFactory implements AssignmentFactoryInterface
                 return 0;
             }
 
+            $existingStudentIds = StudentAssignment::where('assignment_id', $assignment->id)
+                ->pluck('student_id');
+
+            $missingStudentIds = $enrolledStudents->diff($existingStudentIds);
+            if ($missingStudentIds->isEmpty()) {
+                Log::info('Student assignments already exist for assignment', [
+                    'assignment_id' => $assignment->id,
+                    'class_id' => $assignment->class_id,
+                ]);
+                return 0;
+            }
+
             $now = now();
-            $rows = $enrolledStudents->map(fn($studentId) => [
+            $rows = $missingStudentIds->map(fn($studentId) => [
                 'id' => (string) Str::uuid(),
                 'assignment_id' => $assignment->id,
                 'student_id' => $studentId,

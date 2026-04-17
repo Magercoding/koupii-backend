@@ -44,8 +44,10 @@ class TestService
                     $this->createPassages($test, $data['passages']);
                 }
 
-                // If test is published and assigned to a class, automatically create assignments
-                if ($test->is_published && $test->class_id) {
+                // Auto-assign only when explicitly requested.
+                // Creating a test for a class should not immediately create an Assignment unless the client opts in.
+                $assignOnCreate = (bool) ($data['assign_on_create'] ?? false);
+                if ($assignOnCreate && $test->is_published && $test->class_id) {
                     $this->triggerAutomaticAssignment($test, $data['due_date'] ?? null);
                 }
 
@@ -79,11 +81,12 @@ class TestService
                     'class_id' => $data['class_id'] ?? $test->class_id,
                 ]);
 
-                // If test was just published or assigned to a class, trigger automatic assignment
+                // If test was just published or assigned to a class, trigger automatic assignment (opt-in only)
                 $justPublished = !$wasPublished && $test->is_published;
                 $justAssignedToClass = !$hadClassId && $test->class_id;
-                
-                if (($justPublished || $justAssignedToClass) && $test->is_published && $test->class_id) {
+
+                $assignOnCreate = (bool) ($data['assign_on_create'] ?? false);
+                if ($assignOnCreate && ($justPublished || $justAssignedToClass) && $test->is_published && $test->class_id) {
                     $this->triggerAutomaticAssignment($test);
                 }
 

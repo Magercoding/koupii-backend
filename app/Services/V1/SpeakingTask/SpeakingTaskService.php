@@ -48,6 +48,9 @@ class SpeakingTaskService
             ->when(isset($filters['is_published']), function ($q) use ($filters) {
                 $q->where('is_published', $filters['is_published']);
             })
+            ->when($filters['class_id'] ?? null, function ($q, $classId) {
+                $q->where('class_id', $classId);
+            })
             ->latest()
             ->paginate($filters['per_page'] ?? 15);
     }
@@ -72,6 +75,7 @@ class SpeakingTaskService
 
             // Persist the task first (without images) so we have a real task ID for the upload path
             $task = SpeakingTask::create([
+                'class_id'           => $data['class_id'] ?? null,
                 'title'              => $data['title'],
                 'description'        => $data['description'] ?? null,
                 'instructions'       => $data['instructions'] ?? null,
@@ -93,8 +97,8 @@ class SpeakingTaskService
                 $task->update(['questions' => $passages]);
             }
 
-            // --- Task 5.3: create Assignment when class_id is provided ---
-            if (!empty($data['class_id'])) {
+            // --- Task 5.3: create Assignment only when explicitly requested ---
+            if (!empty($data['class_id']) && !empty($data['assign_on_create'])) {
                 Log::info('Attempting to assign speaking task to class', [
                     'class_id' => $data['class_id'],
                     'task_id'  => $task->id,
@@ -128,8 +132,6 @@ class SpeakingTaskService
                 } else {
                     Log::warning('Class does not exist', ['class_id' => $data['class_id']]);
                 }
-            } else {
-                Log::info('No class_id provided for speaking task');
             }
 
             return $task->fresh(['creator']);

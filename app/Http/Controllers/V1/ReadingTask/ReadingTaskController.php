@@ -75,6 +75,11 @@ class ReadingTaskController extends Controller implements HasMiddleware
             });
         }
 
+        // Optional class_id filter — only return tasks belonging to that class
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->input('class_id'));
+        }
+
         $tasks = $query->orderBy('created_at', 'desc')->paginate($request->get('per_page', 15));
 
         return ReadingTaskResource::collection($tasks);

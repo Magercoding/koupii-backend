@@ -54,6 +54,11 @@ class ListeningTaskController extends Controller implements HasMiddleware
                 ->with(['submissions.review', 'assignments']);
         }
 
+        // Optional class_id filter — only return tasks assigned to that class
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->input('class_id'));
+        }
+
         $tasks = $query->orderBy('created_at', 'desc')->get();
 
         return response()->json([

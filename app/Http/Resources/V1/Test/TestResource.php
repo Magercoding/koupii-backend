@@ -15,11 +15,9 @@ class TestResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        // When the resource is a plain stdClass (from DB::table UNION), cast to array
-        // so property access doesn't throw "Undefined property" errors.
-        $isStd = is_object($this->resource)
-            && !($this->resource instanceof \Illuminate\Database\Eloquent\Model);
-        $row = $isStd ? (array) $this->resource : null;
+        $isEloquentModel = $this->resource instanceof \Illuminate\Database\Eloquent\Model;
+        // When the resource is a plain stdClass (from DB::table UNION), cast to array.
+        $row = (!$isEloquentModel && is_object($this->resource)) ? (array) $this->resource : null;
 
         $get = function (string $key, $default = null) use ($row) {
             if ($row !== null) {
@@ -48,19 +46,23 @@ class TestResource extends JsonResource
             'creator_id'           => $get('creator_id'),
 
             // Only available on full Eloquent models with eager-loaded relations
-            'passages' => $this->whenLoaded('passages', fn () =>
-                PassageResource::collection($this->passages)
-            ),
-            'creator' => $this->whenLoaded('creator', fn () => [
-                'id'    => $this->creator->id,
-                'name'  => $this->creator->name,
-                'email' => $this->creator->email,
-            ]),
-            'class' => $this->whenLoaded('class', fn () => [
-                'id'         => $this->class->id,
-                'name'       => $this->class->name,
-                'class_code' => $this->class->class_code,
-            ]),
+            'passages' => $isEloquentModel
+                ? $this->whenLoaded('passages', fn () => PassageResource::collection($this->passages))
+                : null,
+            'creator' => $isEloquentModel
+                ? $this->whenLoaded('creator', fn () => [
+                    'id'    => $this->creator->id,
+                    'name'  => $this->creator->name,
+                    'email' => $this->creator->email,
+                ])
+                : null,
+            'class' => $isEloquentModel
+                ? $this->whenLoaded('class', fn () => [
+                    'id'         => $this->class->id,
+                    'name'       => $this->class->name,
+                    'class_code' => $this->class->class_code,
+                ])
+                : null,
 
             'statistics' => [
                 'total_passages' => $get('passages_count'),

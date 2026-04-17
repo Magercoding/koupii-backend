@@ -15,6 +15,7 @@ class SpeakingTask extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'class_id',
         'title',
         'description',
         'instructions',

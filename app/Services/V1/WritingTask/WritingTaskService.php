@@ -37,6 +37,7 @@ class WritingTaskService
             $task = WritingTask::create([
                 'id'                     => Str::uuid(),
                 'creator_id'             => Auth::id(),
+                'class_id'               => $data['class_id'] ?? null,
                 'title'                  => $data['title'],
                 'description'            => $data['description'] ?? null,
                 'instructions'           => $data['instructions'] ?? null,
@@ -60,8 +61,8 @@ class WritingTaskService
                 $task->update(['passages' => $passages]);
             }
 
-            // --- Task 8.3: create Assignment when class_id is provided ---
-            if (!empty($data['class_id'])) {
+            // --- Task 8.3: create Assignment only when explicitly requested ---
+            if (!empty($data['class_id']) && !empty($data['assign_on_create'])) {
                 Log::info('Attempting to assign writing task to class', [
                     'class_id' => $data['class_id'],
                     'task_id'  => $task->id,
@@ -95,8 +96,6 @@ class WritingTaskService
                 } else {
                     Log::warning('Class does not exist', ['class_id' => $data['class_id']]);
                 }
-            } else {
-                Log::info('No class_id provided for writing task');
             }
 
             return $task->load('creator');

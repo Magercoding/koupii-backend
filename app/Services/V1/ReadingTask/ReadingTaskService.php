@@ -68,6 +68,7 @@ class ReadingTaskService
                 'description' => $taskData['description'] ?? null,
                 'instructions' => $taskData['instructions'] ?? null,
                 'task_type' => $taskData['type'] ?? 'reading',
+                'class_id' => $taskData['class_id'] ?? null,
                 'difficulty' => $taskData['difficulty'],
                 'timer_type' => $this->mapTimerMode($taskData['timer_mode'] ?? 'none'),
                 'time_limit_seconds' => $this->parseTimerSettings($taskData['timer_settings'] ?? null),
@@ -86,8 +87,8 @@ class ReadingTaskService
 
             $task = ReadingTask::create($readingTaskData);
 
-            // If class_id is provided, assign the task to the class
-            if (!empty($taskData['class_id'])) {
+            // Assign-on-create is opt-in. Creating a task for a class should not immediately create an Assignment unless requested.
+            if (!empty($taskData['class_id']) && !empty($taskData['assign_on_create'])) {
                 \Illuminate\Support\Facades\Log::info('Attempting to assign reading task to class', ['class_id' => $taskData['class_id'], 'task_id' => $task->id]);
                 // Ensure class_id exists (validation should have covered this, but safe check)
                 $classExists = DB::table('classes')->where('id', $taskData['class_id'])->exists();
@@ -118,8 +119,6 @@ class ReadingTaskService
                 } else {
                     \Illuminate\Support\Facades\Log::warning('Class does not exist', ['class_id' => $taskData['class_id']]);
                 }
-            } else {
-                \Illuminate\Support\Facades\Log::info('No class_id provided for reading task');
             }
 
             return $task->load(['creator', 'assignments']);

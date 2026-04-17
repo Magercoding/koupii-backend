@@ -30,6 +30,7 @@ class SpeakingTaskController extends Controller
                 'difficulty' => $request->get('difficulty'),
                 'is_published' => $request->get('is_published'),
                 'search' => $request->get('search'),
+                'class_id' => $request->get('class_id'),
                 'per_page' => $request->get('per_page', 15)
             ];
 

@@ -66,6 +66,7 @@ class ReadingTask extends Model
 
     protected $fillable = [
         'test_id',
+        'class_id',
         'task_type',
         'title',
         'description',

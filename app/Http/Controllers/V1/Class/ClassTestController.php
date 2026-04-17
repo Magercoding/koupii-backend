@@ -9,6 +9,10 @@ use App\Http\Resources\V1\Test\TestResource;
 use App\Services\V1\Test\TestService;
 use App\Models\StudentAssignment;
 use App\Models\Test;
+use App\Models\ReadingTask;
+use App\Models\ListeningTask;
+use App\Models\SpeakingTask;
+use App\Models\WritingTask;
 use App\Models\Classes;
 use App\Models\Assignment;
 use App\Models\ClassEnrollment;
@@ -39,6 +43,7 @@ class ClassTestController extends Controller
                 ->where('teacher_id', auth()->id())
                 ->firstOrFail();
 
+            // Legacy tests
             $tests = Test::where('class_id', $classId)
                 ->with(['passages.questionGroups.questions', 'creator'])
                 ->when($request->get('type'), function ($query, $type) {
@@ -48,11 +53,121 @@ class ClassTestController extends Controller
                     return $query->where('is_published', $published);
                 })
                 ->orderBy('created_at', 'desc')
-                ->paginate($request->get('per_page', 15));
+                ->get()
+                ->map(fn ($t) => (new TestResource($t))->resolve());
+
+            // New task-based tests created with class_id (not yet assigned)
+            $taskType = $request->get('type');
+            $taskPublished = $request->get('is_published');
+
+            $readingTasks = ReadingTask::query()
+                ->where('class_id', $classId)
+                ->when($taskType, fn ($q) => $q->where('task_type', $taskType))
+                ->when($taskPublished !== null, fn ($q) => $q->where('is_published', (bool) $taskPublished))
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn ($t) => [
+                    'id' => $t->id,
+                    'title' => $t->title ?? 'Untitled',
+                    'description' => $t->description,
+                    'type' => 'reading',
+                    'difficulty' => $t->difficulty_level ?? $t->difficulty ?? 'beginner',
+                    'test_type' => 'single',
+                    'timer_mode' => $t->timer_type ?? 'none',
+                    'timer_settings' => null,
+                    'allow_repetition' => (bool) ($t->allow_retake ?? false),
+                    'max_repetition_count' => $t->max_retake_attempts,
+                    'is_public' => false,
+                    'is_published' => (bool) $t->is_published,
+                    'settings' => null,
+                    'created_at' => optional($t->created_at)->toISOString(),
+                    'updated_at' => optional($t->updated_at)->toISOString(),
+                ]);
+
+            $listeningTasks = ListeningTask::query()
+                ->where('class_id', $classId)
+                ->when($taskType, fn ($q) => $q->where('task_type', $taskType))
+                ->when($taskPublished !== null, fn ($q) => $q->where('is_published', (bool) $taskPublished))
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn ($t) => [
+                    'id' => $t->id,
+                    'title' => $t->title ?? 'Untitled',
+                    'description' => $t->description,
+                    'type' => 'listening',
+                    'difficulty' => $t->difficulty_level ?? $t->difficulty ?? 'beginner',
+                    'test_type' => 'single',
+                    'timer_mode' => $t->timer_type ?? 'none',
+                    'timer_settings' => null,
+                    'allow_repetition' => (bool) ($t->allow_retake ?? false),
+                    'max_repetition_count' => $t->max_retake_attempts,
+                    'is_public' => false,
+                    'is_published' => (bool) $t->is_published,
+                    'settings' => null,
+                    'created_at' => optional($t->created_at)->toISOString(),
+                    'updated_at' => optional($t->updated_at)->toISOString(),
+                ]);
+
+            $speakingTasks = SpeakingTask::query()
+                ->where('class_id', $classId)
+                ->when($taskPublished !== null, fn ($q) => $q->where('is_published', (bool) $taskPublished))
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn ($t) => [
+                    'id' => $t->id,
+                    'title' => $t->title ?? 'Untitled',
+                    'description' => $t->description,
+                    'type' => 'speaking',
+                    'difficulty' => $t->difficulty_level ?? 'beginner',
+                    'test_type' => 'single',
+                    'timer_mode' => $t->timer_type ?? 'none',
+                    'timer_settings' => null,
+                    'allow_repetition' => false,
+                    'max_repetition_count' => null,
+                    'is_public' => false,
+                    'is_published' => (bool) $t->is_published,
+                    'settings' => null,
+                    'created_at' => optional($t->created_at)->toISOString(),
+                    'updated_at' => optional($t->updated_at)->toISOString(),
+                ]);
+
+            $writingTasks = WritingTask::query()
+                ->where('class_id', $classId)
+                ->when($taskType, fn ($q) => $q->where('task_type', $taskType))
+                ->when($taskPublished !== null, fn ($q) => $q->where('is_published', (bool) $taskPublished))
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn ($t) => [
+                    'id' => $t->id,
+                    'title' => $t->title ?? 'Untitled',
+                    'description' => $t->description,
+                    'type' => 'writing',
+                    'difficulty' => $t->difficulty ?? 'beginner',
+                    'test_type' => 'single',
+                    'timer_mode' => $t->timer_type ?? 'none',
+                    'timer_settings' => null,
+                    'allow_repetition' => (bool) ($t->allow_retake ?? false),
+                    'max_repetition_count' => $t->max_retake_attempts,
+                    'is_public' => false,
+                    'is_published' => (bool) $t->is_published,
+                    'settings' => null,
+                    'created_at' => optional($t->created_at)->toISOString(),
+                    'updated_at' => optional($t->updated_at)->toISOString(),
+                ]);
+
+            $all = collect()
+                ->concat($tests)
+                ->concat($readingTasks)
+                ->concat($listeningTasks)
+                ->concat($speakingTasks)
+                ->concat($writingTasks)
+                ->sortByDesc(fn ($t) => $t['created_at'] ?? null)
+                ->values()
+                ->all();
 
             return response()->json([
                 'message' => 'Class tests retrieved successfully',
-                'data' => TestResource::collection($tests),
+                'data' => $all,
                 'class' => [
                     'id' => $class->id,
                     'name' => $class->name,
