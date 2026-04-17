@@ -95,6 +95,7 @@ class AssignmentService
         }
 
         return Assignment::where('class_id', $classId)
+            ->when($isStudent, fn($q) => $q->where('status', 'active'))
             ->with(['test', 'class', 'assignedBy'])
             ->get()
             ->map(function ($assignment) use ($isStudent, $user) {

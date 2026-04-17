@@ -19,14 +19,14 @@ class TestResource extends JsonResource
             'description' => $this->description,
             'type' => $this->type,
             'difficulty' => $this->difficulty,
-            'test_type' => $this->test_type,
-            'timer_mode' => $this->timer_mode,
-            'timer_settings' => $this->timer_settings,
-            'allow_repetition' => $this->allow_repetition,
-            'max_repetition_count' => $this->max_repetition_count,
-            'is_public' => $this->is_public,
+            'test_type' => $this->test_type ?? $this->type,
+            'timer_mode' => $this->timer_mode ?? null,
+            'timer_settings' => $this->timer_settings ?? null,
+            'allow_repetition' => $this->allow_repetition ?? false,
+            'max_repetition_count' => $this->max_repetition_count ?? null,
+            'is_public' => $this->is_public ?? false,
             'is_published' => $this->is_published,
-            'settings' => $this->settings,
+            'settings' => $this->settings ?? null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             
@@ -53,14 +53,7 @@ class TestResource extends JsonResource
             
             // Statistics
             'statistics' => [
-                'total_passages' => $this->passages_count ?? $this->passages?->count(),
-                'total_questions' => $this->whenLoaded('passages', function () {
-                    return $this->passages->sum(function ($passage) {
-                        return $passage->questionGroups->sum(function ($group) {
-                            return $group->questions->count();
-                        });
-                    });
-                }),
+                'total_passages' => $this->passages_count ?? null,
             ],
         ];
     }
