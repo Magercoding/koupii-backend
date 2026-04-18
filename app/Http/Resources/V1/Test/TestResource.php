@@ -33,7 +33,7 @@ class TestResource extends JsonResource
             'type'                 => $get('type'),
             'difficulty'           => $get('difficulty'),
             'test_type'            => $get('test_type', $get('type')),
-            'timer_mode'           => $get('timer_mode'),
+            'timer_mode'           => $get('timer_mode', 'none'),
             'timer_settings'       => $get('timer_settings'),
             'allow_repetition'     => $get('allow_repetition', false),
             'max_repetition_count' => $get('max_repetition_count'),
@@ -48,7 +48,7 @@ class TestResource extends JsonResource
             // Only available on full Eloquent models with eager-loaded relations
             'passages' => $isEloquentModel
                 ? $this->whenLoaded('passages', fn () => PassageResource::collection($this->passages))
-                : null,
+                : [],
             'creator' => $isEloquentModel
                 ? $this->whenLoaded('creator', fn () => [
                     'id'    => $this->creator->id,
@@ -65,7 +65,16 @@ class TestResource extends JsonResource
                 : null,
 
             'statistics' => [
-                'total_passages' => $get('passages_count'),
+                'total_passages' => $isEloquentModel
+                    ? ($this->passages_count ?? $this->passages?->count())
+                    : 0,
+                'total_questions' => ($isEloquentModel && $this->relationLoaded('passages'))
+                    ? $this->passages->sum(function ($passage) {
+                        return collect($passage->questionGroups ?? [])->sum(function ($group) {
+                            return collect($group->questions ?? [])->count();
+                        });
+                    })
+                    : 0,
             ],
         ];
     }

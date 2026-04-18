@@ -122,3 +122,8 @@ require __DIR__ . '/../v1/assignment.php';
  * Teacher Dashboard Statistics
  */
 require __DIR__ . '/../v1/dashboard.php';
+
+/**
+ * Public Plans (for pricing page, no auth required)
+ */
+Route::get('/plans', [\App\Http\Controllers\V1\Public\PublicPlanController::class, 'index']);

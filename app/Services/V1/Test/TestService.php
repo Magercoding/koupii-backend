@@ -148,6 +148,8 @@ class TestService
         $columns = [
             'id', 'title', 'description', 'type', 'difficulty',
             'is_published', 'created_at', 'updated_at', 'creator_id',
+            'test_type', 'timer_mode', 'timer_settings', 'allow_repetition',
+            'max_repetition_count', 'is_public', 'settings',
         ];
 
         // Base Test query (reading + speaking legacy tests)
@@ -163,6 +165,13 @@ class TestService
                 DB::raw("COALESCE(difficulty_level, difficulty, 'beginner') as difficulty"),
                 'is_published', 'created_at', 'updated_at',
                 'created_by as creator_id',
+                DB::raw("'single' as test_type"),
+                DB::raw("COALESCE(timer_type, 'none') as timer_mode"),
+                DB::raw("CAST(time_limit_seconds AS CHAR) as timer_settings"),
+                DB::raw("COALESCE(allow_retake, 0) as allow_repetition"),
+                DB::raw("COALESCE(max_retake_attempts, 0) as max_repetition_count"),
+                DB::raw("0 as is_public"),
+                DB::raw("NULL as settings"),
                 DB::raw("NULL as class_id"),
             ])
             ->where('created_by', $userId);
@@ -174,6 +183,13 @@ class TestService
                 DB::raw("COALESCE(difficulty, 'beginner') as difficulty"),
                 'is_published', 'created_at', 'updated_at',
                 'creator_id',
+                DB::raw("'single' as test_type"),
+                DB::raw("COALESCE(timer_type, 'none') as timer_mode"),
+                DB::raw("CAST(time_limit_seconds AS CHAR) as timer_settings"),
+                DB::raw("COALESCE(allow_retake, 0) as allow_repetition"),
+                DB::raw("COALESCE(max_retake_attempts, 0) as max_repetition_count"),
+                DB::raw("0 as is_public"),
+                DB::raw("NULL as settings"),
                 DB::raw("NULL as class_id"),
             ])
             ->where('creator_id', $userId);
@@ -185,6 +201,13 @@ class TestService
                 DB::raw("COALESCE(difficulty_level, 'beginner') as difficulty"),
                 'is_published', 'created_at', 'updated_at',
                 'created_by as creator_id',
+                DB::raw("'single' as test_type"),
+                DB::raw("'none' as timer_mode"),
+                DB::raw("CAST(time_limit_seconds AS CHAR) as timer_settings"),
+                DB::raw("0 as allow_repetition"),
+                DB::raw("0 as max_repetition_count"),
+                DB::raw("0 as is_public"),
+                DB::raw("NULL as settings"),
                 DB::raw("NULL as class_id"),
             ])
             ->where('created_by', $userId);
