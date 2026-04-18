@@ -24,7 +24,15 @@ class AssignTaskRequest extends BaseRequest
             'due_date' => 'required|date|after:now',
             'max_attempts' => 'nullable|integer|min:1|max:10',
             'instructions' => 'nullable|string',
+            'is_published' => 'boolean',
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'is_published' => $this->boolean('is_published'),
+        ]);
     }
 
     public function messages(): array

@@ -40,7 +40,7 @@ class AssignmentService
                 'title'       => $data['title'] ?? $source->title,
                 'description' => $data['description'] ?? $source->description,
                 'due_date'    => $data['due_date'],
-                'is_published'=> true,
+                'is_published'=> $data['is_published'] ?? false,
                 'max_attempts'=> $data['max_attempts'] ?? 3,
                 'instructions'=> $data['instructions'] ?? null,
                 'status'      => 'active',
@@ -62,7 +62,7 @@ class AssignmentService
                 'title'       => $data['title'] ?? $source->title,
                 'description' => $data['description'] ?? ($source->description ?? null),
                 'due_date'    => $data['due_date'],
-                'is_published'=> true,
+                'is_published'=> $data['is_published'] ?? false,
                 'max_attempts'=> $data['max_attempts'] ?? 3,
                 'instructions'=> $data['instructions'] ?? null,
                 'status'      => 'active',
@@ -89,8 +89,9 @@ class AssignmentService
 
         $isTeacher = $user->teacherClasses()->where('id', $classId)->exists();
         $isStudent = $user->studentClasses()->where('classes.id', $classId)->exists();
+        $isAdmin = $user->isAdmin();
 
-        if (!$isTeacher && !$isStudent) {
+        if (!$isTeacher && !$isStudent && !$isAdmin) {
             return collect();
         }
 
@@ -128,8 +129,8 @@ class AssignmentService
     public function getAssignmentStatistics(string $assignmentId, string $type): array
     {
         $assignment = $this->findAssignment($assignmentId);
-
-        if (!$assignment || !$this->verifyAssignmentOwnership($assignment)) {
+        $user = Auth::user();
+        if (!$assignment || (!$this->verifyAssignmentOwnership($assignment) && !$user->isAdmin())) {
             throw new \Exception('Assignment not found or access denied');
         }
 
@@ -153,7 +154,7 @@ class AssignmentService
     {
         $assignment = $this->findAssignment($assignmentId);
 
-        if (!$assignment || !$this->verifyAssignmentOwnership($assignment)) {
+        if (!$assignment || (!$this->verifyAssignmentOwnership($assignment) && !Auth::user()->isAdmin())) {
             throw new \Exception('Assignment not found or access denied');
         }
 
@@ -173,7 +174,7 @@ class AssignmentService
     {
         $assignment = $this->findAssignment($assignmentId);
 
-        if (!$assignment || !$this->verifyAssignmentOwnership($assignment)) {
+        if (!$assignment || (!$this->verifyAssignmentOwnership($assignment) && !Auth::user()->isAdmin())) {
             throw new \Exception('Assignment not found or access denied');
         }
 

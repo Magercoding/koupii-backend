@@ -75,5 +75,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         
         // Manual assignment creation for existing tests
         Route::post('tests/{testId}/create-assignment', [ClassAssignmentController::class, 'assignTestToClass']);
+
+        // Class Submissions
+        Route::get('submissions', [\App\Http\Controllers\V1\Class\ClassSubmissionController::class, 'index']);
     });
 });

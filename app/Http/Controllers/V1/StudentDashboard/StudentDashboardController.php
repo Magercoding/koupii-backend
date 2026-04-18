@@ -32,6 +32,7 @@ class StudentDashboardController extends Controller
         // --- Summary Stats Calculation ---
         // Fetch all assignments for these classes once to calculate counts efficiently
         $allAssignments = \App\Models\Assignment::whereIn('class_id', $enrolledClassIds)
+            ->where('is_published', true)
             ->with(['studentAssignments' => function($query) use ($studentId) {
                 $query->where('student_id', $studentId);
             }])
@@ -81,6 +82,7 @@ class StudentDashboardController extends Controller
 
         // --- Assignments List Query with Filters ---
         $query = \App\Models\Assignment::whereIn('class_id', $enrolledClassIds)
+            ->where('is_published', true)
             ->with(['studentAssignments' => function($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             }, 'class']);
