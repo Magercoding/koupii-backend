@@ -35,6 +35,7 @@ class StoreListeningTaskRequest extends BaseRequest
             'is_published'         => 'boolean',
             'class_id'             => 'nullable|string|exists:classes,id',
             'due_date'             => 'nullable|date|after:now',
+            'assign_on_create'     => 'nullable|boolean',
 
             // Passages structure
             'passages'                                                                          => 'required|array|min:1',
@@ -108,6 +109,7 @@ class StoreListeningTaskRequest extends BaseRequest
             'allow_repetition' => $this->boolean('allow_repetition'),
             'is_public'        => $this->boolean('is_public'),
             'is_published'     => $this->boolean('is_published'),
+            'assign_on_create' => $this->boolean('assign_on_create'),
         ];
 
         // timer_settings may arrive as a JSON string (e.g. from non-FormData clients)

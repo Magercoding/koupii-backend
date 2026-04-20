@@ -218,6 +218,7 @@ class SpeakingTaskService
                 'sample_audio'       => $data['sample_audio'] ?? $task->sample_audio,
                 'rubric'             => $data['rubric'] ?? $task->rubric,
                 'is_published'       => $data['is_published'] ?? $task->is_published,
+                'due_date'           => array_key_exists('due_date', $data) ? $data['due_date'] : $task->due_date,
             ], fn ($v) => $v !== null));
 
             return $task->fresh(['creator']);

@@ -54,6 +54,8 @@ class UpdateListeningTaskRequest extends FormRequest
             'max_repetition_count' => 'nullable|integer|min:1|max:10',
             'is_public' => 'nullable',
             'is_published' => 'nullable',
+            'due_date' => 'nullable|date',
+            'max_retake_attempts' => 'nullable|integer|min:1|max:10',
             'settings' => 'nullable|array',
             'settings.shuffle_questions' => 'nullable',
             'class_id' => 'nullable|string|uuid',

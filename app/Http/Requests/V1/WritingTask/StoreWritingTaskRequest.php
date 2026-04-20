@@ -42,14 +42,15 @@ class StoreWritingTaskRequest extends BaseRequest
             'class_id'    => 'nullable|uuid|exists:classes,id',
             'due_date'    => 'nullable|date|after:now',
             'max_repetition_count' => 'nullable|integer|min:1',
+            'assign_on_create'     => 'nullable|boolean',
 
             // Passages (required, min 1) — Task 8.4
             'passages'                              => 'required|array|min:1',
-            'passages.*.title'                      => 'required|string|max:255',
+            'passages.*.title'                      => 'nullable|string|max:255',
             'passages.*.description'                => 'nullable|string',
             'passages.*.image_context'              => 'nullable|file|mimes:jpeg,png,webp|max:5120',
             'passages.*.questions'                  => 'required|array|min:1',
-            'passages.*.questions.*.question_text'  => 'required|string|max:2000',
+            'passages.*.questions.*.question_text'  => 'nullable|string|max:2000',
             'passages.*.questions.*.question_number'=> 'nullable|integer',
 
             // Legacy questions support (optional)
@@ -99,6 +100,7 @@ class StoreWritingTaskRequest extends BaseRequest
             'allow_retake' => $this->boolean('allow_retake'),
             'allow_submission_files' => $this->boolean('allow_submission_files'),
             'is_published' => $this->boolean('is_published'),
+            'assign_on_create' => $this->boolean('assign_on_create'),
         ]);
 
         // Only parse JSON strings if they are actually strings (for multipart/form-data)

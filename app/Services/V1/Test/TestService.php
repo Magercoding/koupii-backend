@@ -145,6 +145,24 @@ class TestService
         $userId = auth()->id();
         $requestedType = $filters['type'] ?? null;
 
+        // Public tests: bypass the UNION, just query the tests table directly
+        if (isset($filters['is_public']) && $filters['is_public']) {
+            $query = Test::where('is_public', true)
+                ->where('is_published', true);
+
+            if (!empty($filters['search'])) {
+                $query->where('title', 'like', '%' . $filters['search'] . '%');
+            }
+            if (!empty($filters['difficulty'])) {
+                $query->where('difficulty', $filters['difficulty']);
+            }
+            if ($requestedType) {
+                $query->where('type', $requestedType);
+            }
+
+            return $query->orderByDesc('created_at');
+        }
+
         $columns = [
             'id', 'title', 'description', 'type', 'difficulty',
             'is_published', 'created_at', 'updated_at', 'creator_id',
@@ -157,8 +175,6 @@ class TestService
                 DB::raw("COALESCE(class_id, NULL) as class_id"),
             ]))
             ->where('creator_id', $userId);
-
-        // ListeningTask query
         $listeningQuery = ListeningTask::select([
                 'id', 'title', 'description',
                 DB::raw("'listening' as type"),
@@ -220,6 +236,9 @@ class TestService
             if (isset($filters['is_published'])) {
                 $q->where('is_published', $filters['is_published']);
             }
+            if (!empty($filters['difficulty'])) {
+                $q->where('difficulty', $filters['difficulty']);
+            }
         };
 
         // Determine which queries to include based on type filter
@@ -251,13 +270,38 @@ class TestService
             $finalQuery->unionAll($q);
         }
 
-        // Wrap in subquery for ordering + pagination
+        // Wrap in subquery for ordering + pagination, joining classes for class name
         $sql = $finalQuery->toSql();
         $bindings = $finalQuery->getBindings();
 
+        // Subquery to get the first assigned class per item via assignments table
+        $assignedClassSub = DB::table('assignments')
+            ->select('assignments.test_id as item_id', 'classes.name as class_name')
+            ->join('classes', 'assignments.class_id', '=', 'classes.id')
+            ->whereNotNull('assignments.test_id')
+            ->union(
+                DB::table('assignments')
+                    ->select('assignments.task_id as item_id', 'classes.name as class_name')
+                    ->join('classes', 'assignments.class_id', '=', 'classes.id')
+                    ->whereNotNull('assignments.task_id')
+            );
+
+        $assignedClassSql = $assignedClassSub->toSql();
+        $assignedClassBindings = $assignedClassSub->getBindings();
+
         return DB::table(DB::raw("({$sql}) as combined"))
             ->addBinding($bindings, 'where')
-            ->orderByDesc('created_at');
+            ->leftJoin('classes', 'combined.class_id', '=', 'classes.id')
+            ->leftJoin(
+                DB::raw("(SELECT item_id, MIN(class_name) as class_name FROM ({$assignedClassSql}) as ac GROUP BY item_id) as assigned_class"),
+                'assigned_class.item_id', '=', 'combined.id'
+            )
+            ->addBinding($assignedClassBindings, 'where')
+            ->select(
+                'combined.*',
+                DB::raw("COALESCE(classes.name, assigned_class.class_name) as class_name")
+            )
+            ->orderByDesc('combined.created_at');
     }
 
     private function createPassages(Test $test, array $passages)

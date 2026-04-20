@@ -43,6 +43,7 @@ class TestResource extends JsonResource
             'created_at'           => $get('created_at'),
             'updated_at'           => $get('updated_at'),
             'class_id'             => $get('class_id'),
+            'class_name'           => $get('class_name'),
             'creator_id'           => $get('creator_id'),
 
             // Only available on full Eloquent models with eager-loaded relations

@@ -37,7 +37,7 @@ class UpdateWritingTaskRequest extends BaseRequest
             'time_limit_seconds' => 'nullable|integer|min:300|max:28800',
             'allow_submission_files' => 'sometimes|boolean',
             'is_published' => 'sometimes|boolean',
-            'due_date' => 'nullable|date|after:now',
+            'due_date' => 'nullable|date',
             
             // Multiple questions support (similar to Reading/Listening)
             'questions' => 'nullable|array',

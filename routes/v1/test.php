@@ -9,7 +9,10 @@ use App\Http\Controllers\V1\Test\TestSubmissionController;
  */
 
 Route::middleware('auth:sanctum')->group(function () {
-    
+
+    // Public tests — accessible by all authenticated users (must be BEFORE apiResource)
+    Route::get('tests/public', [TestController::class, 'index']);
+
     // Test CRUD Routes (Teacher/Admin)
     Route::middleware('role:teacher,admin')->group(function () {
         Route::apiResource('tests', TestController::class);

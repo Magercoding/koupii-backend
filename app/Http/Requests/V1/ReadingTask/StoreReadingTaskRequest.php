@@ -41,6 +41,7 @@ class StoreReadingTaskRequest extends BaseRequest
             'reference_materials.*' => 'file|mimes:pdf,doc,docx,txt|max:10240', // 10MB max
             'class_id' => 'nullable|string|exists:classes,id',
             'due_date' => 'nullable|date|after:now',
+            'assign_on_create' => 'nullable|boolean',
         ];
     }
 
@@ -99,6 +100,7 @@ class StoreReadingTaskRequest extends BaseRequest
             'allow_repetition' => $this->boolean('allow_repetition'),
             'is_public' => $this->boolean('is_public'),
             'is_published' => $this->boolean('is_published'),
+            'assign_on_create' => $this->boolean('assign_on_create'),
             'type' => $this->get('type', 'reading'), // Default to reading
         ]);
     }

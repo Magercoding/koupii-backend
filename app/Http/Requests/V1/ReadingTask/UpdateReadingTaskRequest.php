@@ -32,6 +32,8 @@ class UpdateReadingTaskRequest extends BaseRequest
             'max_repetition_count' => 'nullable|integer|min:0|max:10',
             'is_public' => 'boolean',
             'is_published' => 'boolean',
+            'due_date' => 'nullable|date',
+            'max_retake_attempts' => 'nullable|integer|min:1|max:10',
             'settings' => 'nullable|string',
             'passages' => 'sometimes|required|string', // JSON string of passages array
             'vocabularies' => 'nullable|string', // JSON string of vocabularies array

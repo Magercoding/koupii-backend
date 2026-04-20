@@ -65,8 +65,11 @@ class WritingTaskController extends Controller implements HasMiddleware
             $query->where('creator_id', $user->id);
             
             if ($classId) {
-                $query->whereHas('assignments', function ($q) use ($classId) {
-                    $q->where('class_id', $classId);
+                $query->where(function ($q) use ($classId) {
+                    $q->where('class_id', $classId)
+                      ->orWhereHas('assignments', function ($q2) use ($classId) {
+                          $q2->where('class_id', $classId);
+                      });
                 });
             }
 

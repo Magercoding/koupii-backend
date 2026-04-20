@@ -178,6 +178,14 @@ class ReadingTaskService
                 $updateData['is_published'] = $taskData['is_published'];
             }
 
+            if (isset($taskData['due_date'])) {
+                $updateData['due_date'] = $taskData['due_date'];
+            }
+
+            if (isset($taskData['max_retake_attempts'])) {
+                $updateData['max_retake_attempts'] = $taskData['max_retake_attempts'];
+            }
+
             if (isset($taskData['passages'])) {
                 $passages = $this->parsePassages($taskData['passages']);
                 $normalizedPassages = $this->normalizePassages($passages);

@@ -43,8 +43,11 @@ class ClassTestController extends Controller
                 ->where('teacher_id', auth()->id())
                 ->firstOrFail();
 
-            // Legacy tests
-            $tests = Test::where('class_id', $classId)
+            // Legacy tests (class-specific + public)
+            $tests = Test::where(function ($q) use ($classId) {
+                    $q->where('class_id', $classId)
+                      ->orWhere('is_public', true);
+                })
                 ->with(['passages.questionGroups.questions', 'creator'])
                 ->when($request->get('type'), function ($query, $type) {
                     return $query->where('type', $type);
@@ -80,6 +83,7 @@ class ClassTestController extends Controller
                     'is_public' => false,
                     'is_published' => (bool) $t->is_published,
                     'settings' => null,
+                    'due_date' => optional($t->due_date)->toISOString(),
                     'created_at' => optional($t->created_at)->toISOString(),
                     'updated_at' => optional($t->updated_at)->toISOString(),
                 ]);
@@ -104,6 +108,7 @@ class ClassTestController extends Controller
                     'is_public' => false,
                     'is_published' => (bool) $t->is_published,
                     'settings' => null,
+                    'due_date' => optional($t->due_date)->toISOString(),
                     'created_at' => optional($t->created_at)->toISOString(),
                     'updated_at' => optional($t->updated_at)->toISOString(),
                 ]);
@@ -127,6 +132,7 @@ class ClassTestController extends Controller
                     'is_public' => false,
                     'is_published' => (bool) $t->is_published,
                     'settings' => null,
+                    'due_date' => optional($t->due_date ?? null)->toISOString(),
                     'created_at' => optional($t->created_at)->toISOString(),
                     'updated_at' => optional($t->updated_at)->toISOString(),
                 ]);
@@ -151,6 +157,7 @@ class ClassTestController extends Controller
                     'is_public' => false,
                     'is_published' => (bool) $t->is_published,
                     'settings' => null,
+                    'due_date' => optional($t->due_date)->toISOString(),
                     'created_at' => optional($t->created_at)->toISOString(),
                     'updated_at' => optional($t->updated_at)->toISOString(),
                 ]);

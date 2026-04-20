@@ -254,6 +254,14 @@ class ListeningTaskService
                 $updateFields['max_retake_attempts'] = (int) $taskData['max_repetition_count'];
             }
 
+            if (isset($taskData['due_date'])) {
+                $updateFields['due_date'] = $taskData['due_date'];
+            }
+
+            if (isset($taskData['max_retake_attempts'])) {
+                $updateFields['max_retake_attempts'] = (int) $taskData['max_retake_attempts'];
+            }
+
             if (!empty($updateFields)) {
                 $task->update($updateFields);
             }

@@ -28,6 +28,7 @@ class StoreSpeakingTaskRequest extends BaseRequest
             'is_published'           => 'boolean',
             'class_id'               => 'nullable|string|exists:classes,id',
             'due_date'               => 'nullable|date|after:now',
+            'assign_on_create'       => 'nullable|boolean',
             'timer_mode'             => 'nullable|in:countdown,countup,none',
             'timer_settings'         => 'nullable|array',
             'timer_settings.hours'   => 'nullable|integer|min:0|max:23',
@@ -79,7 +80,8 @@ class StoreSpeakingTaskRequest extends BaseRequest
     protected function prepareForValidation(): void
     {
         $merge = [
-            'is_published' => $this->boolean('is_published'),
+            'is_published'     => $this->boolean('is_published'),
+            'assign_on_create' => $this->boolean('assign_on_create'),
         ];
 
         // timer_settings may arrive as a JSON string (e.g. from non-FormData clients)

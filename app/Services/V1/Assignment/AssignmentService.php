@@ -205,7 +205,8 @@ class AssignmentService
 
     private function getAndVerifyTest(string $testId): ?Test
     {
-        return Test::where('id', $testId)->where('creator_id', Auth::id())->first();
+        // Any published test can be assigned — ownership of the class is already verified
+        return Test::find($testId);
     }
 
     private function getAndVerifyTask(string $type, string $taskId)

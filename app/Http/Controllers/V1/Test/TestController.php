@@ -28,7 +28,7 @@ class TestController extends Controller
     public function index(Request $request)
     {
         try {
-            $filters = $request->only(['type', 'difficulty', 'is_published', 'search', 'class_id', 'scope']);
+            $filters = $request->only(['type', 'difficulty', 'is_published', 'is_public', 'search', 'class_id', 'scope']);
             
             // Add scope filter for test type
             $scope = $request->get('scope', 'all'); // 'global', 'class', 'all'

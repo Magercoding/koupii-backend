@@ -40,6 +40,8 @@ class UpdateSpeakingTaskRequest extends BaseRequest
             'allow_repetition' => 'boolean',
             'max_repetition_count' => 'nullable|integer|min:1|max:5',
             'is_published' => 'boolean',
+            'due_date' => 'nullable|date',
+            'max_retake_attempts' => 'nullable|integer|min:1|max:10',
             
             // Speaking sections (optional for updates)
             'sections' => 'sometimes|required|array|min:1|max:10',
