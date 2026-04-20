@@ -199,6 +199,9 @@ class WritingReviewController extends Controller implements HasMiddleware
                 }
             });
 
+            // Notify the student
+            $assignment->student->notify(new \App\Notifications\TaskGradedNotification($assignment));
+
             return response()->json([
                 'message' => 'Assignment and all parts reviewed successfully',
                 'status' => 'graded'

@@ -25,12 +25,37 @@ class ClassSubmissionController extends Controller
                 ->firstOrFail();
 
             // Fetch all student assignments linked to this class
-            $submissions = StudentAssignment::whereHas('assignment', function ($query) use ($classId) {
-                $query->where('class_id', $classId);
-            })
-            ->with(['student:id,name,email,avatar', 'test:id,title,type', 'assignment'])
-            ->orderBy('updated_at', 'desc')
-            ->paginate($request->input('per_page', 20));
+            $query = StudentAssignment::whereHas('assignment', function ($q) use ($classId) {
+                $q->where('class_id', $classId);
+            })->with(['student:id,name,email,avatar', 'test:id,title,type', 'assignment']);
+
+            // Filter: Search by student name
+            if ($request->filled('search')) {
+                $search = $request->input('search');
+                $query->whereHas('student', function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                });
+            }
+
+            // Filter: Status
+            if ($request->filled('status') && $request->input('status') !== 'all') {
+                $query->where('status', $request->input('status'));
+            }
+
+            // Filter: Task Type
+            if ($request->filled('task_type') && $request->input('task_type') !== 'all') {
+                $taskType = $request->input('task_type');
+                $query->where(function ($q) use ($taskType) {
+                    $q->whereHas('test', function ($subQ) use ($taskType) {
+                        $subQ->where('type', $taskType);
+                    })->orWhereHas('assignment', function ($subQ) use ($taskType) {
+                        $subQ->where('task_type', $taskType)->orWhere('type', $taskType);
+                    });
+                });
+            }
+
+            $submissions = $query->orderBy('updated_at', 'desc')
+                ->paginate($request->input('per_page', 20));
 
             // Transform for consistent frontend integration
             $items = collect($submissions->items())->map(function ($submission) {
