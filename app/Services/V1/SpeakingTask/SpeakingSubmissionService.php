@@ -281,6 +281,21 @@ class SpeakingSubmissionService
                 'status' => SpeakingSubmission::STATUS_REVIEWED
             ]);
 
+            // Sync with StudentAssignment if linked and dispatch notification
+            if ($submission->assignment_id) {
+                $studentAssignment = \App\Models\StudentAssignment::with('student', 'assignment.class', 'test')->find($submission->assignment_id);
+                if ($studentAssignment) {
+                    $studentAssignment->update([
+                        'score' => $review->total_score,
+                        'status' => 'graded',
+                        'completed_at' => now(),
+                    ]);
+
+                    // Notify the student
+                    $studentAssignment->student->notify(new \App\Notifications\TaskGradedNotification($studentAssignment));
+                }
+            }
+
             return $review;
         });
     }
