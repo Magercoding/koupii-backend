@@ -80,7 +80,7 @@ class TestSubmissionController extends Controller
     {
         try {
             // Validate access for class-based tests
-            if ($test->class_id) {
+            if ($test->class_id && !$test->is_public) {
                 $user = auth()->user();
                 
                 // Check if student is enrolled in the class
@@ -112,8 +112,11 @@ class TestSubmissionController extends Controller
             
             $attemptData = $this->submissionService->getTestAttempt($test);
             
+            // Use TestResource to handle complex mapping consistently
+            $testResource = (new \App\Http\Resources\V1\Test\TestResource($test))->resolve();
+            
             return response()->json([
-                'data' => [
+                'data' => array_merge($testResource, [
                     'test' => [
                         'id' => $test->id,
                         'title' => $test->title,
@@ -125,41 +128,15 @@ class TestSubmissionController extends Controller
                         'allow_repetition' => $test->allow_repetition,
                         'max_repetition_count' => $test->max_repetition_count,
                     ],
-                    'passages' => $attemptData['test']->passages->map(function ($passage) {
-                        return [
-                            'id' => $passage->id,
-                            'title' => $passage->title,
-                            'description' => $passage->description,
-                            'audio_file_path' => $passage->audio_file_path,
-                            'transcript' => $passage->transcript,
-                            'question_groups' => $passage->questionGroups->map(function ($group) {
-                                return [
-                                    'id' => $group->id,
-                                    'instruction' => $group->instruction,
-                                    'questions' => $group->questions->map(function ($question) {
-                                        return [
-                                            'id' => $question->id,
-                                            'question_type' => $question->question_type,
-                                            'question_number' => $question->question_number,
-                                            'question_text' => $question->question_text,
-                                            'question_data' => $question->question_data,
-                                            'points_value' => $question->points_value,
-                                            'options' => $question->options->map(function ($option) {
-                                                return [
-                                                    'id' => $option->id,
-                                                    'option_key' => $option->option_key,
-                                                    'option_text' => $option->option_text,
-                                                ];
-                                            }),
-                                        ];
-                                    }),
-                                ];
-                            }),
-                        ];
-                    }),
+                    // Keep compatibility with legacy frontend structure that expects root-level passages
+                    'passages' => $testResource['passages'] ?? [],
+                    'speaking_sections' => $testResource['speaking_sections'] ?? [],
+                    'audio_segments' => $testResource['audio_segments'] ?? [],
+                    'writing_tasks' => $testResource['writing_tasks'] ?? [],
                     'attempt_info' => $attemptData['attempt_info'],
-                ]
+                ])
             ]);
+
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to get test attempt',

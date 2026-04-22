@@ -10,25 +10,26 @@ use App\Http\Controllers\V1\Test\TestSubmissionController;
 
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Public tests — accessible by all authenticated users (must be BEFORE apiResource)
-    Route::get('tests/public', [TestController::class, 'index']);
+    // Publicly accessible test listing (for Discover)
+    Route::get('tests', [TestController::class, 'index']);
+    Route::get('tests/public', [TestController::class, 'index']); // Legacy support
 
-    // Test CRUD Routes (Teacher/Admin)
+    // Test detail — accessible by all authenticated users (for Discover)
+    Route::get('tests/{test}', [TestController::class, 'show']);
+
+    // Test CRUD Routes (Teacher/Admin only: store, update, destroy)
     Route::middleware('role:teacher,admin')->group(function () {
-        Route::apiResource('tests', TestController::class);
+        Route::apiResource('tests', TestController::class)->except(['index', 'show']);
         Route::post('tests/{test}/duplicate', [TestController::class, 'duplicate']);
     });
     
     // Test Taking Routes (Students/Teachers/Admin)
     Route::prefix('tests/{test}')->group(function () {
         Route::get('/attempt', [TestSubmissionController::class, 'attempt']); // Start/continue test
-        Route::post('/submit', [TestSubmissionController::class, 'submit']);  // Submit answers
-        Route::get('/results', [TestSubmissionController::class, 'results']); // Get results
+        
+        // Generic discover test submissions (currently focusing on reading)
+        Route::post('/reading-submission', [\App\Http\Controllers\V1\ReadingTest\ReadingSubmissionController::class, 'start']);
     });
-    
-    // Public test routes (if test is public)
-    Route::get('public/tests', [TestController::class, 'index'])
-        ->where(['is_public' => true, 'is_published' => true]);
     
     Route::get('public/tests/{test}', [TestController::class, 'show'])
         ->middleware('check_public_test');

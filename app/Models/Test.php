@@ -86,6 +86,11 @@ class Test extends Model
         return $this->hasMany(WritingTask::class, 'test_id');
     }
 
+    public function listeningTasks()
+    {
+        return $this->hasMany(ListeningTask::class, 'test_id');
+    }
+
     public function assignments()
     {
         return $this->hasMany(Assignment::class, 'test_id');
@@ -109,10 +114,16 @@ class Test extends Model
                     });
     }
 
-    // Listening test relationships
-    public function listeningAudioSegments()
+    // Helper methods to get specific related data based on test type
+    public function getSkillData()
     {
-        return $this->hasMany(ListeningAudioSegment::class, 'test_id');
+        return match ($this->type) {
+            'reading' => $this->passages,
+            'speaking' => $this->speakingSections,
+            'writing' => $this->writingTasks,
+            'listening' => $this->listeningTasks,
+            default => collect([]),
+        };
     }
 
     public function listeningQuestions()

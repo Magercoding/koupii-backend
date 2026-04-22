@@ -70,7 +70,14 @@ class TestQuestion extends Model
 
     public function highlightSegments()
     {
-        return $this->hasMany(HighlightSegment::class, 'question_id');
+        return $this->hasManyThrough(
+            HighlightSegment::class,
+            QuestionBreakdown::class,
+            'question_id',
+            'breakdown_id',
+            'id',
+            'id'
+        );
     }
 
     public function readingAnswers()

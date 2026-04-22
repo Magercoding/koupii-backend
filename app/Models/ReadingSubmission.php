@@ -150,8 +150,15 @@ class ReadingSubmission extends Model
                 }
             }
         } elseif ($this->test_id && $this->test) {
-            // Legacy Test: calculate from related tables
-            $maxPossiblePoints = $this->test->testQuestions()->sum('points_value');
+            // Legacy Test: calculate from related tables (Passage -> QuestionGroup -> TestQuestion)
+            // Using sum on the relation results in 0 if the hasManyThrough is broken
+            $maxPossiblePoints = 0;
+            $this->test->loadMissing('passages.questionGroups.questions');
+            foreach ($this->test->passages as $passage) {
+                foreach ($passage->questionGroups as $group) {
+                    $maxPossiblePoints += $group->questions->sum('points_value');
+                }
+            }
         }
         
         $percentage = $maxPossiblePoints > 0 ? ($totalPoints / $maxPossiblePoints) * 100 : 0;

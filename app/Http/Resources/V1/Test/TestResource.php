@@ -3,6 +3,8 @@
 namespace App\Http\Resources\V1\Test;
 
 use App\Http\Resources\V1\ReadingTest\PassageResource;
+use App\Http\Resources\V1\SpeakingTask\SpeakingSectionResource;
+use App\Http\Resources\V1\WritingTask\WritingTaskResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -45,10 +47,44 @@ class TestResource extends JsonResource
             'class_id'             => $get('class_id'),
             'class_name'           => $get('class_name'),
             'creator_id'           => $get('creator_id'),
+            'attempts_count'       => (int) $get('attempts_count', 0),
 
             // Only available on full Eloquent models with eager-loaded relations
             'passages' => $isEloquentModel
                 ? $this->whenLoaded('passages', fn () => PassageResource::collection($this->passages))
+                : [],
+            'speaking_sections' => $isEloquentModel
+                ? $this->whenLoaded('speakingSections', fn () => SpeakingSectionResource::collection($this->speakingSections))
+                : [],
+            'audio_segments' => $isEloquentModel
+                ? $this->whenLoaded('listeningAudioSegments', fn () => $this->listeningAudioSegments->map(function ($segment) {
+                    return [
+                        'id' => $segment->id,
+                        'title' => $segment->title,
+                        'audio_url' => $segment->audio_url,
+                        'transcript' => $segment->transcript,
+                        'duration' => $segment->duration,
+                        'segment_type' => $segment->segment_type,
+                        'difficulty_level' => $segment->difficulty_level,
+                        'questions' => $segment->questionGroups ? $segment->questionGroups->map(function($group) {
+                            return [
+                                'id' => $group->id,
+                                'questions' => $group->questions->map(function($q) {
+                                    return [
+                                        'id' => $q->id,
+                                        'question_number' => $q->question_number,
+                                        'question_type' => $q->question_type,
+                                        'question_text' => $q->question_text,
+                                        'options' => $q->options,
+                                    ];
+                                })
+                            ];
+                        }) : [],
+                    ];
+                }))
+                : [],
+            'writing_tasks' => $isEloquentModel
+                ? $this->whenLoaded('writingTasks', fn () => WritingTaskResource::collection($this->writingTasks))
                 : [],
             'creator' => $isEloquentModel
                 ? $this->whenLoaded('creator', fn () => [

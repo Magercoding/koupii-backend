@@ -226,6 +226,12 @@ class ReadingSubmissionController extends Controller implements HasMiddleware
                 'data' => new ReadingSubmissionResource($submissionDetails)
             ]);
         } catch (\Exception $e) {
+            Log::error('ReadingSubmissionController@getSubmission: Error', [
+                'submission_id' => $submission->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve submission',

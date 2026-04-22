@@ -32,16 +32,22 @@ class ReadingAnswerService
                 ->first();
 
             if (!$answer) {
-                // Create on the fly
-                $answer = ReadingQuestionAnswer::create([
+                // Determine which foreign key to use
+                $attributes = [
                     'submission_id' => $submission->id,
-                    'question_id' => null,
-                    'reading_task_question_id' => $questionId,
                     'student_answer' => null,
                     'correct_answer' => null,
                     'is_correct' => null,
                     'points_earned' => 0,
-                ]);
+                ];
+
+                if ($submission->reading_task_id) {
+                    $attributes['reading_task_question_id'] = $questionId;
+                } else {
+                    $attributes['question_id'] = $questionId;
+                }
+
+                $answer = ReadingQuestionAnswer::create($attributes);
             }
 
             $answer->update([

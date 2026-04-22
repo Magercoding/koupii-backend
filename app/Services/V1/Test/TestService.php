@@ -146,9 +146,13 @@ class TestService
         $requestedType = $filters['type'] ?? null;
 
         // Public tests: bypass the UNION, just query the tests table directly
-        if (isset($filters['is_public']) && $filters['is_public']) {
+        // Also allow access if the filter is specifically for public tests
+        if ((isset($filters['is_public']) && $filters['is_public']) || (auth()->user()->role === 'student' && !isset($filters['class_id']))) {
             $query = Test::where('is_public', true)
-                ->where('is_published', true);
+                ->where('is_published', true)
+                ->withCount(['readingSubmissions as attempts_count' => function ($q) use ($userId) {
+                    $q->where('student_id', $userId);
+                }]);
 
             if (!empty($filters['search'])) {
                 $query->where('title', 'like', '%' . $filters['search'] . '%');
@@ -267,7 +271,7 @@ class TestService
         // Build union
         $finalQuery = array_shift($activeQueries);
         foreach ($activeQueries as $q) {
-            $finalQuery->unionAll($q);
+            $finalQuery = $finalQuery->unionAll($q->toBase());
         }
 
         // Wrap in subquery for ordering + pagination, joining classes for class name

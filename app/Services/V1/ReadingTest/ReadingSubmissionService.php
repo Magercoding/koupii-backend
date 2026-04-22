@@ -43,7 +43,10 @@ class ReadingSubmissionService
                 throw new Exception('Invalid test type for reading submission');
             }
 
-            $this->validateTestAttempt($test, $studentId, $data['attempt_number'] ?? 1);
+            $existing = $this->validateTestAttempt($test, $studentId, $data['attempt_number'] ?? 1);
+            if ($existing) {
+                return $existing;
+            }
 
             $submission = ReadingSubmission::create([
                 'test_id' => $test->id,
@@ -178,8 +181,8 @@ class ReadingSubmissionService
             $submission->load('readingTask');
         } else {
             $submission->load([
-                'test.passages.questionGroups.testQuestions.questionOptions',
-                'test.passages.questionGroups.testQuestions.highlightSegments',
+                'test.passages.questionGroups.questions.options',
+                'test.passages.questionGroups.questions.breakdowns.highlightSegments',
             ]);
         }
 
@@ -318,7 +321,7 @@ class ReadingSubmissionService
     /**
      * Validate if student can attempt the test
      */
-    private function validateTestAttempt(Test $test, string $studentId, int $attemptNumber): void
+    private function validateTestAttempt(Test $test, string $studentId, int $attemptNumber): ?ReadingSubmission
     {
         if ($attemptNumber > 1 && !$test->allow_repetition) {
             throw new Exception('This test does not allow multiple attempts');
@@ -334,8 +337,10 @@ class ReadingSubmissionService
             ->first();
 
         if ($existingAttempt) {
-            throw new Exception('This attempt has already been started');
+            return $existingAttempt;
         }
+
+        return null;
     }
 
     /**

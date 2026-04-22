@@ -21,6 +21,8 @@ class ReadingQuestionAnswerResource extends JsonResource
             'time_spent_seconds' => $this->time_spent_seconds,
 
             'question' => $this->whenLoaded('question', function () {
+                if (!$this->question) return null;
+
                 return [
                     'id' => $this->question->id,
                     'question_type' => $this->question->question_type,

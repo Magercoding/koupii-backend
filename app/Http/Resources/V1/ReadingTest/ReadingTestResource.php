@@ -32,8 +32,8 @@ class ReadingTestResource extends JsonResource
             'description' => $this->description,
             'difficulty' => $this->difficulty,
             'creator' => [
-                'id' => $this->creator->id,
-                'name' => $this->creator->name,
+                'id' => $this->creator?->id,
+                'name' => $this->creator?->name,
             ],
             'passages' => PassageResource::collection($this->passages)
                 ->additional(['canSeeAnswers' => $canSeeAnswers]),

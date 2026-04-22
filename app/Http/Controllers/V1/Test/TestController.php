@@ -32,8 +32,9 @@ class TestController extends Controller
             
             // Add scope filter for test type
             $scope = $request->get('scope', 'all'); // 'global', 'class', 'all'
-            if ($scope === 'global') {
-                $filters['class_id'] = null; // Only global tests
+            if ($scope === 'global' || $request->has('is_public')) {
+                $filters['is_public'] = true;
+                $filters['is_published'] = true;
             } elseif ($scope === 'class') {
                 $filters['has_class'] = true; // Only class-based tests
             }

@@ -103,9 +103,23 @@ class TestSubmissionService
         if ($test->max_repetition_count && $attemptCount >= $test->max_repetition_count) {
             throw new \Exception('Maximum number of attempts reached');
         }
+
+        // Load specific relations based on test type
+        $relations = match ($test->type) {
+            'reading' => ['passages.questionGroups.questions.options'],
+            // Temporarily disabled due to schema mismatch (missing test_id)
+            // 'listening' => ['listeningAudioSegments.questionGroups.questions.options'],
+            'speaking' => ['speakingSections.topics.questions'],
+            'writing' => ['writingTasks'],
+            default => []
+        };
+
+        if (!empty($relations)) {
+            $test->load($relations);
+        }
         
         return [
-            'test' => $test->load(['passages.questionGroups.questions.options']),
+            'test' => $test,
             'attempt_info' => [
                 'can_attempt' => true,
                 'attempts_used' => $attemptCount,
@@ -113,6 +127,7 @@ class TestSubmissionService
             ],
         ];
     }
+
 
     public function checkAnswer($question, $studentAnswer)
     {

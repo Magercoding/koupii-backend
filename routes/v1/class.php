@@ -62,21 +62,23 @@ Route::prefix('invitations/token')->group(function () {
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::prefix('classes/{classId}')->middleware('role:teacher')->group(function () {
-        // Test CRUD within classes
+    Route::prefix('classes/{classId}')->group(function () {
+        // Read-only routes accessible to everyone in the class (verified by controller/service if needed)
         Route::get('tests', [ClassTestController::class, 'index']);
-        Route::post('tests', [ClassTestController::class, 'store']);
         Route::get('tests/{testId}', [ClassTestController::class, 'show']);
-        Route::put('tests/{testId}', [ClassTestController::class, 'update']);
-        Route::delete('tests/{testId}', [ClassTestController::class, 'destroy']);
 
-        // Test assignment to all class students
-        Route::post('tests/{testId}/assign', [ClassTestController::class, 'assignToClass']);
-        
-        // Manual assignment creation for existing tests
-        Route::post('tests/{testId}/create-assignment', [ClassAssignmentController::class, 'assignTestToClass']);
+        // Write routes restricted to teachers
+        Route::middleware('role:teacher')->group(function () {
+            Route::post('tests', [ClassTestController::class, 'store']);
+            Route::put('tests/{testId}', [ClassTestController::class, 'update']);
+            Route::delete('tests/{testId}', [ClassTestController::class, 'destroy']);
 
-        // Class Submissions
-        Route::get('submissions', [\App\Http\Controllers\V1\Class\ClassSubmissionController::class, 'index']);
+            // Test assignment
+            Route::post('tests/{testId}/assign', [ClassTestController::class, 'assignToClass']);
+            Route::post('tests/{testId}/create-assignment', [ClassAssignmentController::class, 'assignTestToClass']);
+
+            // Class Submissions
+            Route::get('submissions', [\App\Http\Controllers\V1\Class\ClassSubmissionController::class, 'index']);
+        });
     });
 });
