@@ -142,17 +142,33 @@ class TestService
 
     public function getTestsForUser($filters = [])
     {
-        $userId = auth()->id();
+        $userId = auth('sanctum')->id();
         $requestedType = $filters['type'] ?? null;
 
-        // Public tests: bypass the UNION, just query the tests table directly
-        // Also allow access if the filter is specifically for public tests
-        if ((isset($filters['is_public']) && $filters['is_public']) || (auth()->user()->role === 'student' && !isset($filters['class_id']))) {
+        // Public tests: query the tests table directly
+        if ((isset($filters['is_public']) && $filters['is_public']) || (auth('sanctum')->check() && auth('sanctum')->user()->role === 'student' && !isset($filters['class_id']))) {
             $query = Test::where('is_public', true)
                 ->where('is_published', true)
-                ->withCount(['readingSubmissions as attempts_count' => function ($q) use ($userId) {
-                    $q->where('student_id', $userId);
-                }]);
+                ->with([
+                    'passages.questionGroups.questions',
+                    'listeningTasks.questions',
+                    'writingTasks.taskQuestions',
+                    'speakingSections.topics.questions',
+                    'creator'
+                ]);
+
+            // Add attempts count based on type
+            if ($userId) {
+                // Since listening and writing use different relationship structures, 
+                // we'll handle the total count logic here.
+                $query->withCount([
+                    'readingSubmissions as r_count' => fn($q) => $q->where('student_id', $userId),
+                    'listeningSubmissions as l_count' => fn($q) => $q->where('student_id', $userId),
+                    'writingSubmissions as w_count' => fn($q) => $q->where('student_id', $userId),
+                    // speakingSubmissions removed because the relationship path is broken in the database
+                    // 'speakingSubmissions as s_count' => fn($q) => $q->where('student_id', $userId),
+                ]);
+            }
 
             if (!empty($filters['search'])) {
                 $query->where('title', 'like', '%' . $filters['search'] . '%');

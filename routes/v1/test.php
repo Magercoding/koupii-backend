@@ -8,14 +8,14 @@ use App\Http\Controllers\V1\Test\TestSubmissionController;
  * Test System Routes - Main test system with passages and questions
  */
 
+// Publicly accessible test listing (for Discover)
+Route::get('tests', [TestController::class, 'index']);
+Route::get('tests/public', [TestController::class, 'index']); // Legacy support
+Route::get('tests/{test}', [TestController::class, 'show']); // Allow public detail view
+
 Route::middleware('auth:sanctum')->group(function () {
 
-    // Publicly accessible test listing (for Discover)
-    Route::get('tests', [TestController::class, 'index']);
-    Route::get('tests/public', [TestController::class, 'index']); // Legacy support
-
     // Test detail — accessible by all authenticated users (for Discover)
-    Route::get('tests/{test}', [TestController::class, 'show']);
 
     // Test CRUD Routes (Teacher/Admin only: store, update, destroy)
     Route::middleware('role:teacher,admin')->group(function () {

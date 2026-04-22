@@ -106,12 +106,11 @@ class TestSubmissionService
 
         // Load specific relations based on test type
         $relations = match ($test->type) {
-            'reading' => ['passages.questionGroups.questions.options'],
-            // Temporarily disabled due to schema mismatch (missing test_id)
-            // 'listening' => ['listeningAudioSegments.questionGroups.questions.options'],
-            'speaking' => ['speakingSections.topics.questions'],
-            'writing' => ['writingTasks'],
-            default => []
+            'reading'   => ['passages.questionGroups.questions.options'],
+            'listening' => ['listeningTasks.questions'],
+            'speaking'  => ['speakingSections.topics.questions'],
+            'writing'   => ['writingTasks.taskQuestions'],
+            default     => []
         };
 
         if (!empty($relations)) {

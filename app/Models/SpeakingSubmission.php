@@ -45,11 +45,6 @@ class SpeakingSubmission extends Model
         return $this->belongsTo(StudentAssignment::class, 'assignment_id');
     }
 
-    public function test(): BelongsTo
-    {
-        return $this->belongsTo(Test::class);
-    }
-
     public function speakingTask(): BelongsTo
     {
         return $this->belongsTo(SpeakingTask::class, 'speaking_task_id');

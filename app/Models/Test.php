@@ -126,16 +126,51 @@ class Test extends Model
         };
     }
 
-    public function listeningQuestions()
+    public function listeningSubmissions()
     {
-        return $this->hasManyThrough(ListeningQuestion::class, ListeningAudioSegment::class, 'test_id', 'audio_segment_id', 'id', 'id');
+        return $this->hasManyThrough(
+            ListeningSubmission::class, 
+            ListeningTask::class, 
+            'test_id', 
+            'listening_task_id'
+        );
     }
-
-
 
     public function writingSubmissions()
     {
-        return $this->hasMany(WritingSubmission::class, 'test_id');
+        return $this->hasManyThrough(
+            WritingSubmission::class, 
+            WritingTask::class, 
+            'test_id', 
+            'writing_task_id'
+        );
+    }
+
+    public function speakingSubmissions()
+    {
+        return $this->hasManyThrough(
+            SpeakingSubmission::class, 
+            SpeakingSection::class, 
+            'test_id', 
+            'speaking_section_id'
+        );
+    }
+
+    /**
+     * Virtual attribute for cover image to satisfy frontend expectations.
+     * Returns a placeholder based on the test type.
+     */
+    public function getCoverImageAttribute()
+    {
+        // If we ever add a real image column, we can return it here
+        // For now, return a placeholder based on type
+        return match ($this->type) {
+            'reading' => '/images/reading-placeholder.png',
+            'listening' => '/images/listening-placeholder.png',
+            'writing' => '/images/writing-placeholder.png',
+            'speaking' => '/images/speaking-placeholder.png',
+            default => '/images/premium-placeholder.png',
+        };
     }
 
     // General submission relationship
@@ -144,7 +179,7 @@ class Test extends Model
         return match ($this->type) {
             'reading' => $this->readingSubmissions(),
             'writing' => $this->writingSubmissions(),
-            'listening' => $this->hasMany(ListeningSubmission::class, 'test_id'),
+            'listening' => $this->listeningSubmissions(),
             default => null,
         };
     }

@@ -5,6 +5,7 @@ namespace App\Http\Resources\V1\Test;
 use App\Http\Resources\V1\ReadingTest\PassageResource;
 use App\Http\Resources\V1\SpeakingTask\SpeakingSectionResource;
 use App\Http\Resources\V1\WritingTask\WritingTaskResource;
+use App\Http\Resources\V1\Listening\ListeningTaskResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -31,6 +32,7 @@ class TestResource extends JsonResource
         return [
             'id'                   => $get('id'),
             'title'                => $get('title'),
+            'cover_image'          => $get('cover_image'),
             'description'          => $get('description'),
             'type'                 => $get('type'),
             'difficulty'           => $get('difficulty'),
@@ -47,7 +49,7 @@ class TestResource extends JsonResource
             'class_id'             => $get('class_id'),
             'class_name'           => $get('class_name'),
             'creator_id'           => $get('creator_id'),
-            'attempts_count'       => (int) $get('attempts_count', 0),
+            'attempts_count'       => (int) ($get('attempts_count') ?? ($get('r_count', 0) + $get('l_count', 0) + $get('w_count', 0) + $get('s_count', 0))),
 
             // Only available on full Eloquent models with eager-loaded relations
             'passages' => $isEloquentModel
@@ -56,32 +58,8 @@ class TestResource extends JsonResource
             'speaking_sections' => $isEloquentModel
                 ? $this->whenLoaded('speakingSections', fn () => SpeakingSectionResource::collection($this->speakingSections))
                 : [],
-            'audio_segments' => $isEloquentModel
-                ? $this->whenLoaded('listeningAudioSegments', fn () => $this->listeningAudioSegments->map(function ($segment) {
-                    return [
-                        'id' => $segment->id,
-                        'title' => $segment->title,
-                        'audio_url' => $segment->audio_url,
-                        'transcript' => $segment->transcript,
-                        'duration' => $segment->duration,
-                        'segment_type' => $segment->segment_type,
-                        'difficulty_level' => $segment->difficulty_level,
-                        'questions' => $segment->questionGroups ? $segment->questionGroups->map(function($group) {
-                            return [
-                                'id' => $group->id,
-                                'questions' => $group->questions->map(function($q) {
-                                    return [
-                                        'id' => $q->id,
-                                        'question_number' => $q->question_number,
-                                        'question_type' => $q->question_type,
-                                        'question_text' => $q->question_text,
-                                        'options' => $q->options,
-                                    ];
-                                })
-                            ];
-                        }) : [],
-                    ];
-                }))
+            'listening_tasks' => $isEloquentModel
+                ? $this->whenLoaded('listeningTasks', fn () => ListeningTaskResource::collection($this->listeningTasks))
                 : [],
             'writing_tasks' => $isEloquentModel
                 ? $this->whenLoaded('writingTasks', fn () => WritingTaskResource::collection($this->writingTasks))
@@ -102,15 +80,31 @@ class TestResource extends JsonResource
                 : null,
 
             'statistics' => [
-                'total_passages' => $isEloquentModel
-                    ? ($this->passages_count ?? $this->passages?->count())
+                'total_items' => $isEloquentModel
+                    ? match($this->type) {
+                        'reading'   => (int) ($this->passages_count ?? ($this->relationLoaded('passages') ? $this->passages->count() : 0)),
+                        'listening' => (int) ($this->listening_tasks_count ?? ($this->relationLoaded('listeningTasks') ? $this->listeningTasks->count() : 0)),
+                        'writing'   => (int) ($this->writing_tasks_count ?? ($this->relationLoaded('writingTasks') ? $this->writingTasks->count() : 0)),
+                        'speaking'  => (int) ($this->speaking_sections_count ?? ($this->relationLoaded('speakingSections') ? $this->speakingSections->count() : 0)),
+                        default => 0,
+                    }
                     : 0,
-                'total_questions' => ($isEloquentModel && $this->relationLoaded('passages'))
-                    ? $this->passages->sum(function ($passage) {
-                        return collect($passage->questionGroups ?? [])->sum(function ($group) {
-                            return collect($group->questions ?? [])->count();
-                        });
-                    })
+                'total_questions' => ($isEloquentModel)
+                    ? match($this->type) {
+                        'reading' => $this->relationLoaded('passages') 
+                            ? $this->passages->sum(fn($p) => collect($p->questionGroups ?? [])->sum(fn($g) => collect($g->questions ?? [])->count())) 
+                            : 0,
+                        'listening' => $this->relationLoaded('listeningTasks') 
+                            ? $this->listeningTasks->sum(fn($t) => collect($t->questions ?? [])->count()) 
+                            : 0,
+                        'writing' => $this->relationLoaded('writingTasks') 
+                            ? $this->writingTasks->sum(fn($t) => is_array($t->questions) ? count($t->questions) : (collect($t->taskQuestions ?? [])->count() ?: 1)) 
+                            : 0,
+                        'speaking' => $this->relationLoaded('speakingSections')
+                            ? $this->speakingSections->sum(fn($s) => collect($s->topics ?? [])->sum(fn($t) => collect($t->questions ?? [])->count()))
+                            : 0,
+                        default => 0,
+                    }
                     : 0,
             ],
         ];
