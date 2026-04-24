@@ -34,7 +34,7 @@ return new class extends Migration
             $table->uuid('user_id');
             $table->enum('provider', ['google', 'apple', 'facebook']);
             $table->string('provider_id');
-            $table->string('provider_token');
+            $table->text('provider_token')->nullable();
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
