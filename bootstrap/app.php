@@ -28,7 +28,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Trust Cloudflare proxies (for Cloudflare Proxy ON)
         $middleware->trustProxies(at: '*');
-        $middleware->trustHosts(at: ['api.koupii.com', 'api-staging.koupii.com', '*.koupii.com']);
+        $middleware->trustHosts(at: [
+            'api.koupii.com',
+            'api-staging.koupii.com',
+            'koupii.com',
+        ]);
 
     })
     ->withExceptions(function (Exceptions $exceptions): void {
