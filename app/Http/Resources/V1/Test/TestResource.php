@@ -32,7 +32,9 @@ class TestResource extends JsonResource
         return [
             'id'                   => $get('id'),
             'title'                => $get('title'),
+            'name'                 => $get('title'), // Alias for frontend
             'cover_image'          => $get('cover_image'),
+            'image'                => $get('cover_image'), // Alias for frontend
             'description'          => $get('description'),
             'type'                 => $get('type'),
             'difficulty'           => $get('difficulty'),
@@ -50,6 +52,7 @@ class TestResource extends JsonResource
             'class_name'           => $get('class_name'),
             'creator_id'           => $get('creator_id'),
             'attempts_count'       => (int) ($get('attempts_count') ?? ($get('r_count', 0) + $get('l_count', 0) + $get('w_count', 0) + $get('s_count', 0))),
+            'attempts'             => (int) ($get('attempts_count') ?? ($get('r_count', 0) + $get('l_count', 0) + $get('w_count', 0) + $get('s_count', 0))), // Alias for frontend
 
             // Only available on full Eloquent models with eager-loaded relations
             'passages' => $isEloquentModel
