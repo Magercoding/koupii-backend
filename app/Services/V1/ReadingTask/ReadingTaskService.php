@@ -97,24 +97,27 @@ class ReadingTaskService
                     \Illuminate\Support\Facades\Log::info('Class exists, creating assignment');
                     try {
                         $assignment = \App\Models\Assignment::create([
-                            'id'          => Str::uuid(),
-                            'class_id'    => $taskData['class_id'],
-                            'task_id'     => $task->id,
-                            'task_type'   => 'reading_task',
+                            'id' => Str::uuid(),
+                            'task_id' => $task->id,
+                            'task_type' => 'reading_task',
+                            'class_id' => $taskData['class_id'], // Direct assignment
                             'assigned_by' => Auth::id(),
-                            'title'       => $task->title,
-                            'due_date'    => $taskData['due_date'] ?? null,
-                            'is_published'=> $taskData['is_published'] ?? false,
-                            'status'      => ($taskData['is_published'] ?? false) ? 'active' : 'inactive',
+                            'title' => $task->title,
+                            'due_date' => null, // Default to null or allow passing it
+                            'is_published' => $taskData['is_published'] ?? false,
+                            'status' => ($taskData['is_published'] ?? false) ? 'active' : 'inactive',
                             'source_type' => 'manual',
-                            'type'        => 'reading',
-                            'max_attempts'=> $taskData['max_repetition_count'] ?? 3,
+                            'type' => 'reading',
+                            'max_attempts' => $taskData['max_repetition_count'] ?? 0,
                         ]);
+                        
+                        // We also need to create student assignments for unified assignment
                         $this->createStudentAssignmentsForAssignment($assignment);
+                        
                         \Illuminate\Support\Facades\Log::info('Assignment created successfully', ['assignment_id' => $assignment->id]);
                     } catch (\Exception $e) {
                         \Illuminate\Support\Facades\Log::error('Failed to create assignment', ['error' => $e->getMessage()]);
-                        throw $e;
+                        throw $e; // Re-throw to fail transaction
                     }
                 } else {
                     \Illuminate\Support\Facades\Log::warning('Class does not exist', ['class_id' => $taskData['class_id']]);

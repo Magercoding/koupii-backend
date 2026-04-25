@@ -24,26 +24,35 @@ class StoreSpeakingTaskRequest extends BaseRequest
         return [
             'title'                  => 'required|string|max:255',
             'description'            => 'nullable|string|max:1000',
+            'instructions'           => 'nullable|string|max:2000',
             'difficulty'             => 'required|string|in:beginner,elementary,intermediate,upper_intermediate,advanced,proficiency',
             'is_published'           => 'boolean',
             'class_id'               => 'nullable|string|exists:classes,id',
             'due_date'               => 'nullable|date|after:now',
             'assign_on_create'       => 'nullable|boolean',
-            'timer_mode'             => 'nullable|in:countdown,countup,none',
+            'timer_mode'             => 'nullable|string|in:countdown,countup,none',
             'timer_settings'         => 'nullable|array',
             'timer_settings.hours'   => 'nullable|integer|min:0|max:23',
             'timer_settings.minutes' => 'nullable|integer|min:0|max:59',
             'timer_settings.seconds' => 'nullable|integer|min:0|max:59',
-
-            // Passages structure
-            'passages'                                        => 'required|array|min:1',
-            'passages.*.title'                               => 'required|string|max:255',
-            'passages.*.description'                         => 'nullable|string|max:2000',
-            'passages.*.image_context'                       => 'nullable|file|mimes:jpeg,png,webp|max:5120',
-            'passages.*.questions'                           => 'required|array|min:1',
-            'passages.*.questions.*.question_text'           => 'required|string',
-            'passages.*.questions.*.voice_limit'             => 'required|integer|min:1',
-            'passages.*.questions.*.question_number'         => 'nullable|integer',
+            
+            // Speaking sections
+            'sections' => 'required|array|min:1|max:10',
+            'sections.*.title' => 'required|string|max:255',
+            'sections.*.instructions' => 'nullable|string|max:1000',
+            'sections.*.order_index' => 'required|integer|min:0',
+            'sections.*.time_limit_seconds' => 'nullable|integer|min:30|max:1800',
+            
+            // Speaking questions
+            'sections.*.questions' => 'required|array|min:1|max:20',
+            'sections.*.questions.*.topic' => 'nullable|string|max:255',
+            'sections.*.questions.*.prompt' => 'required|string|max:2000',
+            'sections.*.questions.*.preparation_time_seconds' => 'nullable|integer|min:0|max:300',
+            'sections.*.questions.*.response_time_seconds' => 'nullable|integer|min:0|max:300',
+            'sections.*.questions.*.order_index' => 'required|integer|min:0',
+            'sections.*.questions.*.sample_answer' => 'nullable|string|max:2000',
+            'sections.*.questions.*.evaluation_criteria' => 'nullable|array',
+            'sections.*.questions.*.evaluation_criteria.*' => 'string|max:500'
         ];
     }
 
@@ -58,16 +67,15 @@ class StoreSpeakingTaskRequest extends BaseRequest
             'difficulty.required'                         => 'The difficulty level is required.',
             'difficulty.in'                               => 'The difficulty must be one of: beginner, elementary, intermediate, upper_intermediate, advanced, proficiency.',
             'timer_mode.in'                               => 'Timer mode must be one of: countdown, countup, none.',
-            'passages.required'                           => 'At least one passage is required.',
-            'passages.min'                                => 'At least one passage is required.',
-            'passages.*.title.required'                   => 'Passage title is required.',
-            'passages.*.questions.required'               => 'At least one question is required per passage.',
-            'passages.*.questions.min'                    => 'At least one question is required per passage.',
-            'passages.*.questions.*.question_text.required' => 'Question text is required.',
-            'passages.*.questions.*.voice_limit.required' => 'Voice limit is required for each question.',
-            'passages.*.questions.*.voice_limit.min'      => 'Voice limit must be at least 1 second.',
-            'passages.*.image_context.mimes'              => 'Passage image must be jpeg, png, or webp.',
-            'passages.*.image_context.max'                => 'Passage image cannot exceed 5 MB.',
+            'sections.required'                           => 'At least one speaking section is required.',
+            'sections.min'                                => 'At least one speaking section is required.',
+            'sections.max'                                => 'Maximum 10 sections allowed per speaking task.',
+            'sections.*.questions.required'               => 'At least one question is required per section.',
+            'sections.*.questions.min'                    => 'At least one question is required per section.',
+            'sections.*.questions.max'                    => 'Maximum 20 questions allowed per section.',
+            'sections.*.questions.*.prompt.required'      => 'Question prompt is required.',
+            'sections.*.questions.*.response_time_seconds.required' => 'Response time is required for each question.',
+            'sections.*.questions.*.response_time_seconds.min'      => 'Response time must be at least 30 seconds.',
         ];
     }
 

@@ -36,12 +36,14 @@ class SpeakingSubmissionPolicy
     }
 
     /**
-     * Determine whether the user can update the model (upload recordings).
+     * Determine whether the user can update the model (upload recordings / submit).
      */
     public function update(User $user, SpeakingSubmission $submission): bool
     {
-        // Only the student can update their own in-progress submission
-        return $submission->student_id === $user->id && $submission->status === 'in_progress';
+        // Only the student who owns the submission can update it
+        // Allow in_progress (recording/submitting) and submitted (idempotent re-submit)
+        return $submission->student_id === $user->id &&
+               in_array($submission->status, ['in_progress', 'to_do', 'submitted']);
     }
 
     /**

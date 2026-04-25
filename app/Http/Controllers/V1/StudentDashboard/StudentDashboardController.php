@@ -561,6 +561,30 @@ class StudentDashboardController extends Controller
             }
         }
 
+        // Eager-load questions for ListeningTask so the frontend can render them.
+        if ($task instanceof \App\Models\ListeningTask) {
+            $task->load('questions');
+            return response()->json([
+                'data' => array_merge($task->toArray(), [
+                    'questions' => $task->questions->map(function ($q) {
+                        return [
+                            'id'               => $q->id,
+                            'listening_task_id'=> $q->listening_task_id,
+                            'question_type'    => $q->question_type,
+                            'question_text'    => $q->question_text,
+                            'question_number'  => $q->order_index,
+                            'order_index'      => $q->order_index,
+                            'options'          => $q->options ?? [],
+                            'points'           => $q->points,
+                            'start_time'       => $q->start_time,
+                            'end_time'         => $q->end_time,
+                            'explanation'      => $q->explanation,
+                        ];
+                    })->values()->toArray(),
+                ]),
+            ]);
+        }
+
         return response()->json(['data' => $task]);
     }
 

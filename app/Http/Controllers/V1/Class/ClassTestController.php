@@ -38,10 +38,29 @@ class ClassTestController extends Controller
     public function index(Request $request, string $classId): JsonResponse
     {
         try {
-            // Verify class ownership
-            $class = Classes::where('id', $classId)
-                ->where('teacher_id', auth()->id())
-                ->firstOrFail();
+            // Verify class access (owner or enrolled teacher)
+            $class = Classes::where('id', $classId)->first();
+            
+            if (!$class) {
+                return response()->json([
+                    'message' => 'Class not found',
+                    'error' => 'Class does not exist'
+                ], 404);
+            }
+
+            $user = auth()->user();
+            $isOwner = $class->teacher_id === $user->id;
+            $isEnrolledTeacher = $user->role === 'teacher' && ClassEnrollment::where('class_id', $classId)
+                ->where('student_id', $user->id)
+                ->where('status', 'active')
+                ->exists();
+
+            if (!$isOwner && !$isEnrolledTeacher && $user->role !== 'admin') {
+                return response()->json([
+                    'message' => 'Unauthorized',
+                    'error' => 'You do not have access to this class'
+                ], 403);
+            }
 
             // Legacy tests (class-specific + public)
             $tests = Test::where(function ($q) use ($classId) {

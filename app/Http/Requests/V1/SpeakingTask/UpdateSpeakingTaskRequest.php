@@ -54,10 +54,10 @@ class UpdateSpeakingTaskRequest extends BaseRequest
             // Speaking questions (optional for updates)
             'sections.*.questions' => 'required|array|min:1|max:20',
             'sections.*.questions.*.id' => 'nullable|uuid|exists:speaking_questions,id',
-            'sections.*.questions.*.topic' => 'required|string|max:255',
+            'sections.*.questions.*.topic' => 'nullable|string|max:255',
             'sections.*.questions.*.prompt' => 'required|string|max:2000',
-            'sections.*.questions.*.preparation_time_seconds' => 'nullable|integer|min:15|max:300',
-            'sections.*.questions.*.response_time_seconds' => 'required|integer|min:30|max:300',
+            'sections.*.questions.*.preparation_time_seconds' => 'nullable|integer|min:0|max:300',
+            'sections.*.questions.*.response_time_seconds' => 'nullable|integer|min:0|max:300',
             'sections.*.questions.*.order_index' => 'required|integer|min:0',
             'sections.*.questions.*.sample_answer' => 'nullable|string|max:2000',
             'sections.*.questions.*.evaluation_criteria' => 'nullable|array',
