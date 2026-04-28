@@ -140,10 +140,19 @@ class WritingTaskController extends Controller implements HasMiddleware
 
         // Role-based access control
         if ($user->role === 'student') {
+            // Allow access if the student has an active assignment for this task
+            // (either via class enrollment OR via a direct StudentAssignment record)
             $query->where('is_published', true)
-                ->whereHas('assignments.class.enrollments', function ($q) use ($user) {
-                    $q->where('student_id', $user->id)
-                      ->where('status', 'active');
+                ->where(function ($q) use ($user, $id) {
+                    // Primary check: enrolled in the class that has this task assigned
+                    $q->whereHas('assignments.class.enrollments', function ($eq) use ($user) {
+                        $eq->where('student_id', $user->id)
+                           ->where('status', 'active');
+                    })
+                    // Fallback: student has a StudentAssignment record for an assignment with this task
+                    ->orWhereHas('assignments.studentAssignments', function ($sq) use ($user) {
+                        $sq->where('student_id', $user->id);
+                    });
                 });
         } elseif ($user->role !== 'admin') {
             $query->where('creator_id', $user->id);

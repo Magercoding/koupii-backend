@@ -243,6 +243,13 @@ class StudentDashboardController extends Controller
             $resolvedTask = \App\Models\Test::find($assignmentData->test_id);
         }
 
+        // Ensure the assignment title is always populated — fall back to the task/test title
+        // when the Assignment.title column is blank (e.g. older records created without a title).
+        $assignmentTitle = $assignmentData->getAssignmentTitle();
+        if ((!$assignmentTitle || $assignmentTitle === 'Untitled Assignment') && $resolvedTask) {
+            $assignmentTitle = $resolvedTask->title ?? $assignmentTitle;
+        }
+
         $latestReadingSubmissionId = null;
         if ($type === 'reading_task') {
             $latestReadingSubmissionId = ReadingSubmission::query()
@@ -276,7 +283,7 @@ class StudentDashboardController extends Controller
         return response()->json([
             'message' => 'Assignment details retrieved successfully',
             'data' => [
-                'assignment' => $assignmentData->getAssignmentTitle(),
+                'assignment' => $assignmentTitle,
                 'task_id' => $assignmentData->task_id ?? $assignmentData->test_id,
                 'description' => $assignmentData->description ?? $resolvedTask?->description,
                 'difficulty' => $resolvedTask?->difficulty ?? $resolvedTask?->difficulty_level,

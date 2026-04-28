@@ -80,9 +80,22 @@ class ReadingSubmissionService
                 $attemptNumber = $maxAttempt + 1;
             }
 
-            $existing = $this->validateTaskAttempt($task, $studentId, $attemptNumber);
-            if ($existing) {
-                return $existing;
+            // When an assignment_id is provided, the assignment's max_attempts is the authority.
+            // Skip task-level retake validation so the assignment can control attempt limits.
+            if (!$assignmentId) {
+                $existing = $this->validateTaskAttempt($task, $studentId, $attemptNumber);
+                if ($existing) {
+                    return $existing;
+                }
+            } else {
+                // For assignment-based attempts, only resume if this exact attempt number already exists
+                $existing = ReadingSubmission::where('reading_task_id', $task->id)
+                    ->where('student_id', $studentId)
+                    ->where('attempt_number', $attemptNumber)
+                    ->first();
+                if ($existing) {
+                    return $existing;
+                }
             }
 
             $submission = ReadingSubmission::create([
