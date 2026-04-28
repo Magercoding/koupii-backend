@@ -451,11 +451,10 @@ class StudentDashboardController extends Controller
                 || $assignment->assigned_by === $user->id;
         }
 
-        // Check if student is enrolled in the class
+        // Check if student is enrolled in the class (any status — active or pending)
         return ClassEnrollment::where([
             'student_id' => $userId,
             'class_id' => $assignment->class_id,
-            'status' => 'active'
         ])->exists();
     }
 
@@ -1258,12 +1257,6 @@ class StudentDashboardController extends Controller
 
     private function normalizeType(string $type): string
     {
-        return match($type) {
-            'writing', 'writing_task' => 'writing_task',
-            'reading', 'reading_task' => 'reading_task',
-            'listening', 'listening_task' => 'listening_task',
-            'speaking', 'speaking_task' => 'speaking_task',
-            default => $type
-        };
+        return str_replace('_task', '', $type);
     }
 }

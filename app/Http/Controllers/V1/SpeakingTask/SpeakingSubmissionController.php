@@ -128,4 +128,39 @@ class SpeakingSubmissionController extends Controller
             'data' => $review
         ]);
     }
+
+    public function getTeacherReviewQueue(Request $request): JsonResponse
+    {
+        $submissions = $this->speakingSubmissionService->getTeacherReviewQueue(
+            auth()->id(),
+            $request->all()
+        );
+
+        // Get list of teacher's classes for the filter
+        $classes = \App\Models\Classes::where('teacher_id', auth()->id())
+            ->select('id', 'name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => new SpeakingSubmissionCollection($submissions),
+            'meta' => [
+                'classes' => $classes
+            ]
+        ]);
+    }
+
+    public function getClassReviewQueue(Request $request, string $classId): JsonResponse
+    {
+        $filters = array_merge($request->all(), ['class_id' => $classId]);
+        $submissions = $this->speakingSubmissionService->getTeacherReviewQueue(
+            auth()->id(),
+            $filters
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => new SpeakingSubmissionCollection($submissions)
+        ]);
+    }
 }

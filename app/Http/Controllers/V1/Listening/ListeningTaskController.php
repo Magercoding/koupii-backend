@@ -38,16 +38,15 @@ class ListeningTaskController extends Controller implements HasMiddleware
         if ($user->role === 'admin') {
             // Admin sees all tasks
         } elseif ($user->role === 'student') {
-            // Students see only published tasks assigned to their classrooms
-            $query->where('is_published', '=', true)
-                ->whereHas('assignments.class.enrollments', function ($q) use ($user) {
-                    $q->where('student_id', $user->id);
-                })
-                ->with([
-                    'submissions' => function ($q) use ($user) {
-                        $q->where('student_id', $user->id)->with(['answers', 'review']);
-                    }
-                ]);
+            // Students see tasks assigned to their classrooms
+            $query->whereHas('assignments.class.enrollments', function ($q) use ($user) {
+                $q->where('student_id', $user->id);
+            })
+            ->with([
+                'submissions' => function ($q) use ($user) {
+                    $q->where('student_id', $user->id)->with(['answers', 'review']);
+                }
+            ]);
         } else {
             // Teachers see only their own tasks
             $query->where('created_by', '=', $user->id)

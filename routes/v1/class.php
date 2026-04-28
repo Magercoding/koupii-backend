@@ -17,6 +17,7 @@ Route::middleware('auth:sanctum')
             Route::post('/create', [ClassController::class, 'store']);
             Route::post('/update/{id}', [ClassController::class, 'update']); 
             Route::delete('/delete/{id}', [ClassController::class, 'destroy']);
+            Route::delete('/{classId}/students/{studentId}', [ClassController::class, 'removeStudent']);
         });
         Route::post('/join', [ClassController::class, 'joinByCode'])
             ->middleware('role:student');

@@ -38,33 +38,25 @@ class ReadingTaskController extends Controller implements HasMiddleware
         if ($user->role === 'admin') {
             // Admin sees all tasks
         } elseif ($user->role === 'student') {
-            // Students see only published tasks assigned to their classes
-            $query->where('is_published', true)
-                ->whereHas('assignments', function ($q) use ($user) {
-                    $q->whereHas('class.enrollments', function ($e) use ($user) {
-                        $e->where('student_id', $user->id)->where('status', 'active');
-                    });
-                })
-                ->with([
-                    'submissions' => function ($q) use ($user) {
-                        $q->where('student_id', $user->id);
-                    }
-                ]);
+            // Students see tasks assigned to their classes
+            $query->whereHas('assignments', function ($q) use ($user) {
+                $q->whereHas('class.enrollments', function ($e) use ($user) {
+                    $e->where('student_id', $user->id)->where('status', 'active');
+                });
+            })
+            ->with([
+                'submissions' => function ($q) use ($user) {
+                    $q->where('student_id', $user->id);
+                }
+            ]);
         } else {
-            // Teachers see their own tasks and published tasks
-            $query->where(function ($q) use ($user) {
-                $q->where('created_by', $user->id)
-                    ->orWhere('is_published', true);
-            });
+            // Teachers see their own tasks
+            $query->where('created_by', $user->id);
         }
 
         // Apply filters
         if ($request->filled('difficulty')) {
             $query->where('difficulty', $request->difficulty);
-        }
-
-        if ($request->filled('is_published')) {
-            $query->where('is_published', $request->boolean('is_published'));
         }
 
         if ($request->filled('search')) {

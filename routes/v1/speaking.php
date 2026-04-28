@@ -46,16 +46,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // === SPEAKING SUBMISSIONS ROUTES ===
     Route::prefix('speaking/submissions')->group(function () {
-        Route::get('/', [SpeakingSubmissionController::class, 'index']); // GET /api/v1/speaking/submissions
-        Route::post('/start', [SpeakingSubmissionController::class, 'startSubmission']); // POST /api/v1/speaking/submissions/start
-        Route::get('/{submission}', [SpeakingSubmissionController::class, 'show']); // GET /api/v1/speaking/submissions/{id}
-        Route::patch('/{submission}/submit', [SpeakingSubmissionController::class, 'submitForReview']); // PATCH /api/v1/speaking/submissions/{id}/submit
-        
-        // Teacher routes for review queue
+        // Teacher routes for review queue - MUST BE BEFORE /{submission} to avoid collision
         Route::prefix('review-queue')->middleware('role:admin,teacher')->group(function () {
             Route::get('/', [SpeakingSubmissionController::class, 'getTeacherReviewQueue']); // GET /api/v1/speaking/submissions/review-queue
             Route::get('/class/{classId}', [SpeakingSubmissionController::class, 'getClassReviewQueue']); // GET /api/v1/speaking/submissions/review-queue/class/{id}
         });
+
+        Route::get('/', [SpeakingSubmissionController::class, 'index']); // GET /api/v1/speaking/submissions
+        Route::post('/start', [SpeakingSubmissionController::class, 'startSubmission']); // POST /api/v1/speaking/submissions/start
+        Route::get('/{submission}', [SpeakingSubmissionController::class, 'show']); // GET /api/v1/speaking/submissions/{id}
+        Route::patch('/{submission}/submit', [SpeakingSubmissionController::class, 'submitForReview']); // PATCH /api/v1/speaking/submissions/{id}/submit
     });
 
     // === SPEAKING RECORDINGS ROUTES ===

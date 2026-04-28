@@ -24,6 +24,12 @@ class SpeakingSubmissionResource extends JsonResource
                 ? $this->formatTime($this->total_time_seconds) 
                 : null,
 
+            'speaking_task' => [
+                'id' => $this->speakingTask?->id,
+                'title' => $this->speakingTask?->title,
+                'difficulty_level' => $this->speakingTask?->difficulty_level,
+            ],
+
             // Assignment information
             'assignment' => $this->whenLoaded('assignment', function () {
                 if (!$this->assignment) return null;

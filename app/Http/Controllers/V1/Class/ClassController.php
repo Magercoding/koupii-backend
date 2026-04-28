@@ -137,6 +137,36 @@ class ClassController extends Controller
             'message' => 'Class deleted successfully',
         ]);
     }
+
+    /**
+     * Remove a student from a class by student user ID
+     */
+    public function removeStudent(Request $request, string $classId, string $studentId): JsonResponse
+    {
+        $user = Auth::user();
+
+        $class = Classes::find($classId);
+        if (!$class) {
+            return response()->json(['message' => 'Class not found'], 404);
+        }
+
+        // Only the class teacher or admin can remove students
+        if ($user->role !== 'admin' && $class->teacher_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $enrollment = ClassEnrollment::where('class_id', $classId)
+            ->where('student_id', $studentId)
+            ->first();
+
+        if (!$enrollment) {
+            return response()->json(['message' => 'Student is not enrolled in this class'], 404);
+        }
+
+        $enrollment->delete();
+
+        return response()->json(['message' => 'Student removed from class successfully']);
+    }
     /**
      * Join class by code (for students)
      */

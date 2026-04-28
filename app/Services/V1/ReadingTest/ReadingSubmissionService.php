@@ -69,7 +69,16 @@ class ReadingSubmissionService
     {
         return DB::transaction(function () use ($task, $studentId, $data) {
             $assignmentId = $data['assignment_id'] ?? null;
-            $attemptNumber = $data['attempt_number'] ?? 1;
+
+            // Auto-calculate next attempt number if not provided
+            if (isset($data['attempt_number']) && $data['attempt_number'] > 0) {
+                $attemptNumber = (int) $data['attempt_number'];
+            } else {
+                $maxAttempt = (int) (ReadingSubmission::where('reading_task_id', $task->id)
+                    ->where('student_id', $studentId)
+                    ->max('attempt_number') ?? 0);
+                $attemptNumber = $maxAttempt + 1;
+            }
 
             $existing = $this->validateTaskAttempt($task, $studentId, $attemptNumber);
             if ($existing) {

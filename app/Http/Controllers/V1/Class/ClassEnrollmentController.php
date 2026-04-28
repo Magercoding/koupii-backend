@@ -38,6 +38,14 @@ class ClassEnrollmentController extends Controller
     {
         $data = $request->validated();
 
+        // Default status to 'active' if not explicitly provided
+        if (!isset($data['status'])) {
+            $data['status'] = 'active';
+        }
+        if (!isset($data['enrolled_at'])) {
+            $data['enrolled_at'] = now();
+        }
+
         $enrollment = ClassEnrollment::create($data);
 
         // Dispatch event for automatic assignment creation
