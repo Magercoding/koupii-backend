@@ -26,7 +26,7 @@ class WritingReviewResource extends JsonResource
             'created_at' => $this->created_at,
 
             // Formatted score display
-            'score_display' => $this->when($this->score, function () {
+            'score_display' => $this->when($this->score !== null, function () {
                 return [
                     'value' => $this->score,
                     'formatted' => $this->score . '/100',

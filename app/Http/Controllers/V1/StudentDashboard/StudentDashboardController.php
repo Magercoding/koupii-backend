@@ -265,8 +265,8 @@ class StudentDashboardController extends Controller
             $latestSpeakingSubmissionId = DB::table('speaking_submissions')
                 ->where('assignment_id', $assignmentId)
                 ->where('student_id', $studentId)
-                ->whereNull('submitted_at')
-                ->orderByDesc('created_at')
+                ->whereNotNull('submitted_at')
+                ->orderByDesc('submitted_at')
                 ->value('id');
         }
 

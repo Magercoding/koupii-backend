@@ -131,19 +131,38 @@ class WritingReviewController extends Controller implements HasMiddleware
     {
         $assignment = StudentAssignment::with([
             'student',
+            'assignment',
             'writingTask.taskQuestions',
-            'writingSubmissions' => function($q) {
-                $q->with('latestReview')->orderBy('created_at', 'asc');
-            }
         ])->findOrFail($assignmentId);
 
         // Check auth (only creator of the task or admin)
-        if (Auth::user()->role !== 'admin' && $assignment->writingTask->creator_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && $assignment->writingTask?->creator_id !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // Load writing submissions separately to avoid the dynamic $this->student_id issue
+        $submissions = WritingSubmission::with('latestReview')
+            ->where('assignment_id', $assignment->assignment_id)
+            ->where('student_id', $assignment->student_id)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $data = $assignment->toArray();
+        $data['writingSubmissions'] = $submissions->toArray();
+
+        // If writingTask didn't load via hasOneThrough, try direct lookup
+        if (empty($data['writing_task']) && $assignment->assignment) {
+            $taskId = $assignment->assignment->task_id;
+            if ($taskId) {
+                $writingTask = \App\Models\WritingTask::with('taskQuestions')->find($taskId);
+                if ($writingTask) {
+                    $data['writing_task'] = $writingTask->toArray();
+                }
+            }
+        }
+
         return response()->json([
-            'data' => $assignment
+            'data' => $data
         ]);
     }
 
@@ -153,11 +172,11 @@ class WritingReviewController extends Controller implements HasMiddleware
     public function submitAssignmentReview(Request $request, string $assignmentId)
     {
         $request->validate([
-            'overall_score' => 'required|numeric|min:0|max:10',
+            'overall_score' => 'required|numeric|min:0|max:100',
             'overall_comments' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.submission_id' => 'required|exists:writing_submissions,id',
-            'items.*.score' => 'required|numeric|min:0|max:10',
+            'items.*.score' => 'required|numeric|min:0|max:100',
             'items.*.comments' => 'nullable|string',
             'feedback_json' => 'nullable|array',
         ]);

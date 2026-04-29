@@ -66,6 +66,53 @@ class SpeakingRecordingController extends Controller
     }
 
     /**
+     * Stream recording audio file (proxies from R2 storage)
+     */
+    public function stream(string $recordingId): \Illuminate\Http\Response|JsonResponse
+    {
+        $recording = \App\Models\SpeakingRecording::find($recordingId);
+
+        if (!$recording) {
+            return response()->json(['success' => false, 'message' => 'Recording not found'], 404);
+        }
+
+        $path = $recording->audio_file_path;
+
+        if (!$path) {
+            return response()->json(['success' => false, 'message' => 'No audio file path on record'], 404);
+        }
+
+        try {
+            if (!Storage::disk('speaking_recordings')->exists($path)) {
+                return response()->json(['success' => false, 'message' => 'File not found in storage: ' . $path], 404);
+            }
+
+            $contents = Storage::disk('speaking_recordings')->get($path);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage(), 'path' => $path], 500);
+        }
+
+        $ext = strtolower(preg_replace('/;.*$/', '', pathinfo($path, PATHINFO_EXTENSION)));
+        $mimeMap = [
+            'mp3'  => 'audio/mpeg',
+            'wav'  => 'audio/wav',
+            'm4a'  => 'audio/mp4',
+            'aac'  => 'audio/aac',
+            'ogg'  => 'audio/ogg',
+            'webm' => 'audio/webm',
+        ];
+        $mimeType = $mimeMap[$ext] ?? 'audio/webm';
+
+        return response($contents, 200, [
+            'Content-Type'        => $mimeType,
+            'Content-Length'      => strlen($contents),
+            'Accept-Ranges'       => 'bytes',
+            'Cache-Control'       => 'no-cache',
+            'Content-Disposition' => 'inline',
+        ]);
+    }
+
+    /**
      * Download recording file
      */
     public function download(SpeakingRecording $recording): BinaryFileResponse|JsonResponse

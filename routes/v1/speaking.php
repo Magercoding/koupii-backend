@@ -20,6 +20,9 @@ use App\Http\Controllers\V1\SpeakingTask\{
 |
 */
 
+// Public stream route — no auth required (UUID is unguessable)
+Route::get('speaking/recordings/{recordingId}/stream', [SpeakingRecordingController::class, 'stream']);
+
 Route::middleware(['auth:sanctum'])->group(function () {
     
     // === SPEAKING DASHBOARD ROUTES ===
@@ -62,6 +65,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('speaking/recordings')->group(function () {
         Route::post('/upload', [SpeakingRecordingController::class, 'uploadRecording']); // POST /api/v1/speaking/recordings/upload
         Route::get('/{recording}', [SpeakingRecordingController::class, 'show']); // GET /api/v1/speaking/recordings/{id}
+        Route::get('/{recording}/stream', [SpeakingRecordingController::class, 'stream']); // GET /api/v1/speaking/recordings/{id}/stream
         Route::get('/{recording}/download', [SpeakingRecordingController::class, 'download']); // GET /api/v1/speaking/recordings/{id}/download
         Route::delete('/{recording}', [SpeakingRecordingController::class, 'destroy']); // DELETE /api/v1/speaking/recordings/{id}
         

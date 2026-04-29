@@ -31,8 +31,9 @@ class RecordingUploadRequest extends FormRequest
                 'exists:speaking_submissions,id'
             ],
             'question_id' => [
-                'required',
-                'string'
+                'nullable',
+                'string',
+                'max:255'
             ],
             'audio_file' => [
                 'required',

@@ -28,6 +28,7 @@ class SpeakingSubmissionResource extends JsonResource
                 'id' => $this->speakingTask?->id,
                 'title' => $this->speakingTask?->title,
                 'difficulty_level' => $this->speakingTask?->difficulty_level,
+                'questions' => $this->speakingTask?->questions ?? [],
             ],
 
             // Assignment information
@@ -68,12 +69,14 @@ class SpeakingSubmissionResource extends JsonResource
                     'id' => $recording->id,
                     'question_id' => $recording->question_id,
                     'audio_file_path' => $recording->audio_file_path,
-                    'audio_url' => $recording->audio_url,
+                    'audio_url' => $recording->id
+                        ? url("/api/v1/speaking/recordings/{$recording->id}/stream")
+                        : null,
                     'duration_seconds' => $recording->duration_seconds,
                     'duration_formatted' => $recording->duration_seconds
                         ? $this->formatTime($recording->duration_seconds)
                         : null,
-                    'file_size' => null, // Column removed from DB
+                    'file_size' => null,
                     'file_size_formatted' => null,
                     
                     // Speech-to-text analysis
