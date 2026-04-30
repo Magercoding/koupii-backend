@@ -64,19 +64,31 @@ class ListeningSubmissionService
         $nextAttemptNumber = ($lastSubmission ? $lastSubmission->attempt_number : 0) + 1;
 
         if ($nextAttemptNumber > 1) {
-            if (!$task->allowsRetakes()) {
-                // If retakes are not allowed, return the last submission instead of failing
-                if ($lastSubmission) {
-                    return $lastSubmission->load(['answers', 'task', 'review']);
+            // When an assignment_id is provided, the assignment's max_attempts is the authority.
+            // Skip task-level retake validation so the assignment can control attempt limits.
+            if (!$assignmentId) {
+                if (!$task->allowsRetakes()) {
+                    if ($lastSubmission) {
+                        return $lastSubmission->load(['answers', 'task', 'review']);
+                    }
+                    throw new \Exception("Retakes are not allowed for this task.");
                 }
-                throw new \Exception("Retakes are not allowed for this task.");
-            }
-            if ($task->max_retake_attempts && $nextAttemptNumber > $task->max_retake_attempts) {
-                // If max attempts reached, return the last submission instead of failing
-                if ($lastSubmission) {
-                    return $lastSubmission->load(['answers', 'task', 'review']);
+                if ($task->max_retake_attempts && $nextAttemptNumber > $task->max_retake_attempts) {
+                    if ($lastSubmission) {
+                        return $lastSubmission->load(['answers', 'task', 'review']);
+                    }
+                    throw new \Exception("Maximum retake attempts reached.");
                 }
-                throw new \Exception("Maximum retake attempts reached.");
+            } else {
+                // Assignment-based: check the assignment's max_attempts
+                $assignment = \App\Models\Assignment::find($assignmentId);
+                $maxAttempts = $assignment?->max_attempts ?? null;
+                if ($maxAttempts && $nextAttemptNumber > $maxAttempts) {
+                    if ($lastSubmission) {
+                        return $lastSubmission->load(['answers', 'task', 'review']);
+                    }
+                    throw new \Exception("Maximum assignment attempts reached.");
+                }
             }
         }
 
@@ -152,7 +164,52 @@ class ListeningSubmissionService
     }
 
     /**
-     * Finalize and submit a listening task.
+     * Submit a specific submission directly by its model instance.
+     * Avoids the fragile re-query by status = 'to_do'.
+     */
+    public function submitById(ListeningSubmission $submission, User $student, array $data): ListeningSubmission
+    {
+        return DB::transaction(function () use ($submission, $student, $data) {
+            $timeTaken = $data['time_taken_seconds'] ?? $data['time_spent_seconds'] ?? $submission->time_taken_seconds ?? 0;
+
+            // Save final answers before grading
+            if (isset($data['answers']) && is_array($data['answers'])) {
+                $this->saveAnswers($submission, $data['answers']);
+            }
+
+            // Grade and finalize
+            $this->gradeSubmission($submission);
+
+            $submission->update([
+                'status' => ListeningSubmission::STATUS_SUBMITTED,
+                'submitted_at' => now(),
+                'time_taken_seconds' => $timeTaken,
+                'audio_play_counts' => $data['audio_play_counts'] ?? $submission->audio_play_counts,
+            ]);
+
+            // Sync with StudentAssignment
+            $assignmentId = $submission->assignment_id;
+            if ($assignmentId) {
+                $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                    ->where('student_id', $student->id)
+                    ->first();
+
+                if ($studentAssignment) {
+                    $studentAssignment->update([
+                        'status' => \App\Models\StudentAssignment::STATUS_SUBMITTED,
+                        'score' => max($studentAssignment->score ?? 0, $submission->percentage),
+                        'completed_at' => now(),
+                        'last_activity_at' => now(),
+                    ]);
+                }
+            }
+
+            return $submission->fresh(['answers', 'task', 'review']);
+        });
+    }
+
+    /**
+     * Finalize and submit a listening task (legacy — finds submission by status).
      */
     public function submit(ListeningTask $task, User $student, array $data, ?Request $request = null): ListeningSubmission
     {

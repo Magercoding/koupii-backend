@@ -45,7 +45,7 @@ class UpdateListeningTaskRequest extends FormRequest
             'type' => 'nullable|string|in:listening',
             'difficulty' => 'nullable|string|in:beginner,elementary,intermediate,upper_intermediate,advanced,proficiency',
             'test_type' => 'nullable|string|in:single,multiple',
-            'timer_mode' => 'nullable|string|in:none,timer,countdown',
+            'timer_mode' => 'nullable|string|in:none,timer,countdown,countup',
             'timer_settings' => 'nullable|array',
             'timer_settings.hours' => 'nullable|integer|min:0',
             'timer_settings.minutes' => 'nullable|integer|min:0',
@@ -107,5 +107,38 @@ class UpdateListeningTaskRequest extends FormRequest
             'passages.*.question_groups.*.image.file.max' => 'Image size cannot exceed 5MB',
             'passages.*.question_groups.*.image.file.mimes' => 'Image must be JPEG, PNG, or WEBP',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     * Casts boolean fields sent as "on"/""/1/0 strings from multipart/form-data.
+     */
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+
+        foreach (['is_published', 'is_public', 'allow_repetition'] as $field) {
+            if ($this->has($field)) {
+                $val = $this->input($field);
+                $merge[$field] = in_array($val, ['on', true, 1, '1', 'true'], true);
+            }
+        }
+
+        // Normalise timer_mode: "notimer" -> "none"
+        if ($this->has('timer_mode') && $this->input('timer_mode') === 'notimer') {
+            $merge['timer_mode'] = 'none';
+        }
+
+        // timer_settings may arrive as a JSON string
+        if ($this->has('timer_settings') && is_string($this->input('timer_settings'))) {
+            $decoded = json_decode($this->input('timer_settings'), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $merge['timer_settings'] = $decoded;
+            }
+        }
+
+        if (!empty($merge)) {
+            $this->merge($merge);
+        }
     }
 }

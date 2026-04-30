@@ -10,6 +10,24 @@ use Illuminate\Support\Facades\Route;
  */
 Route::get('/health', fn() => response()->json(['ok' => true, 'time' => time()]));
 
+/**
+ * Public audio streaming route — supports HTTP Range requests for seeking.
+ * Used by the frontend audio player to stream listening task audio files.
+ * @unauthenticated
+ */
+Route::get('/audio/{path}', function (string $path) {
+    $fullPath = storage_path('app/public/' . $path);
+
+    if (!file_exists($fullPath)) {
+        abort(404, 'Audio file not found');
+    }
+
+    return response()->file($fullPath, [
+        'Accept-Ranges' => 'bytes',
+        'Cache-Control' => 'public, max-age=3600',
+    ]);
+})->where('path', '.*');
+
 
 /**
  * @unauthenticated

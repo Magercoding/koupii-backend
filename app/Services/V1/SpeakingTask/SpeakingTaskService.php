@@ -206,7 +206,7 @@ class SpeakingTaskService
     public function updateSpeakingTask(SpeakingTask $task, array $data): SpeakingTask
     {
         return DB::transaction(function () use ($task, $data) {
-            $task->update(array_filter([
+            $updateFields = [
                 'title'              => $data['title'] ?? $task->title,
                 'description'        => $data['description'] ?? $task->description,
                 'instructions'       => $data['instructions'] ?? $task->instructions,
@@ -217,9 +217,15 @@ class SpeakingTaskService
                 'questions'          => $data['questions'] ?? $data['sections'] ?? $task->questions,
                 'sample_audio'       => $data['sample_audio'] ?? $task->sample_audio,
                 'rubric'             => $data['rubric'] ?? $task->rubric,
-                'is_published'       => $data['is_published'] ?? $task->is_published,
                 'due_date'           => array_key_exists('due_date', $data) ? $data['due_date'] : $task->due_date,
-            ], fn ($v) => $v !== null));
+            ];
+
+            // Handle is_published explicitly so false values are not dropped
+            if (array_key_exists('is_published', $data)) {
+                $updateFields['is_published'] = (bool) $data['is_published'];
+            }
+
+            $task->update(array_filter($updateFields, fn ($v) => $v !== null));
 
             return $task->fresh(['creator']);
         });

@@ -24,6 +24,7 @@ class ListeningSubmissionResource extends JsonResource
             'taskId' => $this->listening_task_id,
             'studentId' => $this->student_id,
             'status' => $this->status,
+            'attempt_number' => (int) $this->attempt_number,
             'totalScore' => (float) $this->total_score,
             'percentage' => (float) $this->percentage,
             'totalCorrect' => (int) $this->total_correct,

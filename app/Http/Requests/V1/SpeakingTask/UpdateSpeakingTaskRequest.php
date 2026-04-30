@@ -88,4 +88,24 @@ class UpdateSpeakingTaskRequest extends BaseRequest
             'sections.*.questions.max' => 'Maximum 20 questions allowed per section.'
         ];
     }
+
+    /**
+     * Prepare the data for validation.
+     * Casts boolean fields sent as "on"/"off" strings from multipart/form-data.
+     */
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+
+        foreach (['is_published', 'allow_repetition'] as $field) {
+            if ($this->has($field)) {
+                $val = $this->input($field);
+                $merge[$field] = in_array($val, ['on', true, 1, '1', 'true'], true);
+            }
+        }
+
+        if (!empty($merge)) {
+            $this->merge($merge);
+        }
+    }
 }

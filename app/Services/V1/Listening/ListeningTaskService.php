@@ -227,13 +227,14 @@ class ListeningTaskService
     {
         return DB::transaction(function () use ($task, $taskData, $request) {
             // 1. Update basic task fields
-            $updateFields = array_filter([
-                'title' => $taskData['title'] ?? null,
-                'description' => $taskData['description'] ?? null,
-                'difficulty_level' => $taskData['difficulty'] ?? $taskData['difficulty_level'] ?? null,
-                'timer_type' => $taskData['timer_mode'] ?? null,
-                'is_published' => isset($taskData['is_published']) ? (bool) $taskData['is_published'] : null,
-            ], fn ($v) => $v !== null);
+            $updateFields = [];
+            if (isset($taskData['title'])) $updateFields['title'] = $taskData['title'];
+            if (isset($taskData['description'])) $updateFields['description'] = $taskData['description'];
+            if (isset($taskData['difficulty']) || isset($taskData['difficulty_level'])) {
+                $updateFields['difficulty_level'] = $taskData['difficulty'] ?? $taskData['difficulty_level'];
+            }
+            if (isset($taskData['timer_mode'])) $updateFields['timer_type'] = $taskData['timer_mode'];
+            if (isset($taskData['is_published'])) $updateFields['is_published'] = (bool) $taskData['is_published'];
 
             // Handle timer settings -> time_limit_seconds conversion
             if (!empty($taskData['timer_settings'])) {
@@ -286,6 +287,9 @@ class ListeningTaskService
                             // Store transcript and instruction as task-level metadata
                             if (!empty($group['transcript'])) {
                                 $task->update(['transcript' => json_encode($group['transcript'])]);
+                            }
+                            if (!empty($group['instruction'])) {
+                                $task->update(['instructions' => $group['instruction']]);
                             }
 
                             // Handle image uploads

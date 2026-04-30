@@ -23,7 +23,7 @@ class StoreListeningTaskRequest extends BaseRequest
             'title'                => 'required|string|max:255',
             'description'          => 'nullable|string|max:1000',
             'instructions'         => 'nullable|string|max:2000',
-            'difficulty'           => 'required|in:beginner,intermediate,advanced',
+            'difficulty'           => 'required|in:beginner,elementary,intermediate,upper_intermediate,advanced,proficiency',
             'timer_mode'           => 'nullable|in:countdown,countup,none',
             'timer_settings'       => 'nullable|array',
             'timer_settings.hours'   => 'nullable|integer|min:0|max:23',

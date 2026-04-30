@@ -34,6 +34,7 @@ class ListeningSubmissionController extends Controller implements HasMiddleware
     {
         $user = Auth::user();
         $taskId = $request->query('task_id');
+        $assignmentId = $request->query('assignment_id');
 
         if ($taskId) {
             $task = ListeningTask::findOrFail($taskId);
@@ -49,9 +50,35 @@ class ListeningSubmissionController extends Controller implements HasMiddleware
         } else {
             // If no task_id, return student's own submissions or teacher's task submissions
             if ($user->role === 'student') {
-                $submissions = ListeningSubmission::query()->where('student_id', '=', $user->id)->with(['task', 'review'])
-                    ->orderBy('submitted_at', 'desc')
-                    ->get();
+                if ($assignmentId) {
+                    // Resolve the task_id from the assignment so we can fetch ALL attempts
+                    // for that task (attempt_number is global per task/student, not per assignment)
+                    $assignment = \App\Models\Assignment::find($assignmentId);
+                    $resolvedTaskId = $assignment?->task_id;
+
+                    if ($resolvedTaskId) {
+                        // Return all submitted attempts for this task by this student
+                        $submissions = ListeningSubmission::query()
+                            ->where('listening_task_id', $resolvedTaskId)
+                            ->where('student_id', $user->id)
+                            ->with(['task', 'review'])
+                            ->orderBy('attempt_number', 'asc')
+                            ->get();
+                    } else {
+                        // Fallback: filter directly by assignment_id
+                        $submissions = ListeningSubmission::query()
+                            ->where('student_id', $user->id)
+                            ->where('assignment_id', $assignmentId)
+                            ->with(['task', 'review'])
+                            ->orderBy('attempt_number', 'asc')
+                            ->get();
+                    }
+                } else {
+                    $submissions = ListeningSubmission::query()->where('student_id', '=', $user->id)
+                        ->with(['task', 'review'])
+                        ->orderBy('submitted_at', 'desc')
+                        ->get();
+                }
             } elseif ($user->role === 'admin') {
                 $submissions = ListeningSubmission::with(['student', 'task', 'review'])
                     ->orderBy('submitted_at', 'desc')
@@ -222,7 +249,7 @@ class ListeningSubmissionController extends Controller implements HasMiddleware
      */
     public function submit(Request $request, string $submissionId)
     {
-        $submission = ListeningSubmission::findOrFail($submissionId);
+        $submission = ListeningSubmission::with('task')->findOrFail($submissionId);
         $user = Auth::user();
 
         if ($submission->student_id !== $user->id) {
@@ -230,7 +257,7 @@ class ListeningSubmissionController extends Controller implements HasMiddleware
         }
 
         try {
-            $submission = $this->service->submit($submission->task, $user, $request->all(), $request);
+            $submission = $this->service->submitById($submission, $user, $request->all());
 
             return response()->json([
                 'message' => 'Listening submission finalized successfully',
