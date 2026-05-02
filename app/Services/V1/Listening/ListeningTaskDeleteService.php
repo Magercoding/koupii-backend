@@ -32,16 +32,8 @@ class ListeningTaskDeleteService
                 // Delete task-related files
                 $this->deleteTaskFiles($task);
 
-                // Check if task has submissions
-                $submissionsCount = ListeningSubmission::where('listening_task_id', $task->id)->count();
-
-                if ($submissionsCount > 0) {
-                    // If task has submissions, soft delete or archive instead
-                    $this->archiveTaskWithSubmissions($task);
-                } else {
-                    // Safe to hard delete if no submissions
-                    $this->hardDeleteTask($task);
-                }
+                // Hard delete the task and all related data
+                $this->hardDeleteTask($task);
             });
 
             return ['message' => 'Listening task deleted successfully', 'status' => 200];
@@ -63,7 +55,7 @@ class ListeningTaskDeleteService
         }
 
         // Task creator can delete their own task
-        return $task->creator_id === $user->id;
+        return $task->created_by === $user->id;
     }
 
     /**
@@ -109,16 +101,14 @@ class ListeningTaskDeleteService
 
     /**
      * Hard delete task and all related data.
+     * DB foreign keys cascade, so deleting the task removes all related records automatically.
      */
     private function hardDeleteTask(ListeningTask $task): void
     {
-        // Delete assignments first
+        // Delete assignments (no cascade from listening_tasks to assignments table)
         Assignment::where('task_id', $task->id)->where('task_type', 'listening_task')->delete();
 
-        // Delete any orphaned question answers (shouldn't exist without submissions)
-        ListeningQuestionAnswer::where('listening_task_id', $task->id)->delete();
-
-        // Delete the task itself
+        // Delete the task — DB cascades handle questions, submissions, answers, reviews, analytics
         $task->delete();
     }
 

@@ -45,6 +45,9 @@ class ListeningTaskResource extends JsonResource
             'can_edit'   => $user && ($user->role === 'admin' || ($user->role === 'teacher' && $this->created_by === $user->id)),
             'can_delete' => $user && ($user->role === 'admin' || ($user->role === 'teacher' && $this->created_by === $user->id)),
 
+            // Passages data — each passage has its own audio_url and question_ids
+            'passages_data' => $this->passages_data ?? null,
+
             // Questions — exposed to ALL authenticated users
             'questions' => $this->whenLoaded('questions', function () use ($isStudent, $user) {
                 // If it's a student, check if they have a completed submission to allow seeing answers
@@ -63,6 +66,8 @@ class ListeningTaskResource extends JsonResource
                             'question_type' => $q->question_type,
                             'question_text' => $q->question_text,
                             'order'         => $q->order_index ?? $q->order ?? 0,
+                            'order_index'   => $q->order_index ?? $q->order ?? 0,
+                            'passage_index' => $q->passage_index ?? 0,
                             'points'        => $q->points,
                             'options'       => collect($q->options ?? [])->map(function ($opt, $idx) {
                                 if (is_string($opt)) {

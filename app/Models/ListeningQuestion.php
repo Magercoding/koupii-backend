@@ -52,6 +52,7 @@ class ListeningQuestion extends Model
 
     protected $fillable = [
         'listening_task_id',
+        'passage_index',
         'question_type',
         'question_text',
         'options',

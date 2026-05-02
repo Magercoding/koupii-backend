@@ -52,6 +52,7 @@ class StoreListeningTaskRequest extends BaseRequest
             'passages.*.question_groups.*.questions.*.options.*.option_text'                    => 'required_with:passages.*.question_groups.*.questions.*.options|string',
             'passages.*.question_groups.*.questions.*.correct_answer'                           => 'nullable',
             'passages.*.question_groups.*.questions.*.points'                                   => 'nullable|numeric|min:0',
+            'passages.*.question_groups.*.questions.*.points_value'                             => 'nullable|numeric|min:0',
             'passages.*.question_groups.*.questions.*.breakdown'                                => 'nullable|array',
             'passages.*.question_groups.*.questions.*.breakdown.explanation'                    => 'nullable|string',
         ];

@@ -572,6 +572,7 @@ class StudentDashboardController extends Controller
             $task->load('questions');
             return response()->json([
                 'data' => array_merge($task->toArray(), [
+                    'passages_data' => $task->passages_data,
                     'questions' => $task->questions->map(function ($q) {
                         return [
                             'id'               => $q->id,
@@ -580,6 +581,7 @@ class StudentDashboardController extends Controller
                             'question_text'    => $q->question_text,
                             'question_number'  => $q->order_index,
                             'order_index'      => $q->order_index,
+                            'passage_index'    => $q->passage_index ?? 0,
                             'options'          => $q->options ?? [],
                             'points'           => $q->points,
                             'start_time'       => $q->start_time,

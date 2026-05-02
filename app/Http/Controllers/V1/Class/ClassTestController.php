@@ -76,7 +76,7 @@ class ClassTestController extends Controller
                 })
                 ->orderBy('created_at', 'desc')
                 ->get()
-                ->map(fn ($t) => (new TestResource($t))->resolve());
+                ->map(fn ($t) => array_merge((new TestResource($t))->resolve(), ['source' => 'test']));
 
             // New task-based tests created with class_id (not yet assigned)
             $taskType = $request->get('type');
@@ -93,6 +93,7 @@ class ClassTestController extends Controller
                     'title' => $t->title ?? 'Untitled',
                     'description' => $t->description,
                     'type' => 'reading',
+                    'source' => 'reading_task',
                     'difficulty' => $t->difficulty_level ?? $t->difficulty ?? 'beginner',
                     'test_type' => 'single',
                     'timer_mode' => $t->timer_type ?? 'none',
@@ -118,6 +119,7 @@ class ClassTestController extends Controller
                     'title' => $t->title ?? 'Untitled',
                     'description' => $t->description,
                     'type' => 'listening',
+                    'source' => 'listening_task',
                     'difficulty' => $t->difficulty_level ?? $t->difficulty ?? 'beginner',
                     'test_type' => 'single',
                     'timer_mode' => $t->timer_type ?? 'none',
@@ -142,6 +144,7 @@ class ClassTestController extends Controller
                     'title' => $t->title ?? 'Untitled',
                     'description' => $t->description,
                     'type' => 'speaking',
+                    'source' => 'speaking_task',
                     'difficulty' => $t->difficulty_level ?? 'beginner',
                     'test_type' => 'single',
                     'timer_mode' => $t->timer_type ?? 'none',
@@ -167,6 +170,7 @@ class ClassTestController extends Controller
                     'title' => $t->title ?? 'Untitled',
                     'description' => $t->description,
                     'type' => 'writing',
+                    'source' => 'writing_task',
                     'difficulty' => $t->difficulty ?? 'beginner',
                     'test_type' => 'single',
                     'timer_mode' => $t->timer_type ?? 'none',

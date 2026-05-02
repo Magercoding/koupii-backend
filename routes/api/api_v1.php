@@ -16,16 +16,29 @@ Route::get('/health', fn() => response()->json(['ok' => true, 'time' => time()])
  * @unauthenticated
  */
 Route::get('/audio/{path}', function (string $path) {
+    // Try local public storage first
     $fullPath = storage_path('app/public/' . $path);
 
-    if (!file_exists($fullPath)) {
-        abort(404, 'Audio file not found');
+    if (file_exists($fullPath)) {
+        return response()->file($fullPath, [
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
     }
 
-    return response()->file($fullPath, [
-        'Accept-Ranges' => 'bytes',
-        'Cache-Control' => 'public, max-age=3600',
-    ]);
+    // Fall back to R2/cloud storage — generate a temporary signed URL and redirect
+    try {
+        $disk = \Illuminate\Support\Facades\Storage::disk(config('filesystems.default', 'public'));
+        if ($disk->exists($path)) {
+            // Generate a signed URL valid for 1 hour
+            $signedUrl = $disk->temporaryUrl($path, now()->addHour());
+            return redirect($signedUrl);
+        }
+    } catch (\Exception $e) {
+        // ignore and fall through to 404
+    }
+
+    abort(404, 'Audio file not found');
 })->where('path', '.*');
 
 

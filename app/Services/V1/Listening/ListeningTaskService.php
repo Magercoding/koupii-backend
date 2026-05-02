@@ -115,20 +115,28 @@ class ListeningTaskService
             // 2. Handle audio file upload and iterate passages → question_groups → questions
             if (!empty($taskData['passages']) && is_array($taskData['passages'])) {
                 $questionOrder = 0;
+                $passagesData  = [];
 
                 foreach ($taskData['passages'] as $pIndex => $passage) {
+                    $passageAudioUrl = null;
+
                     // Handle audio file upload for this passage
                     if ($request && $request->hasFile("passages.{$pIndex}.audio_file")) {
-                        $audioFile = $request->file("passages.{$pIndex}.audio_file");
-                        $audioUrl  = FileUploadHelper::upload($audioFile, "listening/audio/{$task->id}");
-                        $task->update(['audio_url' => $audioUrl]);
+                        $audioFile       = $request->file("passages.{$pIndex}.audio_file");
+                        $passageAudioUrl = FileUploadHelper::upload($audioFile, "listening/audio/{$task->id}");
+                        // Keep first passage audio as the legacy audio_url for backwards compat
+                        if ($pIndex === 0) {
+                            $task->update(['audio_url' => $passageAudioUrl]);
+                        }
                     }
+
+                    $passageQuestionIds = [];
 
                     // Iterate question groups
                     if (!empty($passage['question_groups']) && is_array($passage['question_groups'])) {
                         foreach ($passage['question_groups'] as $gIndex => $group) {
-                            // Persist transcript at task level if present
-                            if (!empty($group['transcript'])) {
+                            // Persist transcript at task level if present (first group only for legacy)
+                            if (!empty($group['transcript']) && $pIndex === 0 && $gIndex === 0) {
                                 $task->update(['transcript' => json_encode($group['transcript'])]);
                             }
 
@@ -137,8 +145,9 @@ class ListeningTaskService
                                 foreach ($group['questions'] as $question) {
                                     $questionOrder++;
 
-                                    ListeningQuestion::create([
+                                    $q = ListeningQuestion::create([
                                         'listening_task_id' => $task->id,
+                                        'passage_index'     => $pIndex,
                                         'question_type'     => $question['question_type'] ?? 'multiple_choice',
                                         'question_text'     => $question['question_text'] ?? '',
                                         'options'           => $question['options'] ?? null,
@@ -147,11 +156,25 @@ class ListeningTaskService
                                         'order_index'       => $question['question_number'] ?? $questionOrder,
                                         'explanation'       => $question['breakdown']['explanation'] ?? null,
                                     ]);
+
+                                    $passageQuestionIds[] = $q->id;
                                 }
                             }
                         }
                     }
+
+                    // Build passage metadata
+                    $passagesData[] = [
+                        'index'       => $pIndex,
+                        'audio_url'   => $passageAudioUrl,
+                        'instruction' => $passage['question_groups'][0]['instruction'] ?? null,
+                        'transcript'  => $passage['question_groups'][0]['transcript'] ?? null,
+                        'question_ids'=> $passageQuestionIds,
+                    ];
                 }
+
+                // Store passages metadata on the task
+                $task->update(['passages_data' => $passagesData]);
             }
 
             // 3. Create Assignment record only when explicitly requested
@@ -275,30 +298,45 @@ class ListeningTaskService
                 $task->questions()->delete();
 
                 $questionOrder = 0;
+                $passagesData  = [];
+
                 foreach ($taskData['passages'] as $pIndex => $passage) {
+                    $passageAudioUrl = null;
+
                     // Handle audio file upload
                     if ($request && $request->hasFile("passages.{$pIndex}.audio_file")) {
-                        $audioFile = $request->file("passages.{$pIndex}.audio_file");
-                        $audioPath = $audioFile->store("listening/audio/{$task->id}", 'public');
-                        $task->update(['audio_url' => $audioPath]);
+                        $audioFile       = $request->file("passages.{$pIndex}.audio_file");
+                        $audioPath       = $audioFile->store("listening/audio/{$task->id}", 'public');
+                        $passageAudioUrl = $audioPath;
+                        if ($pIndex === 0) {
+                            $task->update(['audio_url' => $audioPath]);
+                        }
+                    } else {
+                        // Preserve existing audio URL from passages_data if no new file uploaded
+                        $existingPassages = $task->passages_data ?? [];
+                        $passageAudioUrl  = $existingPassages[$pIndex]['audio_url'] ?? null;
+                        // Also check existing_audio_url sent from frontend
+                        if (!$passageAudioUrl && !empty($passage['existing_audio_url'])) {
+                            $passageAudioUrl = $passage['existing_audio_url'];
+                        }
+                        if ($pIndex === 0 && $passageAudioUrl && !$task->audio_url) {
+                            $task->update(['audio_url' => $passageAudioUrl]);
+                        }
                     }
+
+                    $passageQuestionIds = [];
 
                     // Handle question groups
                     if (!empty($passage['question_groups']) && is_array($passage['question_groups'])) {
                         foreach ($passage['question_groups'] as $gIndex => $group) {
-                            // Store transcript and instruction as task-level metadata
-                            if (!empty($group['transcript'])) {
-                                $task->update(['transcript' => json_encode($group['transcript'])]);
-                            }
-                            if (!empty($group['instruction'])) {
-                                $task->update(['instructions' => $group['instruction']]);
-                            }
-
-                            // Handle image uploads
-                            if ($request && $request->hasFile("passages.{$pIndex}.question_groups.{$gIndex}.image.file")) {
-                                $imageFile = $request->file("passages.{$pIndex}.question_groups.{$gIndex}.image.file");
-                                $imagePath = $imageFile->store("listening/images/{$task->id}", 'public');
-                                // Could store in audio_segments or separate field depending on schema
+                            // Store transcript and instruction as task-level metadata (first passage only for legacy)
+                            if ($pIndex === 0 && $gIndex === 0) {
+                                if (!empty($group['transcript'])) {
+                                    $task->update(['transcript' => json_encode($group['transcript'])]);
+                                }
+                                if (!empty($group['instruction'])) {
+                                    $task->update(['instructions' => $group['instruction']]);
+                                }
                             }
 
                             // Create questions
@@ -306,21 +344,34 @@ class ListeningTaskService
                                 foreach ($group['questions'] as $qIndex => $question) {
                                     $questionOrder++;
 
-                                    \App\Models\ListeningQuestion::create([
+                                    $q = \App\Models\ListeningQuestion::create([
                                         'listening_task_id' => $task->id,
-                                        'question_type' => $question['question_type'] ?? 'multiple_choice',
-                                        'question_text' => $question['question_text'] ?? '',
-                                        'options' => $question['options'] ?? null,
-                                        'correct_answers' => $this->normalizeCorrectAnswer($question['correct_answer'] ?? null),
-                                        'points' => (int) ($question['points'] ?? $question['points_value'] ?? 1),
-                                        'order_index' => $question['question_number'] ?? $questionOrder,
-                                        'explanation' => $question['breakdown']['explanation'] ?? null,
+                                        'passage_index'     => $pIndex,
+                                        'question_type'     => $question['question_type'] ?? 'multiple_choice',
+                                        'question_text'     => $question['question_text'] ?? '',
+                                        'options'           => $question['options'] ?? null,
+                                        'correct_answers'   => $this->normalizeCorrectAnswer($question['correct_answer'] ?? null),
+                                        'points'            => (int) ($question['points'] ?? $question['points_value'] ?? 1),
+                                        'order_index'       => $question['question_number'] ?? $questionOrder,
+                                        'explanation'       => $question['breakdown']['explanation'] ?? null,
                                     ]);
+
+                                    $passageQuestionIds[] = $q->id;
                                 }
                             }
                         }
                     }
+
+                    $passagesData[] = [
+                        'index'        => $pIndex,
+                        'audio_url'    => $passageAudioUrl,
+                        'instruction'  => $passage['question_groups'][0]['instruction'] ?? null,
+                        'transcript'   => $passage['question_groups'][0]['transcript'] ?? null,
+                        'question_ids' => $passageQuestionIds,
+                    ];
                 }
+
+                $task->update(['passages_data' => $passagesData]);
             }
 
             return $task->fresh(['creator', 'questions']);
