@@ -54,24 +54,41 @@ class TestResource extends JsonResource
             'attempts_count'       => (int) ($get('attempts_count') ?? ($get('r_count', 0) + $get('l_count', 0) + $get('w_count', 0) + $get('s_count', 0))),
             'attempts'             => (int) ($get('attempts_count') ?? ($get('r_count', 0) + $get('l_count', 0) + $get('w_count', 0) + $get('s_count', 0))), // Alias for frontend
 
-            // Only available on full Eloquent models with eager-loaded relations
+            // Handle specialized task models that use JSON columns instead of relations
             'passages' => $isEloquentModel
-                ? $this->whenLoaded('passages', fn () => PassageResource::collection($this->passages))
+                ? ($this->resource instanceof \App\Models\ReadingTask 
+                    ? ($this->passages ?? [])
+                    : $this->whenLoaded('passages', fn () => PassageResource::collection($this->passages)))
                 : [],
+            'vocabularies' => ($isEloquentModel && $this->resource instanceof \App\Models\ReadingTask) ? ($this->vocabularies ?? []) : [],
+            
+            // For Listening tasks
+            'audio_url' => ($isEloquentModel && $this->resource instanceof \App\Models\ListeningTask) ? $this->audio_url : null,
+            'transcript' => ($isEloquentModel && $this->resource instanceof \App\Models\ListeningTask) ? $this->transcript : null,
+
             'speaking_sections' => $isEloquentModel
-                ? $this->whenLoaded('speakingSections', fn () => SpeakingSectionResource::collection($this->speakingSections))
+                ? ($this->resource instanceof \App\Models\SpeakingTask
+                    ? ($this->questions ?? []) // Normalize SpeakingTask questions
+                    : $this->whenLoaded('speakingSections', fn () => SpeakingSectionResource::collection($this->speakingSections)))
                 : [],
             'listening_tasks' => $isEloquentModel
-                ? $this->whenLoaded('listeningTasks', fn () => ListeningTaskResource::collection($this->listeningTasks))
+                ? ($this->resource instanceof \App\Models\ListeningTask
+                    ? ($this->audio_segments ?? [])
+                    : $this->whenLoaded('listeningTasks', fn () => ListeningTaskResource::collection($this->listeningTasks)))
                 : [],
             'writing_tasks' => $isEloquentModel
-                ? $this->whenLoaded('writingTasks', fn () => WritingTaskResource::collection($this->writingTasks))
+                ? ($this->resource instanceof \App\Models\WritingTask
+                    ? (is_array($this->questions) ? $this->questions : [])
+                    : $this->whenLoaded('writingTasks', fn () => WritingTaskResource::collection($this->writingTasks)))
                 : [],
             'creator' => $isEloquentModel
-                ? $this->whenLoaded('creator', fn () => [
+                ? ($this->relationLoaded('creator') ? [
                     'id'    => $this->creator->id,
                     'name'  => $this->creator->name,
                     'email' => $this->creator->email,
+                ] : [
+                    'id' => $get('creator_id'),
+                    'name' => 'Instructor'
                 ])
                 : null,
             'class' => $isEloquentModel

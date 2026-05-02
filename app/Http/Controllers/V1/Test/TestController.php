@@ -93,11 +93,15 @@ class TestController extends Controller
     /**
      * Display the specified test.
      */
-    public function show(Test $test)
+    public function show($id)
     {
         try {
-            $test = $this->testService->getTestWithQuestions($test);
+            $test = $this->testService->findAnyTaskById($id);
             
+            if (!$test) {
+                return response()->json(['message' => 'Test not found'], 404);
+            }
+
             return response()->json([
                 'data' => new TestResource($test)
             ]);

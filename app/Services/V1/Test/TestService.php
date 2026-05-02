@@ -136,9 +136,55 @@ class TestService
         }
     }
 
-    public function getTestWithQuestions(Test $test)
+    /**
+     * Find a test or task by ID across all tables
+     */
+    public function findAnyTaskById(string $id)
     {
-        return $test->load(['passages.questionGroups.questions.options']);
+        // 1. Try legacy Test model
+        $test = Test::find($id);
+        if ($test) {
+            return $this->getTestWithQuestions($test);
+        }
+
+        // 2. Try ReadingTask
+        $reading = ReadingTask::find($id);
+        if ($reading) {
+            $reading->type = 'reading';
+            return $reading;
+        }
+
+        // 3. Try ListeningTask
+        $listening = ListeningTask::find($id);
+        if ($listening) {
+            $listening->type = 'listening';
+            return $listening;
+        }
+
+        // 4. Try WritingTask
+        $writing = WritingTask::find($id);
+        if ($writing) {
+            $writing->type = 'writing';
+            return $writing;
+        }
+
+        // 5. Try SpeakingTask
+        $speaking = SpeakingTask::find($id);
+        if ($speaking) {
+            $speaking->type = 'speaking';
+            return $speaking;
+        }
+
+        return null;
+    }
+
+    public function getTestWithQuestions($test)
+    {
+        if ($test instanceof Test) {
+            return $test->load(['passages.questionGroups.questions.options']);
+        }
+        
+        return $test;
     }
 
     public function getTestsForUser($filters = [])
