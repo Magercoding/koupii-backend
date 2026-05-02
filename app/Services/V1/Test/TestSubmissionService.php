@@ -87,7 +87,7 @@ class TestSubmissionService
         return $this->formatResults($studentAssignments, $assignment);
     }
 
-    public function getTestAttempt(Test $test)
+    public function getTestAttempt($test)
     {
         $studentId = auth()->id();
         
@@ -96,16 +96,20 @@ class TestSubmissionService
         
         $attemptCount = $this->getAttemptCount($test, $studentId);
         
-        if (!$test->allow_repetition && $attemptCount > 0) {
+        $allowRepetition = $test->allow_repetition ?? $test->allow_retake ?? true;
+        $maxRepetition = $test->max_repetition_count ?? $test->max_retake_attempts ?? 0;
+
+        if (!$allowRepetition && $attemptCount > 0) {
             throw new \Exception('You have already submitted this test and repetition is not allowed');
         }
         
-        if ($test->max_repetition_count && $attemptCount >= $test->max_repetition_count) {
+        if ($maxRepetition > 0 && $attemptCount >= $maxRepetition) {
             throw new \Exception('Maximum number of attempts reached');
         }
 
         // Load specific relations based on test type
-        $relations = match ($test->type) {
+        $type = $test->type ?? $test->task_type ?? 'unknown';
+        $relations = match ($type) {
             'reading'   => ['passages.questionGroups.questions.options'],
             'listening' => ['listeningTasks.questions'],
             'speaking'  => ['speakingSections.topics.questions'],
@@ -251,7 +255,7 @@ class TestSubmissionService
         ];
     }
 
-    private function getAttemptCount(Test $test, $studentId)
+    private function getAttemptCount($test, $studentId)
     {
         // This would need to be implemented based on how you track direct test attempts
         // For now, returning 0 as this might be for practice/public tests

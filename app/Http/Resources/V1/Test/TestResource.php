@@ -36,9 +36,9 @@ class TestResource extends JsonResource
             'cover_image'          => $get('cover_image'),
             'image'                => $get('cover_image'), // Alias for frontend
             'description'          => $get('description'),
-            'type'                 => $get('type'),
-            'difficulty'           => $get('difficulty'),
-            'test_type'            => $get('test_type', $get('type')),
+            'type'                 => $get('type', $get('task_type')),
+            'difficulty'           => $get('difficulty', $get('difficulty_level')),
+            'test_type'            => $get('test_type', $get('type', $get('task_type'))),
             'timer_mode'           => $get('timer_mode', 'none'),
             'timer_settings'       => $get('timer_settings'),
             'allow_repetition'     => $get('allow_repetition', false),

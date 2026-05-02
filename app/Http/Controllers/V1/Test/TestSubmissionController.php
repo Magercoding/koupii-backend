@@ -12,10 +12,14 @@ use Illuminate\Http\Request;
 class TestSubmissionController extends Controller
 {
     protected TestSubmissionService $submissionService;
+    protected \App\Services\V1\Test\TestService $testService;
 
-    public function __construct(TestSubmissionService $submissionService)
-    {
+    public function __construct(
+        TestSubmissionService $submissionService,
+        \App\Services\V1\Test\TestService $testService
+    ) {
         $this->submissionService = $submissionService;
+        $this->testService = $testService;
     }
 
     /**
@@ -76,9 +80,16 @@ class TestSubmissionController extends Controller
      * Get test attempt for student (to continue or start)
      * Validates class enrollment for class-based tests
      */
-    public function attempt(Test $test)
+    public function attempt($id)
     {
         try {
+            // Find test using universal lookup
+            $test = $this->testService->findAnyTaskById($id);
+            
+            if (!$test) {
+                return response()->json(['message' => 'Test not found'], 404);
+            }
+
             // Validate access for class-based tests
             if ($test->class_id && !$test->is_public) {
                 $user = auth()->user();
@@ -118,15 +129,15 @@ class TestSubmissionController extends Controller
             return response()->json([
                 'data' => array_merge($testResource, [
                     'test' => [
-                        'id' => $test->id,
-                        'title' => $test->title,
-                        'description' => $test->description,
-                        'type' => $test->type,
-                        'difficulty' => $test->difficulty,
-                        'timer_mode' => $test->timer_mode,
-                        'timer_settings' => $test->timer_settings,
-                        'allow_repetition' => $test->allow_repetition,
-                        'max_repetition_count' => $test->max_repetition_count,
+                        'id' => $testResource['id'],
+                        'title' => $testResource['title'],
+                        'description' => $testResource['description'],
+                        'type' => $testResource['type'] ?? $testResource['test_type'],
+                        'difficulty' => $testResource['difficulty'],
+                        'timer_mode' => $testResource['timer_mode'],
+                        'timer_settings' => $testResource['timer_settings'],
+                        'allow_repetition' => $testResource['allow_repetition'],
+                        'max_repetition_count' => $testResource['max_repetition_count'],
                     ],
                     // Keep compatibility with legacy frontend structure that expects root-level passages
                     'passages' => $testResource['passages'] ?? [],
