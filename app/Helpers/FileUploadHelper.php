@@ -23,6 +23,24 @@ class FileUploadHelper
     }
 
     /**
+     * Upload a file and return both the URL and the original filename.
+     *
+     * @param UploadedFile $file
+     * @param string $folder
+     * @return array{url: string, original_name: string}
+     */
+    public static function uploadWithMeta(UploadedFile $file, string $folder): array
+    {
+        $extension = $file->getClientOriginalExtension();
+        $filename = uniqid() . '.' . $extension;
+        $path = $file->storeAs($folder, $filename, 'public');
+        return [
+            'url'           => Storage::url($path),
+            'original_name' => $file->getClientOriginalName(),
+        ];
+    }
+
+    /**
      * Hapus file berdasarkan URL `/storage/...`
      *
      * @param string $fileUrl

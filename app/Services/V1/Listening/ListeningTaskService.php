@@ -118,12 +118,15 @@ class ListeningTaskService
                 $passagesData  = [];
 
                 foreach ($taskData['passages'] as $pIndex => $passage) {
-                    $passageAudioUrl = null;
+                    $passageAudioUrl  = null;
+                    $passageAudioName = null;
 
                     // Handle audio file upload for this passage
                     if ($request && $request->hasFile("passages.{$pIndex}.audio_file")) {
-                        $audioFile       = $request->file("passages.{$pIndex}.audio_file");
-                        $passageAudioUrl = FileUploadHelper::upload($audioFile, "listening/audio/{$task->id}");
+                        $audioFile        = $request->file("passages.{$pIndex}.audio_file");
+                        $uploaded         = FileUploadHelper::uploadWithMeta($audioFile, "listening/audio/{$task->id}");
+                        $passageAudioUrl  = $uploaded['url'];
+                        $passageAudioName = $uploaded['original_name'];
                         // Keep first passage audio as the legacy audio_url for backwards compat
                         if ($pIndex === 0) {
                             $task->update(['audio_url' => $passageAudioUrl]);
@@ -165,11 +168,12 @@ class ListeningTaskService
 
                     // Build passage metadata
                     $passagesData[] = [
-                        'index'       => $pIndex,
-                        'audio_url'   => $passageAudioUrl,
-                        'instruction' => $passage['question_groups'][0]['instruction'] ?? null,
-                        'transcript'  => $passage['question_groups'][0]['transcript'] ?? null,
-                        'question_ids'=> $passageQuestionIds,
+                        'index'        => $pIndex,
+                        'audio_url'    => $passageAudioUrl,
+                        'audio_name'   => $passageAudioName,
+                        'instruction'  => $passage['question_groups'][0]['instruction'] ?? null,
+                        'transcript'   => $passage['question_groups'][0]['transcript'] ?? null,
+                        'question_ids' => $passageQuestionIds,
                     ];
                 }
 
@@ -255,11 +259,17 @@ class ListeningTaskService
             if (isset($taskData['title'])) $updateFields['title'] = $taskData['title'];
             if (isset($taskData['description'])) $updateFields['description'] = $taskData['description'];
             if (isset($taskData['difficulty']) || isset($taskData['difficulty_level'])) {
-                $updateFields['difficulty_level'] = $taskData['difficulty'] ?? $taskData['difficulty_level'];
+                $diff = $taskData['difficulty'] ?? $taskData['difficulty_level'];
+                $updateFields['difficulty_level'] = $diff;
+                $updateFields['difficulty']       = $diff;
             }
             if (isset($taskData['timer_mode'])) $updateFields['timer_type'] = $taskData['timer_mode'];
             if (isset($taskData['is_public'])) $updateFields['is_public'] = (bool) $taskData['is_public'];
             if (isset($taskData['is_published'])) $updateFields['is_published'] = (bool) $taskData['is_published'];
+            // Always update class_id (allow clearing it by passing null/empty string)
+            if (array_key_exists('class_id', $taskData)) {
+                $updateFields['class_id'] = $taskData['class_id'] ?: null;
+            }
 
             // Handle timer settings -> time_limit_seconds conversion
             if (!empty($taskData['timer_settings'])) {
@@ -301,20 +311,23 @@ class ListeningTaskService
                 $passagesData  = [];
 
                 foreach ($taskData['passages'] as $pIndex => $passage) {
-                    $passageAudioUrl = null;
+                    $passageAudioUrl  = null;
+                    $passageAudioName = null;
 
                     // Handle audio file upload
                     if ($request && $request->hasFile("passages.{$pIndex}.audio_file")) {
-                        $audioFile       = $request->file("passages.{$pIndex}.audio_file");
-                        $audioPath       = $audioFile->store("listening/audio/{$task->id}", 'public');
-                        $passageAudioUrl = $audioPath;
+                        $audioFile        = $request->file("passages.{$pIndex}.audio_file");
+                        $uploaded         = FileUploadHelper::uploadWithMeta($audioFile, "listening/audio/{$task->id}");
+                        $passageAudioUrl  = $uploaded['url'];
+                        $passageAudioName = $uploaded['original_name'];
                         if ($pIndex === 0) {
-                            $task->update(['audio_url' => $audioPath]);
+                            $task->update(['audio_url' => $passageAudioUrl]);
                         }
                     } else {
-                        // Preserve existing audio URL from passages_data if no new file uploaded
+                        // Preserve existing audio URL and name from passages_data if no new file uploaded
                         $existingPassages = $task->passages_data ?? [];
                         $passageAudioUrl  = $existingPassages[$pIndex]['audio_url'] ?? null;
+                        $passageAudioName = $existingPassages[$pIndex]['audio_name'] ?? null;
                         // Also check existing_audio_url sent from frontend
                         if (!$passageAudioUrl && !empty($passage['existing_audio_url'])) {
                             $passageAudioUrl = $passage['existing_audio_url'];
@@ -365,6 +378,7 @@ class ListeningTaskService
                     $passagesData[] = [
                         'index'        => $pIndex,
                         'audio_url'    => $passageAudioUrl,
+                        'audio_name'   => $passageAudioName,
                         'instruction'  => $passage['question_groups'][0]['instruction'] ?? null,
                         'transcript'   => $passage['question_groups'][0]['transcript'] ?? null,
                         'question_ids' => $passageQuestionIds,
