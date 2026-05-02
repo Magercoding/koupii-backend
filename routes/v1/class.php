@@ -80,6 +80,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
             // Class Submissions
             Route::get('submissions', [\App\Http\Controllers\V1\Class\ClassSubmissionController::class, 'index']);
+            Route::get('analytics', [\App\Http\Controllers\V1\Class\ClassAnalyticsController::class, 'show']);
         });
     });
 });
