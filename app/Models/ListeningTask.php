@@ -97,6 +97,7 @@ class ListeningTask extends Model
         'replay_settings',
         'difficulty_level',
         'question_types',
+        'is_public',
     ];
 
     protected $casts = [
@@ -104,6 +105,7 @@ class ListeningTask extends Model
         'retake_options' => 'array',
         'allow_submission_files' => 'boolean',
         'is_published' => 'boolean',
+        'is_public' => 'boolean',
         'audio_segments' => 'array',
         'show_transcript' => 'boolean',
         'allow_replay' => 'boolean',

@@ -10,6 +10,7 @@ use App\Models\TestQuestion;
 use App\Models\ListeningTask;
 use App\Models\WritingTask;
 use App\Models\SpeakingTask;
+use App\Models\ReadingTask;
 use App\Events\TestAssignedToClass;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -144,61 +145,60 @@ class TestService
     {
         $userId = auth('sanctum')->id();
         $requestedType = $filters['type'] ?? null;
-
-        // Public tests: query the tests table directly
-        if ((isset($filters['is_public']) && $filters['is_public']) || (auth('sanctum')->check() && auth('sanctum')->user()->role === 'student' && !isset($filters['class_id']))) {
-            $query = Test::where('is_public', true)
-                ->where('is_published', true)
-                ->with([
-                    'passages.questionGroups.questions',
-                    'listeningTasks.questions',
-                    'writingTasks.taskQuestions',
-                    'speakingSections.topics.questions',
-                    'creator'
-                ]);
-
-            // Add attempts count based on type
-            if ($userId) {
-                // Since listening and writing use different relationship structures, 
-                // we'll handle the total count logic here.
-                $query->withCount([
-                    'readingSubmissions as r_count' => fn($q) => $q->where('student_id', $userId),
-                    'listeningSubmissions as l_count' => fn($q) => $q->where('student_id', $userId),
-                    'writingSubmissions as w_count' => fn($q) => $q->where('student_id', $userId),
-                    // speakingSubmissions removed because the relationship path is broken in the database
-                    // 'speakingSubmissions as s_count' => fn($q) => $q->where('student_id', $userId),
-                ]);
-            }
-
-            if (!empty($filters['search'])) {
-                $query->where('title', 'like', '%' . $filters['search'] . '%');
-            }
-            if (!empty($filters['difficulty'])) {
-                $query->where('difficulty', $filters['difficulty']);
-            }
-            if ($requestedType) {
-                $query->where('type', $requestedType);
-            }
-
-            return $query->orderByDesc('created_at');
-        }
+        $isPublicSearch = (isset($filters['is_public']) && $filters['is_public']) || 
+                         (auth('sanctum')->check() && auth('sanctum')->user()->role === 'student' && !isset($filters['class_id']));
 
         $columns = [
             'id', 'title', 'description', 'type', 'difficulty',
             'is_published', 'created_at', 'updated_at', 'creator_id',
             'test_type', 'timer_mode', 'timer_settings', 'allow_repetition',
-            'max_repetition_count', 'is_public', 'settings',
+            'max_repetition_count', 'is_public', 'settings', 'class_id'
         ];
 
-        // Base Test query (reading + speaking legacy tests)
-        $testQuery = Test::select(array_merge($columns, [
+        // Shared secondary filters (search, is_published, class_id)
+        $applySharedFilters = function ($q, $difficultyColumn = 'difficulty') use ($filters) {
+            if (!empty($filters['search'])) {
+                $q->where('title', 'like', '%' . $filters['search'] . '%');
+            }
+            if (isset($filters['is_published']) && $filters['is_published'] !== null) {
+                $q->where('is_published', (bool)$filters['is_published']);
+            }
+            if (!empty($filters['difficulty'])) {
+                $q->where($difficultyColumn, $filters['difficulty']);
+            }
+            if (!empty($filters['class_id'])) {
+                $q->where('class_id', $filters['class_id']);
+            }
+        };
+
+        // 1. Base Test Query (generic tests table)
+        $testQuery = Test::select(array_merge(array_diff($columns, ['class_id']), [
                 DB::raw("COALESCE(class_id, NULL) as class_id"),
-            ]))
-            ->where('creator_id', $userId);
-        $listeningQuery = ListeningTask::select([
+            ]));
+        
+        if ($isPublicSearch) {
+            $testQuery->where('is_public', true);
+            if (auth('sanctum')->check() && auth('sanctum')->user()->role === 'student') {
+                $testQuery->where('is_published', true);
+            }
+        } else {
+            $testQuery->where('creator_id', $userId);
+        }
+
+        if ($requestedType) {
+            $testQuery->where('type', $requestedType);
+        }
+        $applySharedFilters($testQuery, 'difficulty');
+
+        // 2. Specialized Task Queries
+        $activeQueries = [$testQuery];
+
+        // Reading Tasks
+        if (!$requestedType || $requestedType === 'reading') {
+            $q = ReadingTask::select([
                 'id', 'title', 'description',
-                DB::raw("'listening' as type"),
-                DB::raw("COALESCE(difficulty_level, difficulty, 'beginner') as difficulty"),
+                DB::raw("'reading' as type"),
+                DB::raw("COALESCE(difficulty, difficulty_level, 'beginner') as difficulty"),
                 'is_published', 'created_at', 'updated_at',
                 'created_by as creator_id',
                 DB::raw("'single' as test_type"),
@@ -206,14 +206,52 @@ class TestService
                 DB::raw("CAST(time_limit_seconds AS CHAR) as timer_settings"),
                 DB::raw("COALESCE(allow_retake, 0) as allow_repetition"),
                 DB::raw("COALESCE(max_retake_attempts, 0) as max_repetition_count"),
-                DB::raw("0 as is_public"),
+                'is_public',
                 DB::raw("NULL as settings"),
-                DB::raw("NULL as class_id"),
-            ])
-            ->where('created_by', $userId);
+                'class_id',
+            ]);
+            
+            if ($isPublicSearch) {
+                $q->where('is_public', true);
+                if (auth('sanctum')->check() && auth('sanctum')->user()->role === 'student') $q->where('is_published', true);
+            } else {
+                $q->where('created_by', $userId);
+            }
+            $applySharedFilters($q, 'difficulty'); // ReadingTask has 'difficulty' column
+            $activeQueries[] = $q;
+        }
 
-        // WritingTask query
-        $writingQuery = WritingTask::select([
+        // Listening Tasks
+        if (!$requestedType || $requestedType === 'listening') {
+            $q = ListeningTask::select([
+                'id', 'title', 'description',
+                DB::raw("'listening' as type"),
+                DB::raw("COALESCE(difficulty, difficulty_level, 'beginner') as difficulty"),
+                'is_published', 'created_at', 'updated_at',
+                'created_by as creator_id',
+                DB::raw("'single' as test_type"),
+                DB::raw("COALESCE(timer_type, 'none') as timer_mode"),
+                DB::raw("CAST(time_limit_seconds AS CHAR) as timer_settings"),
+                DB::raw("COALESCE(allow_retake, 0) as allow_repetition"),
+                DB::raw("COALESCE(max_retake_attempts, 0) as max_repetition_count"),
+                'is_public',
+                DB::raw("NULL as settings"),
+                'class_id',
+            ]);
+
+            if ($isPublicSearch) {
+                $q->where('is_public', true);
+                if (auth('sanctum')->check() && auth('sanctum')->user()->role === 'student') $q->where('is_published', true);
+            } else {
+                $q->where('created_by', $userId);
+            }
+            $applySharedFilters($q, 'difficulty');
+            $activeQueries[] = $q;
+        }
+
+        // Writing Tasks
+        if (!$requestedType || $requestedType === 'writing') {
+            $q = WritingTask::select([
                 'id', 'title', 'description',
                 DB::raw("'writing' as type"),
                 DB::raw("COALESCE(difficulty, 'beginner') as difficulty"),
@@ -224,14 +262,24 @@ class TestService
                 DB::raw("CAST(time_limit_seconds AS CHAR) as timer_settings"),
                 DB::raw("COALESCE(allow_retake, 0) as allow_repetition"),
                 DB::raw("COALESCE(max_retake_attempts, 0) as max_repetition_count"),
-                DB::raw("0 as is_public"),
+                'is_public',
                 DB::raw("NULL as settings"),
-                DB::raw("NULL as class_id"),
-            ])
-            ->where('creator_id', $userId);
+                'class_id',
+            ]);
 
-        // SpeakingTask query
-        $speakingQuery = \App\Models\SpeakingTask::select([
+            if ($isPublicSearch) {
+                $q->where('is_public', true);
+                if (auth('sanctum')->check() && auth('sanctum')->user()->role === 'student') $q->where('is_published', true);
+            } else {
+                $q->where('creator_id', $userId);
+            }
+            $applySharedFilters($q, 'difficulty');
+            $activeQueries[] = $q;
+        }
+
+        // Speaking Tasks
+        if (!$requestedType || $requestedType === 'speaking') {
+            $q = SpeakingTask::select([
                 'id', 'title', 'description',
                 DB::raw("'speaking' as type"),
                 DB::raw("COALESCE(difficulty_level, 'beginner') as difficulty"),
@@ -242,57 +290,30 @@ class TestService
                 DB::raw("CAST(time_limit_seconds AS CHAR) as timer_settings"),
                 DB::raw("0 as allow_repetition"),
                 DB::raw("0 as max_repetition_count"),
-                DB::raw("0 as is_public"),
+                'is_public',
                 DB::raw("NULL as settings"),
-                DB::raw("NULL as class_id"),
-            ])
-            ->where('created_by', $userId);
+                'class_id',
+            ]);
 
-        // Apply shared filters
-        $applyFilters = function ($q) use ($filters) {
-            if (!empty($filters['search'])) {
-                $q->where('title', 'like', '%' . $filters['search'] . '%');
+            if ($isPublicSearch) {
+                $q->where('is_public', true);
+                if (auth('sanctum')->check() && auth('sanctum')->user()->role === 'student') $q->where('is_published', true);
+            } else {
+                $q->where('created_by', $userId);
             }
-            if (isset($filters['is_published'])) {
-                $q->where('is_published', $filters['is_published']);
-            }
-            if (!empty($filters['difficulty'])) {
-                $q->where('difficulty', $filters['difficulty']);
-            }
-        };
-
-        // Determine which queries to include based on type filter
-        $activeQueries = [];
-        if (!$requestedType || in_array($requestedType, ['reading', 'speaking', 'test'])) {
-            $applyFilters($testQuery);
-            $activeQueries[] = $testQuery;
-        }
-        if (!$requestedType || $requestedType === 'listening') {
-            $applyFilters($listeningQuery);
-            $activeQueries[] = $listeningQuery;
-        }
-        if (!$requestedType || $requestedType === 'writing') {
-            $applyFilters($writingQuery);
-            $activeQueries[] = $writingQuery;
-        }
-        if (!$requestedType || $requestedType === 'speaking') {
-            $applyFilters($speakingQuery);
-            $activeQueries[] = $speakingQuery;
+            $applySharedFilters($q, 'difficulty_level'); // Note: SpeakingTask uses 'difficulty_level'
+            $activeQueries[] = $q;
         }
 
-        if (empty($activeQueries)) {
-            return DB::table('tests')->whereRaw('1 = 0');
-        }
-
-        // Build union
-        $finalQuery = array_shift($activeQueries);
+        // 3. Build final Union query
+        $first = array_shift($activeQueries);
+        $finalUnion = $first->toBase();
         foreach ($activeQueries as $q) {
-            $finalQuery = $finalQuery->unionAll($q->toBase());
+            $finalUnion->unionAll($q->toBase());
         }
 
-        // Wrap in subquery for ordering + pagination, joining classes for class name
-        $sql = $finalQuery->toSql();
-        $bindings = $finalQuery->getBindings();
+        $sql = $finalUnion->toSql();
+        $bindings = $finalUnion->getBindings();
 
         // Subquery to get the first assigned class per item via assignments table
         $assignedClassSub = DB::table('assignments')
@@ -310,13 +331,12 @@ class TestService
         $assignedClassBindings = $assignedClassSub->getBindings();
 
         return DB::table(DB::raw("({$sql}) as combined"))
-            ->addBinding($bindings, 'where')
+            ->setBindings(array_merge($bindings, $assignedClassBindings))
             ->leftJoin('classes', 'combined.class_id', '=', 'classes.id')
             ->leftJoin(
                 DB::raw("(SELECT item_id, MIN(class_name) as class_name FROM ({$assignedClassSql}) as ac GROUP BY item_id) as assigned_class"),
                 'assigned_class.item_id', '=', 'combined.id'
             )
-            ->addBinding($assignedClassBindings, 'where')
             ->select(
                 'combined.*',
                 DB::raw("COALESCE(classes.name, assigned_class.class_name) as class_name")

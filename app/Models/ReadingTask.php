@@ -86,6 +86,7 @@ class ReadingTask extends Model
         'difficulty_level',
         'question_types',
         'vocabularies',
+        'is_public',
     ];
 
     protected $casts = [
@@ -93,6 +94,7 @@ class ReadingTask extends Model
         'allow_retake' => 'boolean',
         'allow_submission_files' => 'boolean',
         'is_published' => 'boolean',
+        'is_public' => 'boolean',
         'passages' => 'array',
         'passage_images' => 'array',
         'question_types' => 'array',

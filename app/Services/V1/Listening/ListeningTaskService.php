@@ -107,6 +107,7 @@ class ListeningTaskService
                 'max_retake_attempts' => isset($taskData['max_repetition_count'])
                     ? (int) $taskData['max_repetition_count']
                     : 0,
+                'is_public'          => isset($taskData['is_public']) ? (bool) $taskData['is_public'] : false,
                 'is_published'       => $isPublished,
                 'created_by'         => Auth::id(),
             ]);
@@ -234,6 +235,7 @@ class ListeningTaskService
                 $updateFields['difficulty_level'] = $taskData['difficulty'] ?? $taskData['difficulty_level'];
             }
             if (isset($taskData['timer_mode'])) $updateFields['timer_type'] = $taskData['timer_mode'];
+            if (isset($taskData['is_public'])) $updateFields['is_public'] = (bool) $taskData['is_public'];
             if (isset($taskData['is_published'])) $updateFields['is_published'] = (bool) $taskData['is_published'];
 
             // Handle timer settings -> time_limit_seconds conversion

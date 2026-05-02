@@ -49,6 +49,7 @@ class WritingTaskService
                 'timer_type'             => $timerType,
                 'time_limit_seconds'     => $timeLimitSeconds ?? ($data['time_limit_seconds'] ?? null),
                 'allow_submission_files' => $data['allow_submission_files'] ?? false,
+                'is_public'              => $data['is_public'] ?? false,
                 'is_published'           => $data['is_published'] ?? false,
                 'due_date'               => $data['due_date'] ?? null,
                 'questions'              => $data['questions'] ?? null,
@@ -170,7 +171,7 @@ class WritingTaskService
                 'title', 'description', 'instructions', 'sample_answer', 
                 'word_limit', 'allow_retake', 'max_retake_attempts', 
                 'retake_options', 'timer_type', 'time_limit_seconds', 
-                'allow_submission_files', 'is_published', 'due_date', 'questions'
+                'allow_submission_files', 'is_public', 'is_published', 'due_date', 'questions'
             ];
 
             foreach ($fields as $field) {

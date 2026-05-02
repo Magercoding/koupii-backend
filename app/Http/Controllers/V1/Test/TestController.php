@@ -34,7 +34,10 @@ class TestController extends Controller
             $scope = $request->get('scope', 'all'); // 'global', 'class', 'all'
             if ($scope === 'global' || $request->has('is_public')) {
                 $filters['is_public'] = true;
-                $filters['is_published'] = true;
+                // Only force is_published for students
+                if (auth()->check() && auth()->user()->isStudent()) {
+                    $filters['is_published'] = true;
+                }
             } elseif ($scope === 'class') {
                 $filters['has_class'] = true; // Only class-based tests
             }

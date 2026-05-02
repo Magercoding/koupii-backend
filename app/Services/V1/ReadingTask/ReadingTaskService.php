@@ -73,7 +73,8 @@ class ReadingTaskService
                 'timer_type' => $this->mapTimerMode($taskData['timer_mode'] ?? 'none'),
                 'time_limit_seconds' => $this->parseTimerSettings($taskData['timer_settings'] ?? null),
                 'allow_retake' => $taskData['allow_repetition'] ?? false,
-                'max_retake_attempts' => $taskData['max_repetition_count'] ?? 0,
+                'max_retake_attempts' => $taskData['max_retake_attempts'] ?? 0,
+                'is_public' => $taskData['is_public'] ?? false,
                 'allow_submission_files' => false,
                 'is_published' => $taskData['is_published'] ?? false,
                 'created_by' => $taskData['created_by'] ?? Auth::id(),
@@ -175,6 +176,10 @@ class ReadingTaskService
 
             if (isset($taskData['max_repetition_count'])) {
                 $updateData['max_retake_attempts'] = $taskData['max_repetition_count'];
+            }
+
+            if (isset($taskData['is_public'])) {
+                $updateData['is_public'] = $taskData['is_public'];
             }
 
             if (isset($taskData['is_published'])) {

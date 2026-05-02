@@ -28,6 +28,7 @@ class SpeakingTask extends Model
         'sample_audio',
         'rubric',
         'is_published',
+        'is_public',
         'created_by',
     ];
 
@@ -36,6 +37,7 @@ class SpeakingTask extends Model
         'questions' => 'array',
         'rubric' => 'array',
         'is_published' => 'boolean',
+        'is_public' => 'boolean',
         'time_limit_seconds' => 'integer',
     ];
 

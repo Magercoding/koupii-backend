@@ -87,6 +87,7 @@ class SpeakingTaskService
                 'questions'          => $passages,
                 'sample_audio'       => $data['sample_audio'] ?? null,
                 'rubric'             => $data['rubric'] ?? null,
+                'is_public'          => $data['is_public'] ?? false,
                 'is_published'       => $data['is_published'] ?? false,
                 'created_by'         => Auth::id(),
             ]);
@@ -219,6 +220,11 @@ class SpeakingTaskService
                 'rubric'             => $data['rubric'] ?? $task->rubric,
                 'due_date'           => array_key_exists('due_date', $data) ? $data['due_date'] : $task->due_date,
             ];
+
+            // Handle is_public explicitly
+            if (array_key_exists('is_public', $data)) {
+                $updateFields['is_public'] = (bool) $data['is_public'];
+            }
 
             // Handle is_published explicitly so false values are not dropped
             if (array_key_exists('is_published', $data)) {

@@ -57,6 +57,7 @@ class WritingTask extends Model
         'word_limit',
         'due_date',
         'is_published',
+        'is_public',
     ];
 
     protected $casts = [
@@ -67,6 +68,7 @@ class WritingTask extends Model
         'passage_images' => 'array',
         'retake_options' => 'array',
         'is_published' => 'boolean',
+        'is_public' => 'boolean',
         'allow_retake' => 'boolean',
         'allow_submission_files' => 'boolean',
         'due_date' => 'datetime',
