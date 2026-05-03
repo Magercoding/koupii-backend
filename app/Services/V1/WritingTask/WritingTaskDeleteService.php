@@ -71,6 +71,7 @@ class WritingTaskDeleteService
         // Mark task as archived instead of deleting
         $task->update([
             'is_published' => false,
+            'is_public' => false, // Ensure it disappears from Discover
             'is_archived' => true,
             'archived_at' => now(),
             'archived_by' => Auth::id(),

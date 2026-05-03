@@ -20,6 +20,8 @@ class VocabularyController extends Controller
     {
         $user = Auth::user();
         $classId = $request->query('class_id');
+        $search = $request->query('search');
+        $perPage = $request->query('per_page', 10);
 
         $query = match ($user->role) {
             'admin' => Vocabulary::forAdmin(),
@@ -38,14 +40,20 @@ class VocabularyController extends Controller
             });
         }
 
-        $vocabularies = $query->get();
-
-        if ($user->role === 'student') {
-            $vocabularies->each(fn($v) => $v->is_bookmarked = $v->bookmarks->first()->is_bookmarked ?? false);
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('word', 'like', "%{$search}%")
+                  ->orWhere('translation', 'like', "%{$search}%")
+                  ->orWhere('explanation', 'like', "%{$search}%");
+            });
         }
 
-        if (!$vocabularies) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        $vocabularies = $query->paginate($perPage);
+
+        if ($user->role === 'student') {
+            $vocabularies->getCollection()->each(function ($v) {
+                $v->is_bookmarked = $v->bookmarks->first()->is_bookmarked ?? false;
+            });
         }
 
         return VocabularyResource::collection($vocabularies);

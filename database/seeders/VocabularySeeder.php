@@ -30,31 +30,31 @@ class VocabularySeeder extends Seeder
                 'vocabularies' => [
                     [
                         'word' => 'Abolish',
-                        'translation' => 'Menghapuskan',
+                        'translation' => 'Bãi bỏ',
                         'spelling' => '/əˈbɒl.ɪʃ/',
                         'explanation' => 'To formally put an end to a system, practice, or institution.',
                     ],
                     [
                         'word' => 'Benevolent',
-                        'translation' => 'Dermawan',
+                        'translation' => 'Nhân từ',
                         'spelling' => '/bəˈnev.əl.ənt/',
                         'explanation' => 'Well meaning and kindly.',
                     ],
                     [
                         'word' => 'Coherent',
-                        'translation' => 'Koheren/Masuk akal',
+                        'translation' => 'Mạch lạc',
                         'spelling' => '/kəʊˈhɪə.rənt/',
                         'explanation' => 'Logical and consistent.',
                     ],
                     [
                         'word' => 'Defer',
-                        'translation' => 'Menunda',
+                        'translation' => 'Trì hoãn',
                         'spelling' => '/dɪˈfɜːr/',
                         'explanation' => 'To put off to a later time; postpone.',
                     ],
                     [
                         'word' => 'Eloquent',
-                        'translation' => 'Fasih',
+                        'translation' => 'Hùng hồn',
                         'spelling' => '/ˈel.ə.kwənt/',
                         'explanation' => 'Fluent or persuasive in speaking or writing.',
                     ],
@@ -66,25 +66,25 @@ class VocabularySeeder extends Seeder
                 'vocabularies' => [
                     [
                         'word' => 'Leverage',
-                        'translation' => 'Memanfaatkan',
+                        'translation' => 'Tận dụng',
                         'spelling' => '/ˈliː.vər.ɪdʒ/',
                         'explanation' => 'Use something to maximum advantage.',
                     ],
                     [
                         'word' => 'Incentive',
-                        'translation' => 'Insentif',
+                        'translation' => 'Khuyến khích',
                         'spelling' => '/ɪnˈsen.tɪv/',
                         'explanation' => 'A thing that motivates or encourages someone to do something.',
                     ],
                     [
                         'word' => 'Stagnant',
-                        'translation' => 'Stagnan/Macet',
+                        'translation' => 'Trì trệ',
                         'spelling' => '/ˈstæɡ.nənt/',
                         'explanation' => 'Showing no activity; dull and sluggish.',
                     ],
                     [
                         'word' => 'Versatile',
-                        'translation' => 'Serbaguna',
+                        'translation' => 'Linh hoạt',
                         'spelling' => '/ˈvɜː.sə.taɪl/',
                         'explanation' => 'Able to adapt or be adapted to many different functions or activities.',
                     ],
@@ -96,31 +96,35 @@ class VocabularySeeder extends Seeder
                 'vocabularies' => [
                     [
                         'word' => 'Break the ice',
-                        'translation' => 'Mencairkan suasana',
+                        'translation' => 'Phá vỡ sự e ngại',
                         'spelling' => '/breɪk ðə aɪs/',
                         'explanation' => 'Do or say something to relieve tension or get conversation going.',
                     ],
                     [
                         'word' => 'Bite the bullet',
-                        'translation' => 'Menelan pil pahit',
+                        'translation' => 'Cắn răng chịu đựng',
                         'spelling' => '/baɪt ðə ˈbʊl.ɪt/',
                         'explanation' => 'To accept something difficult or unpleasant.',
                     ],
                     [
                         'word' => 'Under the weather',
-                        'translation' => 'Kurang enak badan',
+                        'translation' => 'Không khỏe',
                         'spelling' => '/ˈʌn.də ðə ˈweð.ər/',
                         'explanation' => 'To feel slightly unwell or sick.',
                     ],
                     [
                         'word' => 'Piece of cake',
-                        'translation' => 'Sangat mudah',
+                        'translation' => 'Dễ như ăn bánh',
                         'spelling' => '/piːs əv keɪk/',
                         'explanation' => 'Something that is very easy to do.',
                     ],
                 ]
             ]
         ];
+
+        // Clear existing data to avoid duplicates if re-running
+        Vocabulary::where('teacher_id', $teacher->id)->delete();
+        VocabularyCategory::where('teacher_id', $teacher->id)->delete();
 
         foreach ($categories as $catData) {
             $category = VocabularyCategory::create([
@@ -138,7 +142,7 @@ class VocabularySeeder extends Seeder
             }
         }
 
-        // Get some vocabularies for class assignment
+        // Get all vocabs for class assignment
         $allVocabs = Vocabulary::where('teacher_id', $teacher->id)->get();
 
         // Assign some vocabularies to classes if they exist
