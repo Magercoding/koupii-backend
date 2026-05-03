@@ -33,9 +33,9 @@ class DiscoverTestSeeder extends Seeder
         \App\Models\WritingTask::where('is_public', true)->delete();
         \App\Models\SpeakingTask::where('is_public', true)->delete();
 
-        // 2. SEED READING (Full Schema + JSON)
+        // 2. SEED READING (JSON + Full Relational)
         $readingTaskId = (string) Str::uuid();
-        Test::create([
+        $readingTest = Test::create([
             'id' => $readingTaskId,
             'creator_id' => $admin->id,
             'title' => 'The Future of Neural Networks',
@@ -46,7 +46,7 @@ class DiscoverTestSeeder extends Seeder
             'is_published' => true,
         ]);
 
-        \App\Models\ReadingTask::create([
+        $readingTask = \App\Models\ReadingTask::create([
             'id' => $readingTaskId,
             'created_by' => $admin->id,
             'title' => 'The Future of Neural Networks',
@@ -96,6 +96,43 @@ class DiscoverTestSeeder extends Seeder
                 ]
             ]
         ]);
+
+        // RELATIONAL SEEDING FOR EXERCISE VIEW
+        $relPassage = $readingTest->passages()->create([
+            'id' => Str::uuid(),
+            'title' => 'The Evolution of AI',
+            'description' => "The concept of neural networks dates back to the mid-20th century...",
+        ]);
+
+        $relGroup = $relPassage->questionGroups()->create([
+            'id' => Str::uuid(),
+            'instruction' => 'Choose the correct option.',
+        ]);
+
+        // Question 1 (Relational)
+        $q1 = $relGroup->questions()->create([
+            'id' => Str::uuid(),
+            'question_number' => 1,
+            'question_text' => 'What was the primary inspiration for early neural networks?',
+            'question_type' => 'choose_correct_answer',
+            'correct_answers' => 'B',
+            'points_value' => 50,
+        ]);
+        $q1->options()->create(['id' => Str::uuid(), 'option_key' => 'A', 'option_text' => 'Clockwork mechanisms']);
+        $q1->options()->create(['id' => Str::uuid(), 'option_key' => 'B', 'option_text' => 'Biological brain structures']);
+
+        // Question 2 (Relational)
+        $q2 = $relGroup->questions()->create([
+            'id' => Str::uuid(),
+            'question_number' => 2,
+            'question_text' => 'AGI is already fully achieved.',
+            'question_type' => 'true_false_not_given',
+            'correct_answers' => 'F',
+            'points_value' => 50,
+        ]);
+        $q2->options()->create(['id' => Str::uuid(), 'option_key' => 'T', 'option_text' => 'True']);
+        $q2->options()->create(['id' => Str::uuid(), 'option_key' => 'F', 'option_text' => 'False']);
+        $q2->options()->create(['id' => Str::uuid(), 'option_key' => 'N', 'option_text' => 'Not Given']);
 
         // 3. SEED LISTENING (Relational + passages_data JSON)
         $listeningTaskId = (string) Str::uuid();
