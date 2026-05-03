@@ -141,38 +141,38 @@ class TestService
      */
     public function findAnyTaskById(string $id)
     {
-        // 1. Try legacy Test model
-        $test = Test::find($id);
-        if ($test) {
-            return $this->getTestWithQuestions($test);
-        }
-
-        // 2. Try ReadingTask
+        // 1. Try ReadingTask
         $reading = ReadingTask::with(['passages.questionGroups.questions.options'])->find($id);
         if ($reading) {
             $reading->type = 'reading';
             return $reading;
         }
 
-        // 3. Try ListeningTask
+        // 2. Try ListeningTask
         $listening = ListeningTask::with(['questions'])->find($id);
         if ($listening) {
             $listening->type = 'listening';
             return $listening;
         }
 
-        // 4. Try WritingTask
+        // 3. Try WritingTask
         $writing = WritingTask::with(['taskQuestions'])->find($id);
         if ($writing) {
             $writing->type = 'writing';
             return $writing;
         }
 
-        // 5. Try SpeakingTask
-        $speaking = SpeakingTask::find($id); // Speaking currently uses JSON column only
+        // 4. Try SpeakingTask
+        $speaking = SpeakingTask::find($id);
         if ($speaking) {
             $speaking->type = 'speaking';
             return $speaking;
+        }
+
+        // 5. Finally try legacy Test model
+        $test = Test::find($id);
+        if ($test) {
+            return $this->getTestWithQuestions($test);
         }
 
         return null;
