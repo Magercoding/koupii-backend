@@ -218,9 +218,21 @@ class TestService
         };
 
         // 1. Base Test Query (generic tests table)
+        // Deduplicate: Exclude IDs that exist in specialized tables to prevent double-counting
+        $specializedIds = array_filter(array_merge(
+            DB::table('reading_tasks')->pluck('id')->toArray(),
+            DB::table('listening_tasks')->pluck('id')->toArray(),
+            DB::table('writing_tasks')->pluck('id')->toArray(),
+            DB::table('speaking_tasks')->pluck('id')->toArray()
+        ));
+
         $testQuery = Test::select(array_merge(array_diff($columns, ['class_id']), [
                 DB::raw("COALESCE(class_id, NULL) as class_id"),
             ]));
+
+        if (!empty($specializedIds)) {
+            $testQuery->whereNotIn('id', $specializedIds);
+        }
         
         if ($isPublicSearch) {
             $testQuery->where('is_public', true);
@@ -355,7 +367,7 @@ class TestService
         $first = array_shift($activeQueries);
         $finalUnion = $first->toBase();
         foreach ($activeQueries as $q) {
-            $finalUnion->union($q->toBase());
+            $finalUnion->unionAll($q->toBase());
         }
 
         $sql = $finalUnion->toSql();
@@ -387,7 +399,6 @@ class TestService
                 'combined.*',
                 DB::raw("COALESCE(classes.name, assigned_class.class_name) as class_name")
             )
-            ->groupBy('combined.id')
             ->orderByDesc('combined.created_at');
     }
 
