@@ -387,6 +387,7 @@ class TestService
                 'combined.*',
                 DB::raw("COALESCE(classes.name, assigned_class.class_name) as class_name")
             )
+            ->groupBy('combined.id')
             ->orderByDesc('combined.created_at');
     }
 
