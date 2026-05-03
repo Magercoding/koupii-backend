@@ -119,7 +119,28 @@ class SpeakingSubmissionService
             return $existing;
         }
 
-        // Check if student can attempt this test
+        // --- NEW LOGIC FOR DISCOVER TESTS ---
+        // If it's a public discover test (no assignment) and the attempt is already finished,
+        // automatically increment the attempt number instead of erroring out.
+        if (!$assignmentId) {
+            $latestSubmitted = SpeakingSubmission::where('speaking_task_id', $test->id)
+                ->where('student_id', $studentId)
+                ->whereNull('assignment_id')
+                ->whereIn('status', [
+                    SpeakingSubmission::STATUS_SUBMITTED,
+                    SpeakingSubmission::STATUS_COMPLETED,
+                    SpeakingSubmission::STATUS_REVIEWED
+                ])
+                ->orderBy('attempt_number', 'desc')
+                ->first();
+
+            if ($latestSubmitted && $attemptNumber <= $latestSubmitted->attempt_number) {
+                $attemptNumber = $latestSubmitted->attempt_number + 1;
+                \Log::info("Discover Test: Incrementing attempt_number to " . $attemptNumber . " for student " . $studentId);
+            }
+        }
+
+        // Check if student can attempt this test (now with updated attemptNumber)
         $this->validateSubmissionAttempt($test, $studentId, $attemptNumber, $assignmentId);
 
         return DB::transaction(function () use ($test, $studentId, $attemptNumber, $assignmentId) {
