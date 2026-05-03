@@ -146,14 +146,26 @@ class SpeakingSubmissionService
         $this->validateSubmissionAttempt($test, $studentId, $attemptNumber, $assignmentId);
 
         return DB::transaction(function () use ($test, $studentId, $attemptNumber, $assignmentId) {
-            $submission = SpeakingSubmission::create([
-                'speaking_task_id' => $test->id,
-                'student_id' => $studentId,
-                'assignment_id' => $assignmentId,
-                'attempt_number' => $attemptNumber,
-                'status' => 'in_progress',
-                'started_at' => now(),
-            ]);
+            try {
+                $submission = SpeakingSubmission::create([
+                    'speaking_task_id' => $test->id,
+                    'student_id' => $studentId,
+                    'assignment_id' => empty($assignmentId) ? null : $assignmentId,
+                    'attempt_number' => $attemptNumber,
+                    'status' => SpeakingSubmission::STATUS_IN_PROGRESS,
+                    'started_at' => now(),
+                ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                // If a duplicate entry error occurs (likely due to a race condition),
+                // try to fetch the existing record instead of crashing.
+                if ($e->getCode() == 23000) {
+                    $submission = $this->validateSubmissionAttempt($test, $studentId, $attemptNumber, $assignmentId);
+                    if ($submission) {
+                        return $submission;
+                    }
+                }
+                throw $e;
+            }
 
             // Sync with StudentAssignment if provided
             if ($assignmentId) {
