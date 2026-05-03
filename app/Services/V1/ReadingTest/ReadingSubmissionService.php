@@ -114,14 +114,34 @@ class ReadingSubmissionService
                 }
             }
 
-            $submission = ReadingSubmission::create([
-                'reading_task_id' => $task->id,
-                'assignment_id' => $assignmentId,
-                'student_id' => $studentId,
-                'attempt_number' => $attemptNumber,
-                'status' => 'in_progress',
-                'started_at' => now(),
-            ]);
+            try {
+                $submission = ReadingSubmission::create([
+                    'reading_task_id' => $task->id,
+                    'assignment_id' => empty($assignmentId) ? null : $assignmentId,
+                    'student_id' => $studentId,
+                    'attempt_number' => $attemptNumber,
+                    'status' => 'in_progress',
+                    'started_at' => now(),
+                ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Handle race condition: if duplicate, fetch existing
+                if ($e->getCode() == 23000) {
+                    $submission = ReadingSubmission::where('reading_task_id', $task->id)
+                        ->where('student_id', $studentId)
+                        ->where('attempt_number', $attemptNumber)
+                        ->where(function($q) use ($assignmentId) {
+                            if (empty($assignmentId)) {
+                                $q->whereNull('assignment_id')->orWhere('assignment_id', '');
+                            } else {
+                                $q->where('assignment_id', $assignmentId);
+                            }
+                        })
+                        ->first();
+                    
+                    if ($submission) return $submission;
+                }
+                throw $e;
+            }
 
             $this->initializeAnswersFromTask($submission);
 
