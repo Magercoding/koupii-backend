@@ -35,6 +35,9 @@ class ReadingTaskResource extends JsonResource
             'allow_submission_files' => $this->allow_submission_files,
             'is_published' => $this->is_published,
             'passages' => collect($this->passages)->map(function ($passage) use ($isStudent, $user) {
+                // Ensure $passage is handled as an array for safe access
+                $passageArr = is_object($passage) ? (array) $passage : $passage;
+                
                 // If it's a student, check if they have a completed submission to allow seeing answers
                 $canSeeAnswers = !$isStudent;
                 if ($isStudent && $user) {
@@ -48,25 +51,30 @@ class ReadingTaskResource extends JsonResource
                         ->isNotEmpty();
                 }
 
-                if (isset($passage['question_groups'])) {
-                    $groups = collect($passage['question_groups'])->map(function ($group) use ($canSeeAnswers) {
-                        if (isset($group['questions'])) {
-                            $group['questions'] = collect($group['questions'])->map(function ($q) use ($canSeeAnswers) {
+                $qGroupsKey = isset($passageArr['question_groups']) ? 'question_groups' : (isset($passageArr['questionGroups']) ? 'questionGroups' : null);
+
+                if ($qGroupsKey && isset($passageArr[$qGroupsKey])) {
+                    $groups = collect($passageArr[$qGroupsKey])->map(function ($group) use ($canSeeAnswers) {
+                        $groupArr = is_object($group) ? (array) $group : $group;
+                        
+                        if (isset($groupArr['questions'])) {
+                            $groupArr['questions'] = collect($groupArr['questions'])->map(function ($q) use ($canSeeAnswers) {
+                                $qArr = is_object($q) ? (array) $q : $q;
                                 // If not authorized, remove correct answers
                                 if (!$canSeeAnswers) {
-                                    unset($q['correct_answers']);
-                                    unset($q['correct_answer']);
+                                    unset($qArr['correct_answers']);
+                                    unset($qArr['correct_answer']);
                                 }
-                                return $q;
+                                return $qArr;
                             })->toArray();
                         }
-                        return $group;
+                        return $groupArr;
                     })->toArray();
                     
-                    $passage['questionGroups'] = $groups;
-                    unset($passage['question_groups']);
+                    $passageArr['questionGroups'] = $groups;
+                    if (isset($passageArr['question_groups'])) unset($passageArr['question_groups']);
                 }
-                return $passage;
+                return $passageArr;
             })->toArray(),
             'vocabularies' => $this->vocabularies,
             'passage_images' => $this->passage_images,
