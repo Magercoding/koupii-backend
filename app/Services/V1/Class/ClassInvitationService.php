@@ -10,6 +10,7 @@ use App\Mail\ClassInvitationMail;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Notifications\ClassInvitationNotification;
 
 class ClassInvitationService
 {
@@ -60,6 +61,11 @@ class ClassInvitationService
 
         // Send invitation email
         $this->sendInvitationEmail($invitation);
+
+        // Send in-app notification if student is already registered
+        if ($is_registered && $student) {
+            $student->notify(new ClassInvitationNotification($class));
+        }
 
         return [
             'invitation' => $invitation,

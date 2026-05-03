@@ -18,5 +18,6 @@ class DatabaseSeeder extends Seeder
         $this->call(TestScenarioSeeder::class);
         $this->call(DiscoverTestSeeder::class);
         $this->call(MissionSeeder::class);
+        $this->call(VocabularySeeder::class);
     }
 }

@@ -12,6 +12,8 @@ use App\Models\ListeningTask;
 use App\Models\SpeakingTask;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use App\Notifications\NewAssignmentNotification;
+use Illuminate\Support\Facades\Notification;
 
 class AssignmentService
 {
@@ -72,6 +74,14 @@ class AssignmentService
         }
 
         $studentCount = $this->createStudentAssignments($assignment);
+
+        // Send notifications to students if the assignment is published
+        if ($assignment->is_published && $assignment->class) {
+            $students = $assignment->class->students()->where('class_enrollments.status', 'active')->get();
+            if ($students->isNotEmpty()) {
+                Notification::send($students, new NewAssignmentNotification($assignment));
+            }
+        }
 
         return [
             'assignment'   => $assignment->load(['class', 'assignedBy']),
