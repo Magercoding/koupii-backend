@@ -56,8 +56,8 @@ class TestResource extends JsonResource
 
             // Handle specialized task models that use JSON columns instead of relations
             'passages' => $isEloquentModel
-                ? ($this->resource instanceof \App\Models\ReadingTask 
-                    ? ($this->passages ?? [])
+                ? (($this->resource instanceof \App\Models\ReadingTask || $this->resource instanceof \App\Models\WritingTask || $this->resource instanceof \App\Models\ListeningTask)
+                    ? ($this->passages ?? ($this->passages_data ?? []))
                     : $this->whenLoaded('passages', fn () => PassageResource::collection($this->passages)))
                 : [],
             'vocabularies' => ($isEloquentModel && $this->resource instanceof \App\Models\ReadingTask) ? ($this->vocabularies ?? []) : [],

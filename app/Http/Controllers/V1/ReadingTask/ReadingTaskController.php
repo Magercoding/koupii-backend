@@ -134,7 +134,8 @@ class ReadingTaskController extends Controller implements HasMiddleware
         }
 
         if (
-            $user->role === 'teacher'
+            $user
+            && $user->role === 'teacher'
             && $task->created_by !== $user->id
             && !$task->is_published
             && !$this->isTeacherAssigned($task, $user)
