@@ -304,6 +304,10 @@ class TestService
             } else {
                 $q->where('created_by', $userId);
             }
+            // Exclude archived tasks from the list
+            $q->where(function ($sub) {
+                $sub->whereNull('is_archived')->orWhere('is_archived', false);
+            });
             $applySharedFilters($q, 'difficulty');
             $activeQueries[] = $q;
         }
@@ -332,6 +336,10 @@ class TestService
             } else {
                 $q->where('creator_id', $userId);
             }
+            // Exclude archived tasks from the list
+            $q->where(function ($sub) {
+                $sub->whereNull('is_archived')->orWhere('is_archived', false);
+            });
             $applySharedFilters($q, 'difficulty');
             $activeQueries[] = $q;
         }
