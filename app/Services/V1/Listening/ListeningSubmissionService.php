@@ -66,18 +66,25 @@ class ListeningSubmissionService
         if ($nextAttemptNumber > 1) {
             // When an assignment_id is provided, the assignment's max_attempts is the authority.
             // Skip task-level retake validation so the assignment can control attempt limits.
-            if (!$assignmentId) {
-                if (!$task->allowsRetakes()) {
-                    if ($lastSubmission) {
-                        return $lastSubmission->load(['answers', 'task', 'review']);
-                    }
-                    throw new \Exception("Retakes are not allowed for this task.");
+            if (empty($assignmentId)) {
+                // Discover Test Logic: If the latest attempt is already finished, increment it for infinite retakes.
+                $latestFinished = ListeningSubmission::where('listening_task_id', $task->id)
+                    ->where('student_id', $student->id)
+                    ->where(function($q) {
+                        $q->whereNull('assignment_id')->orWhere('assignment_id', '');
+                    })
+                    ->whereIn('status', [ListeningSubmission::STATUS_SUBMITTED, 'completed', 'done'])
+                    ->orderBy('attempt_number', 'desc')
+                    ->first();
+
+                if ($latestFinished && $nextAttemptNumber <= $latestFinished->attempt_number) {
+                    $nextAttemptNumber = $latestFinished->attempt_number + 1;
+                    \Log::info("Discover Listening Test: Incrementing attempt_number to " . $nextAttemptNumber);
                 }
-                if ($task->max_retake_attempts && $nextAttemptNumber > $task->max_retake_attempts) {
-                    if ($lastSubmission) {
-                        return $lastSubmission->load(['answers', 'task', 'review']);
-                    }
-                    throw new \Exception("Maximum retake attempts reached.");
+
+                if (!$task->allowsRetakes() && $nextAttemptNumber > 1) {
+                    // Fallback: if somehow logic fails, still respect task settings for non-discover
+                    // but since we empty($assignmentId) we handle it above.
                 }
             } else {
                 // Assignment-based: check the assignment's max_attempts

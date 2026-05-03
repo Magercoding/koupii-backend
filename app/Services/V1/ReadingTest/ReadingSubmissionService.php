@@ -82,7 +82,22 @@ class ReadingSubmissionService
 
             // When an assignment_id is provided, the assignment's max_attempts is the authority.
             // Skip task-level retake validation so the assignment can control attempt limits.
-            if (!$assignmentId) {
+            if (empty($assignmentId)) {
+                // Discover Test Logic: If the requested attempt is already finished, increment it.
+                $latestFinished = ReadingSubmission::where('reading_task_id', $task->id)
+                    ->where('student_id', $studentId)
+                    ->where(function($q) {
+                        $q->whereNull('assignment_id')->orWhere('assignment_id', '');
+                    })
+                    ->whereIn('status', ['completed', 'submitted'])
+                    ->orderBy('attempt_number', 'desc')
+                    ->first();
+
+                if ($latestFinished && $attemptNumber <= $latestFinished->attempt_number) {
+                    $attemptNumber = $latestFinished->attempt_number + 1;
+                    \Log::info("Discover Reading Test: Incrementing attempt_number to " . $attemptNumber);
+                }
+
                 $existing = $this->validateTaskAttempt($task, $studentId, $attemptNumber);
                 if ($existing) {
                     return $existing;
@@ -91,6 +106,7 @@ class ReadingSubmissionService
                 // For assignment-based attempts, only resume if this exact attempt number already exists
                 $existing = ReadingSubmission::where('reading_task_id', $task->id)
                     ->where('student_id', $studentId)
+                    ->where('assignment_id', $assignmentId)
                     ->where('attempt_number', $attemptNumber)
                     ->first();
                 if ($existing) {
