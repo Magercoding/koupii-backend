@@ -185,14 +185,19 @@ class SpeakingSubmissionService
             $fileSize = $audioFile->getSize();
             $duration = $data['duration_seconds'] ?? null;
 
-            // Create recording record first
-            $recording = SpeakingRecording::create([
-                'submission_id' => $submission->id,
-                'question_id' => $questionId,
-                'audio_file_path' => $filePath,
-                'duration_seconds' => $duration,
-                'speech_processed' => false,
-            ]);
+            // Update or create recording record
+            $recording = SpeakingRecording::updateOrCreate(
+                [
+                    'submission_id' => $submission->id,
+                    'question_id' => $questionId,
+                ],
+                [
+                    'audio_file_path' => $filePath,
+                    'duration_seconds' => $duration,
+                    'speech_processed' => false,
+                    'transcript' => null, // Reset analysis if re-recorded
+                ]
+            );
 
             // Process speech-to-text if service is available
             if ($this->speechToTextService->isAvailable()) {
