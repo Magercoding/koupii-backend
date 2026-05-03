@@ -21,6 +21,7 @@ class SpeakingSubmission extends Model
 
     protected $fillable = [
         'speaking_task_id',
+        'test_id',
         'student_id',
         'assignment_id',
         'attempt_number',
@@ -38,6 +39,11 @@ class SpeakingSubmission extends Model
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(Assignment::class);
+    }
+
+    public function test(): BelongsTo
+    {
+        return $this->belongsTo(Test::class, 'test_id');
     }
 
     public function studentAssignment(): BelongsTo

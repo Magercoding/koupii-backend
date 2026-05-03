@@ -345,11 +345,12 @@ class SpeakingSubmissionService
     public function getSubmissionWithDetails(string $submissionId): SpeakingSubmission
     {
         return SpeakingSubmission::with([
-            'speakingTask',
+            'speakingTask.test.passages.questionGroups.questions',
             'assignment.class',
             'student:id,name,email',
             'recordings.question',
-            'review.teacher:id,name'
+            'review.teacher:id,name',
+            'test.passages.questionGroups.questions'
         ])->findOrFail($submissionId);
     }
 

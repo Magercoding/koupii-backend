@@ -15,6 +15,7 @@ class SpeakingTask extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'test_id',
         'class_id',
         'title',
         'description',
@@ -31,6 +32,11 @@ class SpeakingTask extends Model
         'is_public',
         'created_by',
     ];
+
+    public function test()
+    {
+        return $this->belongsTo(Test::class, 'test_id');
+    }
 
     protected $casts = [
         'id' => 'string',
