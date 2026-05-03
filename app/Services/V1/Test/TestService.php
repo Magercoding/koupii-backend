@@ -148,28 +148,28 @@ class TestService
         }
 
         // 2. Try ReadingTask
-        $reading = ReadingTask::find($id);
+        $reading = ReadingTask::with(['passages.questionGroups.questions.options'])->find($id);
         if ($reading) {
             $reading->type = 'reading';
             return $reading;
         }
 
         // 3. Try ListeningTask
-        $listening = ListeningTask::find($id);
+        $listening = ListeningTask::with(['questions'])->find($id);
         if ($listening) {
             $listening->type = 'listening';
             return $listening;
         }
 
         // 4. Try WritingTask
-        $writing = WritingTask::find($id);
+        $writing = WritingTask::with(['taskQuestions'])->find($id);
         if ($writing) {
             $writing->type = 'writing';
             return $writing;
         }
 
         // 5. Try SpeakingTask
-        $speaking = SpeakingTask::find($id);
+        $speaking = SpeakingTask::find($id); // Speaking currently uses JSON column only
         if ($speaking) {
             $speaking->type = 'speaking';
             return $speaking;
