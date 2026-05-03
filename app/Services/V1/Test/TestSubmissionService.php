@@ -117,7 +117,7 @@ class TestSubmissionService
             default     => []
         };
 
-        if (!empty($relations)) {
+        if (!empty($relations) && $test instanceof \App\Models\Test) {
             $test->load($relations);
         }
         
