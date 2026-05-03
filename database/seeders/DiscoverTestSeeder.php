@@ -26,156 +26,192 @@ class DiscoverTestSeeder extends Seeder
         // 1. Get or Create Admin
         $admin = User::where('role', 'admin')->first() ?: User::factory()->create(['role' => 'admin', 'email' => 'admin@koupii.com']);
 
-        // Clear existing public tests to have a clean slate for fresh seeding
+        // Clear existing public tests to have a clean slate
         Test::where('is_public', true)->delete();
+        \App\Models\ReadingTask::where('is_public', true)->delete();
+        \App\Models\ListeningTask::where('is_public', true)->delete();
+        \App\Models\WritingTask::where('is_public', true)->delete();
+        \App\Models\SpeakingTask::where('is_public', true)->delete();
 
-        // 2. SEED READING (IELTS Style)
-        $readingTest = Test::create([
-            'id' => Str::uuid(),
+        // 2. SEED READING (New ReadingTask format)
+        $readingTaskId = (string) Str::uuid();
+        
+        // Register this task in the global tests table FIRST for Discover visibility
+        Test::create([
+            'id' => $readingTaskId,
             'creator_id' => $admin->id,
-            'title' => 'Academic Reading: The Future of AI',
-            'description' => 'A comprehensive IELTS-style reading test covering academic passages about Artificial Intelligence.',
+            'title' => 'The Future of Neural Networks',
+            'description' => 'Academic reading test about Artificial Intelligence.',
             'type' => 'reading',
             'difficulty' => 'advanced',
-            'test_type' => 'single',
             'is_public' => true,
             'is_published' => true,
-            'timer_mode' => 'countdown',
-            'timer_settings' => ['duration' => 1200], // 20 mins
         ]);
 
-        $passage = Passage::create([
-            'id' => Str::uuid(),
-            'test_id' => $readingTest->id,
-            'title' => 'The Evolution of Neural Networks',
-            'description' => 'Academic passage about the history and future of AI.',
-            'transcript' => [
-                ['type' => 'text', 'content' => "The concept of neural networks dates back to the mid-20th century, inspired by the biological structures of the human brain. Early attempts, such as the Perceptron, laid the groundwork for what would eventually become the backbone of modern machine learning. However, it wasn't until the advent of deep learning and increased computational power that AI truly began to surpass human capabilities in specific domains.\n\nResearchers argue that the next frontier lies in General Artificial Intelligence (AGI), where machines can perform any intellectual task that a human can. While we are still decades away from achieving this, the ethical implications are already being debated in academic and political circles. Issues of bias, transparency, and the displacement of human labor are at the forefront of the conversation."]
+        $readingTask = \App\Models\ReadingTask::create([
+            'id' => $readingTaskId,
+            'created_by' => $admin->id,
+            'title' => 'The Future of Neural Networks',
+            'description' => 'Academic reading test about Artificial Intelligence.',
+            'difficulty' => 'advanced',
+            'is_public' => true,
+            'is_published' => true,
+            'passages' => [
+                [
+                    'id' => (string) Str::uuid(),
+                    'title' => 'The Evolution of AI',
+                    'content' => "The concept of neural networks dates back to the mid-20th century, inspired by the biological structures of the human brain. Early attempts, such as the Perceptron, laid the groundwork for what would eventually become the backbone of modern machine learning. However, it wasn't until the advent of deep learning and increased computational power that AI truly began to surpass human capabilities in specific domains.\n\nResearchers argue that the next frontier lies in General Artificial Intelligence (AGI), where machines can perform any intellectual task that a human can. While we are still decades away from achieving this, the ethical implications are already being debated in academic and political circles. Issues of bias, transparency, and the displacement of human labor are at the forefront of the conversation.",
+                    'questionGroups' => [
+                        [
+                            'id' => (string) Str::uuid(),
+                            'instruction' => 'Choose the correct option for each question based on the passage above.',
+                            'questions' => [
+                                [
+                                    'id' => (string) Str::uuid(),
+                                    'question_number' => 1,
+                                    'question_text' => 'What was the primary inspiration for early neural networks?',
+                                    'question_type' => 'multiple_choice',
+                                    'points' => 1,
+                                    'options' => [
+                                        ['key' => 'A', 'text' => 'Clockwork mechanisms'],
+                                        ['key' => 'B', 'text' => 'Biological brain structures'],
+                                        ['key' => 'C', 'text' => 'Electronic circuits'],
+                                        ['key' => 'D', 'text' => 'Mathematical logic only']
+                                    ],
+                                    'correct_answer' => 'B'
+                                ],
+                                [
+                                    'id' => (string) Str::uuid(),
+                                    'question_number' => 2,
+                                    'question_text' => 'Is AGI currently achievable according to the passage?',
+                                    'question_type' => 'true_false',
+                                    'points' => 1,
+                                    'options' => [
+                                        ['key' => 'T', 'text' => 'True'],
+                                        ['key' => 'F', 'text' => 'False']
+                                    ],
+                                    'correct_answer' => 'F'
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
             ]
         ]);
 
-        $qGroupR = QuestionGroup::create([
-            'id' => Str::uuid(),
-            'passage_id' => $passage->id,
-            'instruction' => 'Choose the correct option for each question based on the passage above.',
-        ]);
+        // 3. SEED LISTENING (ListeningTask with Questions)
+        $listeningTaskId = (string) Str::uuid();
 
-        $qr1 = TestQuestion::create([
-            'id' => Str::uuid(),
-            'question_group_id' => $qGroupR->id,
-            'question_type' => 'multiple_choice',
-            'question_number' => 1,
-            'question_text' => 'What was the primary inspiration for early neural networks?',
-            'correct_answers' => ['B'],
-            'points_value' => 1,
-        ]);
-
-        QuestionOption::create(['id' => Str::uuid(), 'question_id' => $qr1->id, 'option_key' => 'A', 'option_text' => 'Clockwork mechanisms']);
-        QuestionOption::create(['id' => Str::uuid(), 'question_id' => $qr1->id, 'option_key' => 'B', 'option_text' => 'Biological brain structures']);
-
-        // 3. SEED LISTENING
-        $listeningTest = Test::create([
-            'id' => Str::uuid(),
+        Test::create([
+            'id' => $listeningTaskId,
             'creator_id' => $admin->id,
-            'title' => 'Listening: Library Orientation',
-            'description' => 'Practice your listening skills with a realistic library orientation scenario.',
+            'title' => 'Library Orientation Conversation',
+            'description' => 'Listen to a conversation about library services.',
             'type' => 'listening',
             'difficulty' => 'intermediate',
-            'test_type' => 'single',
             'is_public' => true,
             'is_published' => true,
-            'timer_mode' => 'none',
         ]);
 
         $listeningTask = ListeningTask::create([
-            'id' => Str::uuid(),
-            'test_id' => $listeningTest->id,
-            'title' => 'Library Induction Section 1',
+            'id' => $listeningTaskId,
+            'created_by' => $admin->id,
+            'title' => 'Library Orientation Conversation',
+            'description' => 'Listen to a conversation about library services.',
             'task_type' => 'conversation',
             'difficulty' => 'intermediate',
+            'is_public' => true,
             'is_published' => true,
-            'created_by' => $admin->id,
-            'audio_url' => 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', // Sample audio
-            'instructions' => 'Listen to the conversation between a librarian and a new student.',
+            'audio_url' => 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+            'instructions' => 'Listen carefully and answer the following questions.',
         ]);
 
         ListeningQuestion::create([
             'id' => Str::uuid(),
             'listening_task_id' => $listeningTask->id,
-            'question_type' => 'short_answer',
-            'question_text' => 'What is the maximum number of books a student can borrow?',
-            'correct_answers' => ['8', 'eight'],
-            'points' => 1,
             'order_index' => 1,
+            'question_type' => 'multiple_choice',
+            'question_text' => 'How many books can a new student borrow?',
+            'options' => [
+                ['key' => 'A', 'text' => '5 books'],
+                ['key' => 'B', 'text' => '8 books'],
+                ['key' => 'C', 'text' => '10 books']
+            ],
+            'correct_answers' => ['B'],
+            'points' => 1,
         ]);
 
         // 4. SEED WRITING
-        $writingTest = Test::create([
-            'id' => Str::uuid(),
+        $writingTaskId = (string) Str::uuid();
+
+        Test::create([
+            'id' => $writingTaskId,
             'creator_id' => $admin->id,
-            'title' => 'Writing: Environmental Issues',
-            'description' => 'Practice an essay response to a common environmental topic.',
+            'title' => 'Environmental Essay: Global Warming',
+            'description' => 'Practice an essay response about climate change.',
             'type' => 'writing',
             'difficulty' => 'advanced',
-            'test_type' => 'single',
             'is_public' => true,
             'is_published' => true,
         ]);
 
         $writingTask = WritingTask::create([
-            'id' => Str::uuid(),
-            'test_id' => $writingTest->id,
+            'id' => $writingTaskId,
             'creator_id' => $admin->id,
-            'title' => 'Essay: Global Warming',
+            'title' => 'Environmental Essay: Global Warming',
+            'description' => 'Practice an essay response about climate change.',
             'task_type' => 'essay',
             'prompt' => 'Global warming is a serious issue. What are the causes and solutions?',
             'word_limit' => 250,
+            'is_public' => true,
             'is_published' => true,
         ]);
 
         WritingTaskQuestion::create([
             'id' => Str::uuid(),
             'writing_task_id' => $writingTask->id,
-            'question_type' => 'essay',
             'question_number' => 1,
-            'question_text' => 'Write about global warming.',
+            'question_type' => 'essay',
+            'question_text' => 'Discuss the primary causes of global warming and suggest two effective solutions.',
             'word_limit' => 250,
         ]);
 
         // 5. SEED SPEAKING
-        $speakingTest = Test::create([
-            'id' => Str::uuid(),
+        $speakingTaskId = (string) Str::uuid();
+
+        Test::create([
+            'id' => $speakingTaskId,
             'creator_id' => $admin->id,
-            'title' => 'Speaking: Daily Life',
-            'description' => 'A mock speaking test covering personal topics and hobbies.',
+            'title' => 'General English Interview',
+            'description' => 'Mock interview about hobbies and daily life.',
             'type' => 'speaking',
             'difficulty' => 'intermediate',
-            'test_type' => 'single',
             'is_public' => true,
             'is_published' => true,
         ]);
 
         $speakingTask = SpeakingTask::create([
-            'id' => Str::uuid(),
-            'test_id' => $speakingTest->id,
+            'id' => $speakingTaskId,
             'created_by' => $admin->id,
-            'title' => 'Mock Interview',
+            'title' => 'General English Interview',
+            'description' => 'Mock interview about hobbies and daily life.',
             'difficulty_level' => 'intermediate',
+            'is_public' => true,
             'is_published' => true,
         ]);
 
         $sSection = SpeakingSection::create([
             'id' => Str::uuid(),
-            'test_id' => $speakingTest->id,
+            'test_id' => $speakingTaskId,
             'section_type' => 'introduction',
-            'description' => 'General introductory questions.',
-            'prep_time_seconds' => 0,
+            'description' => 'Basic introduction questions.',
+            'prep_time_seconds' => 10,
         ]);
 
         $sTopic = SpeakingTopic::create([
             'id' => Str::uuid(),
             'speaking_section_id' => $sSection->id,
-            'topic_name' => 'Hobbies',
+            'topic_name' => 'Your Hobbies',
         ]);
 
         SpeakingQuestion::create([
@@ -186,6 +222,6 @@ class DiscoverTestSeeder extends Seeder
             'time_limit_seconds' => 60,
         ]);
 
-        $this->command->info('DiscoverTestSeeder: Successfully seeded all 4 skill types for public tests.');
+        $this->command->info('DiscoverTestSeeder: Successfully seeded all 4 skill types with MODERN structures.');
     }
 }
