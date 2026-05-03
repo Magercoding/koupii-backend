@@ -122,10 +122,12 @@ class SpeakingSubmissionService
         // --- NEW LOGIC FOR DISCOVER TESTS ---
         // If it's a public discover test (no assignment) and the attempt is already finished,
         // automatically increment the attempt number instead of erroring out.
-        if (!$assignmentId) {
+        if (empty($assignmentId)) {
             $latestSubmitted = SpeakingSubmission::where('speaking_task_id', $test->id)
                 ->where('student_id', $studentId)
-                ->whereNull('assignment_id')
+                ->where(function($q) {
+                    $q->whereNull('assignment_id')->orWhere('assignment_id', '');
+                })
                 ->whereIn('status', [
                     SpeakingSubmission::STATUS_SUBMITTED,
                     SpeakingSubmission::STATUS_COMPLETED,
@@ -418,7 +420,12 @@ class SpeakingSubmissionService
         $existingSubmission = SpeakingSubmission::where('speaking_task_id', $test->id)
             ->where('student_id', $studentId)
             ->where('attempt_number', $attemptNumber)
-            ->when($assignmentId, fn($q) => $q->where('assignment_id', $assignmentId))
+            ->when(!empty($assignmentId), 
+                fn($q) => $q->where('assignment_id', $assignmentId),
+                fn($q) => $q->where(function($sq) {
+                    $sq->whereNull('assignment_id')->orWhere('assignment_id', '');
+                })
+            )
             ->first();
 
         if ($existingSubmission && in_array($existingSubmission->status, [
