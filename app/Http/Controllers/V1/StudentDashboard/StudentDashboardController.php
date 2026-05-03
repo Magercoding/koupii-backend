@@ -910,12 +910,14 @@ class StudentDashboardController extends Controller
 
         // 2. Recent Submissions
         $recentSubmissions = DB::table('speaking_submissions')
-            ->join('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->leftJoin('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
+            ->leftJoin('tests', 'speaking_submissions.test_id', '=', 'tests.id')
             ->leftJoin('speaking_reviews', 'speaking_submissions.id', '=', 'speaking_reviews.submission_id')
             ->where('speaking_submissions.student_id', $userId)
             ->whereNotNull('speaking_submissions.submitted_at')
             ->select(
-                'speaking_tasks.title as task_title',
+                'speaking_submissions.id',
+                DB::raw('COALESCE(speaking_tasks.title, tests.title, "Speaking Task") as task_title'),
                 'speaking_reviews.total_score as score',
                 'speaking_submissions.submitted_at',
                 'speaking_submissions.status as review_status'

@@ -25,10 +25,10 @@ class SpeakingSubmissionResource extends JsonResource
                 : null,
 
             'speaking_task' => [
-                'id' => $this->speakingTask?->id,
-                'title' => $this->speakingTask?->title,
-                'difficulty_level' => $this->speakingTask?->difficulty_level,
-                'questions' => $this->speakingTask?->questions ?? [],
+                'id' => $this->speakingTask?->id ?? $this->test?->id,
+                'title' => $this->speakingTask?->title ?? $this->test?->title,
+                'difficulty_level' => $this->speakingTask?->difficulty_level ?? $this->test?->difficulty_level,
+                'questions' => $this->getUnifiedQuestions(),
             ],
 
             // Assignment information
@@ -65,6 +65,9 @@ class SpeakingSubmissionResource extends JsonResource
 
             // Recordings with speech analysis
             'recordings' => $this->recordings ? $this->recordings->map(function ($recording) {
+                // Try to find question text from Task/Test if not embedded
+                $questionData = $this->findQuestionInTask($recording->question_id);
+
                 return [
                     'id' => $recording->id,
                     'question_id' => $recording->question_id,
@@ -87,13 +90,7 @@ class SpeakingSubmissionResource extends JsonResource
                     'pause_analysis' => $recording->pause_analysis,
                     
                     // Question information
-                    'question' => $recording->question ? [
-                        'id' => $recording->question->id,
-                        'topic' => $recording->question->topic,
-                        'prompt' => $recording->question->prompt,
-                        'preparation_time_seconds' => $recording->question->preparation_time_seconds,
-                        'response_time_seconds' => $recording->question->response_time_seconds,
-                    ] : null,
+                    'question' => $questionData,
 
                     'created_at' => $recording->created_at,
                     'updated_at' => $recording->updated_at,
@@ -147,6 +144,58 @@ class SpeakingSubmissionResource extends JsonResource
         ];
     }
 
+    private function getUnifiedQuestions(): array
+    {
+        $questions = [];
+
+        // Scenario 1: SpeakingTask model (Assignment)
+        if ($this->speakingTask && is_array($this->speakingTask->questions)) {
+             // Handle both flattened array and section-based structure
+             $qArray = $this->speakingTask->questions;
+             if (isset($qArray[0]) && isset($qArray[0]['questions'])) {
+                 // Section based
+                 foreach ($qArray as $section) {
+                     foreach ($section['questions'] as $q) {
+                         $questions[] = $q;
+                     }
+                 }
+             } else {
+                 $questions = $qArray;
+             }
+        } 
+        // Scenario 2: Global Test model (Discover Test)
+        elseif ($this->test) {
+            $this->test->loadMissing('sections.questions');
+            foreach ($this->test->sections as $section) {
+                foreach ($section->questions as $q) {
+                    $questions[] = [
+                        'id' => $q->id,
+                        'prompt' => $q->prompt,
+                        'topic' => $q->topic ?? $section->title,
+                        'preparation_time_seconds' => $q->preparation_time_seconds,
+                        'response_time_seconds' => $q->response_time_seconds,
+                    ];
+                }
+            }
+        }
+
+        return $questions;
+    }
+
+    private function findQuestionInTask(?string $questionId): ?array
+    {
+        if (!$questionId) return null;
+
+        $allQuestions = $this->getUnifiedQuestions();
+        foreach ($allQuestions as $q) {
+            if ($q['id'] == $questionId) {
+                return $q;
+            }
+        }
+
+        return null;
+    }
+
     private function formatTime(int $seconds): string
     {
         $hours = floor($seconds / 3600);
@@ -185,23 +234,7 @@ class SpeakingSubmissionResource extends JsonResource
 
     private function getTotalQuestions(): int
     {
-        // For task-based speaking tasks (uses JSON questions)
-        if ($this->speakingTask && is_array($this->speakingTask->questions)) {
-            return count($this->speakingTask->questions);
-        }
-
-        // For traditional test-based tasks (uses sections relationship)
-        if ($this->assignment && $this->assignment->test) {
-            if ($this->assignment->test->relationLoaded('sections')) {
-                 return $this->assignment->test->sections->sum(function ($section) {
-                    return $section->questions->count();
-                });
-            }
-            // If sections not loaded, just return a default or count if possible
-            return $this->assignment->test->sections()->count(); // Optimization
-        }
-
-        return 0;
+        return count($this->getUnifiedQuestions());
     }
 
     private function getCompletionPercentage(): float
