@@ -42,16 +42,19 @@ class DiscoverSpeakingSeeder extends Seeder
             'is_published' => true,
             'questions' => [
                 [
+                    'id' => (string) Str::uuid(),
                     'title' => 'Part 1: Introduction',
                     'instructions' => 'General questions about yourself.',
                     'order_index' => 0,
                     'questions' => [
                         [
+                            'id' => (string) Str::uuid(),
                             'order_index' => 0,
                             'topic' => 'Personal',
                             'prompt' => 'What is your favorite hobby?'
                         ],
                         [
+                            'id' => (string) Str::uuid(),
                             'order_index' => 1,
                             'topic' => 'Routine',
                             'prompt' => 'Describe your typical day.'
