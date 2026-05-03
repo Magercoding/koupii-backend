@@ -210,7 +210,8 @@ class TestService
                 $q->where('is_published', (bool)$filters['is_published']);
             }
             if (!empty($filters['difficulty'])) {
-                $q->where($difficultyColumn, $filters['difficulty']);
+                $difficulties = is_string($filters['difficulty']) ? explode(',', $filters['difficulty']) : $filters['difficulty'];
+                $q->whereIn($difficultyColumn, (array)$difficulties);
             }
             if (!empty($filters['class_id'])) {
                 $q->where('class_id', $filters['class_id']);
