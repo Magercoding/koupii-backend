@@ -398,7 +398,11 @@ class TestService
             )
             ->select(
                 'combined.*',
-                DB::raw("COALESCE(classes.name, assigned_class.class_name) as class_name")
+                DB::raw("COALESCE(classes.name, assigned_class.class_name) as class_name"),
+                DB::raw("(SELECT COUNT(*) FROM reading_submissions WHERE student_id = '{$userId}' AND reading_task_id = combined.id AND submitted_at IS NOT NULL) as r_count"),
+                DB::raw("(SELECT COUNT(*) FROM listening_submissions WHERE student_id = '{$userId}' AND listening_task_id = combined.id AND submitted_at IS NOT NULL) as l_count"),
+                DB::raw("(SELECT COUNT(*) FROM writing_submissions WHERE student_id = '{$userId}' AND writing_task_id = combined.id AND submitted_at IS NOT NULL) as w_count"),
+                DB::raw("(SELECT COUNT(*) FROM speaking_submissions WHERE student_id = '{$userId}' AND speaking_task_id = combined.id AND submitted_at IS NOT NULL) as s_count")
             )
             ->orderByDesc('combined.created_at');
     }
