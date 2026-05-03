@@ -329,6 +329,20 @@ class WritingSubmissionController extends Controller implements HasMiddleware
 
         // 3. Check if ID is a Task ID
         $task = WritingTask::find($id);
+        if (!$task) {
+            $globalTest = \App\Models\Test::find($id);
+            if ($globalTest) {
+                // If it's a global test, we return a virtual task or handle it differently
+                // For now, let's allow it to be found
+                return [
+                    'task' => $globalTest,
+                    'assignmentId' => request()->input('assignment_id'),
+                    'studentAssignment' => null,
+                    'isGlobal' => true
+                ];
+            }
+        }
+
         if ($task) {
             return [
                 'task' => $task,

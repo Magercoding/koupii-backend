@@ -13,7 +13,7 @@ class WritingSubmissionService
     /**
      * Submit student writing.
      */
-    public function submitWriting(WritingTask $task, array $data): WritingSubmission
+    public function submitWriting($task, array $data): WritingSubmission
     {
         return DB::transaction(function () use ($task, $data) {
             $assignmentId = $data['assignment_id'] ?? null;
@@ -88,7 +88,7 @@ class WritingSubmissionService
     /**
      * Save draft (auto-save functionality).
      */
-    public function saveDraft(WritingTask $task, array $data): WritingSubmission
+    public function saveDraft($task, array $data): WritingSubmission
     {
         $assignmentId = $data['assignment_id'] ?? null;
         
@@ -159,7 +159,7 @@ class WritingSubmissionService
     /**
      * Create retake submission based on retake option.
      */
-    public function createRetakeSubmission(WritingTask $task, string $retakeOption, array $data = []): WritingSubmission
+    public function createRetakeSubmission($task, string $retakeOption, array $data = []): WritingSubmission
     {
         return DB::transaction(function () use ($task, $retakeOption, $data) {
             $attemptNumber = WritingSubmission::where('writing_task_id', $task->id)

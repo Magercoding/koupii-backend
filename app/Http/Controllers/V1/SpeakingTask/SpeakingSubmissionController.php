@@ -50,6 +50,14 @@ class SpeakingSubmissionController extends Controller
         }
         
         if (!$speakingTask) {
+            $globalTest = \App\Models\Test::find($taskId);
+            if ($globalTest) {
+                // If found in global tests, we might need a way to handle it as a speaking task
+                return response()->json([
+                    'message' => 'This is a global test, please use the universal test submission endpoint',
+                    'error' => 'Incompatible task type'
+                ], 400);
+            }
             $speakingTask = SpeakingTask::findOrFail($taskId); // Fallback to 404
         }
         

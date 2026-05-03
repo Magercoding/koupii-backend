@@ -383,7 +383,7 @@ class SpeakingSubmissionService
                         $query->where('users.id', $studentId);
                     })->exists();
 
-                if (!$hasLegacyAccess && !$test->is_published) {
+                if (!$hasLegacyAccess && !($test->is_public || $test->is_published)) {
                     abort(403, 'Unauthorized access to this task');
                 }
             }

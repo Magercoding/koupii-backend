@@ -115,16 +115,26 @@ class ListeningSubmissionController extends Controller implements HasMiddleware
             return response()->json(['message' => 'task_id is required'], 422);
         }
 
-        // Resolve task if the ID provided is an assignment_id
+        // Resolve task if the ID provided is an assignment_id or a global test ID
         $task = ListeningTask::find($taskId);
         if (!$task) {
             $assignment = \App\Models\Assignment::find($taskId);
-            if ($assignment && $assignment->task_type === 'listening_task') {
+            if ($assignment && ($assignment->task_type === 'listening_task' || $assignment->task_type === 'test')) {
                 $task = ListeningTask::find($assignment->task_id);
             }
         }
 
+        // Final fallback: try to find in the global tests table if it's a test-type task
         if (!$task) {
+            $globalTest = \App\Models\Test::find($taskId);
+            if ($globalTest) {
+                // If found in global tests, we might need a way to handle it as a listening task
+                // For now, let's at least not 404 if it's potentially a test
+                return response()->json([
+                    'message' => 'This is a global test, please use the universal test submission endpoint',
+                    'error' => 'Incompatible task type'
+                ], 400);
+            }
             $task = ListeningTask::findOrFail($taskId);
         }
 
@@ -132,11 +142,11 @@ class ListeningSubmissionController extends Controller implements HasMiddleware
         $hasAccess = false;
         
         if ($user->role === 'student') {
-            $hasAccess = $this->isStudentAssigned($task, $user, $assignmentId);
-
-            // Fallback: if task is published, allow access (for practice/public tasks)
-            if (!$hasAccess && $task->is_published) {
+            // Allow access if the task is public or published
+            if ($task->is_public || $task->is_published) {
                 $hasAccess = true;
+            } else {
+                $hasAccess = $this->isStudentAssigned($task, $user, $assignmentId);
             }
         } elseif ($user->role === 'teacher') {
             $hasAccess = $task->created_by === $user->id || $task->is_published;
