@@ -44,7 +44,8 @@ class SpeakingSubmissionResource extends JsonResource
             'recordings' => $this->recordings ? $this->recordings->map(function ($recording) use ($unifiedQuestions) {
                 // Try to match the recording to one of our unified questions
                 $matchedQuestion = collect($unifiedQuestions)->first(function ($q) use ($recording) {
-                    return ($q['id'] ?? null) == $recording->question_id;
+                    return (($q['id'] ?? null) == $recording->question_id) || 
+                           (($q['index_id'] ?? null) == $recording->question_id);
                 });
 
                 return [
@@ -92,17 +93,19 @@ class SpeakingSubmissionResource extends JsonResource
 
     private function getUnifiedQuestions(): array
     {
-        // 1. Check if linked to a Global Test (Discover Test)
+        // 1. If it's a Discover Test (linked through SpeakingTask)
         if ($this->speakingTask && $this->speakingTask->test) {
             $test = $this->speakingTask->test;
             $questions = collect();
             
+            // Ensure passages are loaded
             if ($test->passages) {
-                foreach ($test->passages as $passage) {
-                    foreach ($passage->questionGroups as $group) {
-                        foreach ($group->questions as $question) {
+                foreach ($test->passages as $passageIndex => $passage) {
+                    foreach ($passage->questionGroups as $groupIndex => $group) {
+                        foreach ($group->questions as $questionIndex => $question) {
                             $questions->push([
                                 'id' => $question->id,
+                                'index_id' => "{$passageIndex}-{$questionIndex}", // Legacy mapping support
                                 'prompt' => $question->question_text,
                                 'topic' => $question->question_data['topic'] ?? null,
                                 'order_index' => $question->order_index,
