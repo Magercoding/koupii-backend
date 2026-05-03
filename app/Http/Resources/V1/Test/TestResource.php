@@ -68,9 +68,20 @@ class TestResource extends JsonResource
 
             'speaking_sections' => $isEloquentModel
                 ? ($this->resource instanceof \App\Models\SpeakingTask
-                    ? ($this->questions ?? []) // Normalize SpeakingTask questions
+                    ? ($this->questions ?? [])
                     : $this->whenLoaded('speakingSections', fn () => SpeakingSectionResource::collection($this->speakingSections)))
                 : [],
+            // Alias 'questions' for Speaking to match Exercise view expectations
+            'questions' => $isEloquentModel
+                ? ($this->resource instanceof \App\Models\SpeakingTask
+                    ? ($this->questions ?? [])
+                    : ($this->resource instanceof \App\Models\ListeningTask
+                        ? ($this->relationLoaded('questions') ? $this->questions : [])
+                        : ($this->resource instanceof \App\Models\WritingTask
+                            ? ($this->relationLoaded('taskQuestions') ? $this->taskQuestions : ($this->questions ?? []))
+                            : [])))
+                : [],
+
             'listening_tasks' => $isEloquentModel
                 ? ($this->resource instanceof \App\Models\ListeningTask
                     ? ($this->audio_segments ?? [])
