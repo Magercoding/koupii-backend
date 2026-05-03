@@ -141,28 +141,28 @@ class TestService
      */
     public function findAnyTaskById(string $id)
     {
-        // 1. Try ReadingTask
-        $reading = ReadingTask::with(['passages.questionGroups.questions.options'])->find($id);
+        // 1. Try ReadingTask - ReadingTask uses JSON 'passages' column, not a relation
+        $reading = ReadingTask::find($id);
         if ($reading) {
             $reading->type = 'reading';
             return $reading;
         }
 
-        // 2. Try ListeningTask
+        // 2. Try ListeningTask - Uses relational 'questions'
         $listening = ListeningTask::with(['questions'])->find($id);
         if ($listening) {
             $listening->type = 'listening';
             return $listening;
         }
 
-        // 3. Try WritingTask
+        // 3. Try WritingTask - Uses relational 'taskQuestions'
         $writing = WritingTask::with(['taskQuestions'])->find($id);
         if ($writing) {
             $writing->type = 'writing';
             return $writing;
         }
 
-        // 4. Try SpeakingTask
+        // 4. Try SpeakingTask - Uses JSON 'questions' column
         $speaking = SpeakingTask::find($id);
         if ($speaking) {
             $speaking->type = 'speaking';
