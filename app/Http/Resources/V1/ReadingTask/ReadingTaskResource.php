@@ -37,7 +37,7 @@ class ReadingTaskResource extends JsonResource
             'passages' => collect($this->passages)->map(function ($passage) use ($isStudent, $user) {
                 // If it's a student, check if they have a completed submission to allow seeing answers
                 $canSeeAnswers = !$isStudent;
-                if ($isStudent) {
+                if ($isStudent && $user) {
                     $submissions = $this->relationLoaded('submissions') 
                         ? $this->submissions 
                         : $this->submissions()->where('student_id', $user->id)->get();

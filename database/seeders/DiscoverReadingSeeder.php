@@ -46,7 +46,7 @@ class DiscoverReadingSeeder extends Seeder
                     'title' => 'The Evolution of AI',
                     'description' => 'Historical context of machine learning.',
                     'content' => "The concept of neural networks dates back to the mid-20th century...",
-                    'questionGroups' => [
+                    'question_groups' => [
                         [
                             'id' => (string) Str::uuid(),
                             'instruction' => 'Choose the correct option.',

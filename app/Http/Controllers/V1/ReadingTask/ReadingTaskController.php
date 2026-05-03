@@ -121,7 +121,11 @@ class ReadingTaskController extends Controller implements HasMiddleware
         ])->findOrFail($id);
 
         // Check permissions
-        if ($user->role === 'student') {
+        if ($task->is_public) {
+            // Allow anyone to see public tasks
+        } elseif (!$user) {
+             return response()->json(['message' => 'Unauthenticated'], 401);
+        } elseif ($user->role === 'student') {
             $isAssigned = $this->isStudentAssigned($task, $user);
             
             if (!$isAssigned) {
