@@ -42,7 +42,7 @@ class SpeakingSubmissionResource extends JsonResource
 
             // Recordings
             'recordings' => $this->recordings ? $this->recordings->map(function ($recording) use ($unifiedQuestions) {
-                // Try to match the recording to one of our unified questions
+                // Match by UUID or by index_id (fallback for legacy/discover)
                 $matchedQuestion = collect($unifiedQuestions)->first(function ($q) use ($recording) {
                     return (($q['id'] ?? null) == $recording->question_id) || 
                            (($q['index_id'] ?? null) == $recording->question_id);
@@ -60,7 +60,7 @@ class SpeakingSubmissionResource extends JsonResource
                     'fluency_score' => $recording->fluency_score,
                     'speaking_rate' => $recording->speaking_rate,
                     'pause_analysis' => $recording->pause_analysis,
-                    'question' => $matchedQuestion ?: $recording->question,
+                    'question' => $matchedQuestion,
                     'created_at' => $recording->created_at,
                 ];
             }) : [],
@@ -93,19 +93,18 @@ class SpeakingSubmissionResource extends JsonResource
 
     private function getUnifiedQuestions(): array
     {
-        // 1. If it's a Discover Test (linked through SpeakingTask)
+        $questions = collect();
+
+        // 1. Check if linked to a Global Test (Discover Test)
         if ($this->speakingTask && $this->speakingTask->test) {
             $test = $this->speakingTask->test;
-            $questions = collect();
-            
-            // Ensure passages are loaded
             if ($test->passages) {
                 foreach ($test->passages as $passageIndex => $passage) {
                     foreach ($passage->questionGroups as $groupIndex => $group) {
                         foreach ($group->questions as $questionIndex => $question) {
                             $questions->push([
                                 'id' => $question->id,
-                                'index_id' => "{$passageIndex}-{$questionIndex}", // Legacy mapping support
+                                'index_id' => "{$passageIndex}-{$questionIndex}",
                                 'prompt' => $question->question_text,
                                 'topic' => $question->question_data['topic'] ?? null,
                                 'order_index' => $question->order_index,
@@ -114,33 +113,44 @@ class SpeakingSubmissionResource extends JsonResource
                     }
                 }
             }
-            
             return $questions->toArray();
         }
 
-        // 2. Fallback to direct test_id if available
-        if ($this->test_id && $this->test) {
-            $questions = collect();
-            foreach ($this->test->passages as $passage) {
-                foreach ($passage->questionGroups as $group) {
-                    foreach ($group->questions as $question) {
+        // 2. Regular SpeakingTask questions (can be section-based or flat)
+        if ($this->speakingTask && $this->speakingTask->questions) {
+            $rawQuestions = is_string($this->speakingTask->questions) 
+                ? json_decode($this->speakingTask->questions, true) 
+                : $this->speakingTask->questions;
+
+            // Normalize into a flat list with index_id
+            if (isset($rawQuestions[0]) && isset($rawQuestions[0]['questions'])) {
+                // Section-based
+                foreach ($rawQuestions as $sectionIndex => $section) {
+                    $sectionQuestions = $section['questions'] ?? [];
+                    foreach ($sectionQuestions as $questionIndex => $q) {
                         $questions->push([
-                            'id' => $question->id,
-                            'prompt' => $question->question_text,
-                            'topic' => $question->question_data['topic'] ?? null,
-                            'order_index' => $question->order_index,
+                            'id' => $q['id'] ?? null,
+                            'index_id' => "{$sectionIndex}-{$questionIndex}",
+                            'prompt' => $q['prompt'] ?? ($q['question_text'] ?? ''),
+                            'topic' => $q['topic'] ?? null,
+                            'order_index' => $q['order_index'] ?? null,
                         ]);
                     }
                 }
+            } else {
+                // Flat list
+                foreach ($rawQuestions as $index => $q) {
+                    $questions->push([
+                        'id' => $q['id'] ?? null,
+                        'index_id' => "0-{$index}",
+                        'prompt' => $q['prompt'] ?? ($q['question_text'] ?? ''),
+                        'topic' => $q['topic'] ?? null,
+                        'order_index' => $q['order_index'] ?? null,
+                    ]);
+                }
             }
+            
             return $questions->toArray();
-        }
-
-        // 3. Regular SpeakingTask questions
-        if ($this->speakingTask && $this->speakingTask->questions) {
-            return is_string($this->speakingTask->questions) 
-                ? json_decode($this->speakingTask->questions, true) 
-                : $this->speakingTask->questions;
         }
 
         return [];
