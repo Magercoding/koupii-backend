@@ -142,48 +142,40 @@ class SpeakingSubmissionService
             }
         }
 
-        // Check if student can attempt this test (now with updated attemptNumber)
-        $this->validateSubmissionAttempt($test, $studentId, $attemptNumber, $assignmentId);
+        // 4. Use firstOrCreate to handle race conditions atomically
+        // This will find the existing record or create it, and automatically handle 
+        // the duplicate entry error if another request wins the race.
+        $submission = SpeakingSubmission::firstOrCreate(
+            [
+                'speaking_task_id' => $test->id,
+                'student_id' => $studentId,
+                'assignment_id' => empty($assignmentId) ? null : $assignmentId,
+                'attempt_number' => $attemptNumber,
+            ],
+            [
+                'status' => SpeakingSubmission::STATUS_IN_PROGRESS,
+                'started_at' => now(),
+            ]
+        );
 
-        try {
-            return DB::transaction(function () use ($test, $studentId, $attemptNumber, $assignmentId) {
-                $submission = SpeakingSubmission::create([
-                    'speaking_task_id' => $test->id,
-                    'student_id' => $studentId,
-                    'assignment_id' => empty($assignmentId) ? null : $assignmentId,
+        // Sync with StudentAssignment if provided
+        if ($assignmentId) {
+            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                ->where('student_id', $studentId)
+                ->first();
+            
+            if ($studentAssignment) {
+                $studentAssignment->update([
+                    'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
+                    'started_at' => $studentAssignment->started_at ?? now(),
+                    'last_activity_at' => now(),
                     'attempt_number' => $attemptNumber,
-                    'status' => SpeakingSubmission::STATUS_IN_PROGRESS,
-                    'started_at' => now(),
+                    'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
                 ]);
-
-                // Sync with StudentAssignment if provided
-                if ($assignmentId) {
-                    $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
-                        ->where('student_id', $studentId)
-                        ->first();
-                    if ($studentAssignment) {
-                        $studentAssignment->update([
-                            'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
-                            'started_at' => $studentAssignment->started_at ?? now(),
-                            'last_activity_at' => now(),
-                            'attempt_number' => $attemptNumber,
-                            'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
-                        ]);
-                    }
-                }
-
-                return $submission;
-            });
-        } catch (\Illuminate\Database\QueryException $e) {
-            // Handle race condition: if duplicate, fetch existing OUTSIDE the failed transaction
-            if ($e->getCode() == 23000 || (isset($e->errorInfo[1]) && $e->errorInfo[1] == 1062)) {
-                $submission = $this->validateSubmissionAttempt($test, $studentId, $attemptNumber, $assignmentId);
-                if ($submission) {
-                    return $submission;
-                }
             }
-            throw $e;
         }
+
+        return $submission;
     }
 
     public function uploadRecording(array $data): SpeakingRecording

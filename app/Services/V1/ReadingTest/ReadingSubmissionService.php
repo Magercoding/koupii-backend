@@ -113,75 +113,61 @@ class ReadingSubmissionService
             }
         }
 
-        try {
-            return DB::transaction(function () use ($task, $studentId, $data, $assignmentId, $attemptNumber) {
-                $submission = ReadingSubmission::create([
-                    'reading_task_id' => $task->id,
-                    'assignment_id' => empty($assignmentId) ? null : $assignmentId,
-                    'student_id' => $studentId,
+        // Use firstOrCreate to handle race conditions atomically
+        $submission = ReadingSubmission::firstOrCreate(
+            [
+                'reading_task_id' => $task->id,
+                'student_id' => $studentId,
+                'assignment_id' => empty($assignmentId) ? null : $assignmentId,
+                'attempt_number' => $attemptNumber,
+            ],
+            [
+                'status' => 'in_progress',
+                'started_at' => now(),
+            ]
+        );
+
+        // ONLY initialize if we actually created it
+        if ($submission->wasRecentlyCreated) {
+            $this->initializeAnswersFromTask($submission);
+        }
+
+        // Sync with StudentAssignment
+        if ($assignmentId) {
+            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                ->where('student_id', $studentId)
+                ->first();
+
+            if ($studentAssignment) {
+                $isNewlyStarted = $attemptNumber > $studentAssignment->attempt_count;
+                $isCompletedInSubmission = in_array($submission->status, ['completed', 'submitted']);
+
+                $updateData = [
+                    'last_activity_at' => now(),
                     'attempt_number' => $attemptNumber,
-                    'status' => 'in_progress',
-                    'started_at' => now(),
-                ]);
+                    'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
+                ];
 
-                $this->initializeAnswersFromTask($submission);
-
-                // Sync with StudentAssignment
-                if ($assignmentId) {
-                    $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
-                        ->where('student_id', $studentId)
-                        ->first();
-
-                    if ($studentAssignment) {
-                        $isNewlyStarted = $attemptNumber > $studentAssignment->attempt_count;
-                        $isCompletedInSubmission = in_array($submission->status, ['completed', 'submitted']);
-
-                        $updateData = [
-                            'last_activity_at' => now(),
-                            'attempt_number' => $attemptNumber,
-                            'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
-                        ];
-
-                        if (!$studentAssignment->started_at) {
-                            $updateData['started_at'] = now();
-                        }
-
-                        // ONLY set to IN_PROGRESS if the underlying submission data isn't already completed
-                        if (!$isCompletedInSubmission) {
-                            $updateData['status'] = \App\Models\StudentAssignment::STATUS_IN_PROGRESS;
-                        }
-
-                        // If this is truly a new attempt, clear the global score and completion date
-                        if ($isNewlyStarted) {
-                            $updateData['score'] = 0;
-                            $updateData['completed_at'] = null;
-                        }
-
-                        $studentAssignment->update($updateData);
-                    }
+                if (!$studentAssignment->started_at) {
+                    $updateData['started_at'] = now();
                 }
 
-                return $submission;
-            });
-        } catch (\Illuminate\Database\QueryException $e) {
-            // Handle race condition: if duplicate, fetch existing OUTSIDE the failed transaction
-            if ($e->getCode() == 23000 || (isset($e->errorInfo[1]) && $e->errorInfo[1] == 1062)) {
-                $submission = ReadingSubmission::where('reading_task_id', $task->id)
-                    ->where('student_id', $studentId)
-                    ->where('attempt_number', $attemptNumber)
-                    ->where(function($q) use ($assignmentId) {
-                        if (empty($assignmentId)) {
-                            $q->whereNull('assignment_id')->orWhere('assignment_id', '');
-                        } else {
-                            $q->where('assignment_id', $assignmentId);
-                        }
-                    })
-                    ->first();
-                
-                if ($submission) return $submission;
+                // ONLY set to IN_PROGRESS if the underlying submission data isn't already completed
+                if (!$isCompletedInSubmission) {
+                    $updateData['status'] = \App\Models\StudentAssignment::STATUS_IN_PROGRESS;
+                }
+
+                // If this is truly a new attempt, clear the global score and completion date
+                if ($isNewlyStarted) {
+                    $updateData['score'] = 0;
+                    $updateData['completed_at'] = null;
+                }
+
+                $studentAssignment->update($updateData);
             }
-            throw $e;
         }
+
+        return $submission;
     }
 
     /**

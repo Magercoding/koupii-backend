@@ -99,40 +99,24 @@ class ListeningSubmissionService
             }
         }
 
-        try {
-            // 3. Create new "to_do" submission
-            $submission = ListeningSubmission::create([
+        // 3. Use firstOrCreate to handle race conditions atomically
+        $submission = ListeningSubmission::firstOrCreate(
+            [
                 'listening_task_id' => $task->id,
                 'student_id' => $student->id,
                 'assignment_id' => empty($assignmentId) ? null : $assignmentId,
-                'status' => ListeningSubmission::STATUS_TO_DO,
                 'attempt_number' => $nextAttemptNumber,
+            ],
+            [
+                'status' => ListeningSubmission::STATUS_TO_DO,
                 'started_at' => now(),
                 'total_correct' => 0,
                 'total_incorrect' => 0,
                 'total_unanswered' => $task->questions()->count(),
                 'percentage' => 0,
                 'total_score' => 0,
-            ]);
-        } catch (\Illuminate\Database\QueryException $e) {
-            // Handle race condition: if duplicate, fetch existing
-            if ($e->getCode() == 23000) {
-                $submission = ListeningSubmission::where('listening_task_id', $task->id)
-                    ->where('student_id', $student->id)
-                    ->where('attempt_number', $nextAttemptNumber)
-                    ->where(function($q) use ($assignmentId) {
-                        if (empty($assignmentId)) {
-                            $q->whereNull('assignment_id')->orWhere('assignment_id', '');
-                        } else {
-                            $q->where('assignment_id', $assignmentId);
-                        }
-                    })
-                    ->first();
-                
-                if ($submission) return $submission->load(['answers', 'task', 'review']);
-            }
-            throw $e;
-        }
+            ]
+        );
 
         // Sync with StudentAssignment
         if ($assignmentId) {
