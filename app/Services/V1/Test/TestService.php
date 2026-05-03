@@ -355,7 +355,7 @@ class TestService
         $first = array_shift($activeQueries);
         $finalUnion = $first->toBase();
         foreach ($activeQueries as $q) {
-            $finalUnion->unionAll($q->toBase());
+            $finalUnion->union($q->toBase());
         }
 
         $sql = $finalUnion->toSql();
