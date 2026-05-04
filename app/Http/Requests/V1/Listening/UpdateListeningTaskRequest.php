@@ -137,6 +137,14 @@ class UpdateListeningTaskRequest extends FormRequest
             }
         }
 
+        // passages may arrive as a JSON string due to FormData
+        if ($this->has('passages') && is_string($this->input('passages'))) {
+            $decoded = json_decode($this->input('passages'), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $merge['passages'] = $decoded;
+            }
+        }
+
         if (!empty($merge)) {
             $this->merge($merge);
         }

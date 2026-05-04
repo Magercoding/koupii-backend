@@ -21,3 +21,7 @@ Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
 });
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/discover-results', [\App\Http\Controllers\V1\User\UserSubmissionController::class, 'getDiscoverResults']);
+});

@@ -19,6 +19,7 @@ use App\Http\Controllers\V1\Admin\AdminSubscriptionController;
 
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/overview', [AdminDashboardController::class, 'getOverview'])->name('admin.overview');
+    Route::get('/review-queue', [AdminDashboardController::class, 'getReviewQueue'])->name('admin.review-queue');
     
     // User Management API
     Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');

@@ -133,37 +133,64 @@ class WritingReviewController extends Controller implements HasMiddleware
             'student',
             'assignment',
             'writingTask.taskQuestions',
-        ])->findOrFail($assignmentId);
+        ])->find($assignmentId);
 
-        // Check auth (only creator of the task or admin)
-        if (Auth::user()->role !== 'admin' && $assignment->writingTask?->creator_id !== Auth::id()) {
+        if ($assignment) {
+            // Check auth (only creator of the task or admin)
+            if (Auth::user()->role !== 'admin' && $assignment->writingTask?->creator_id !== Auth::id()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $submissions = WritingSubmission::with('latestReview')
+                ->where('assignment_id', $assignment->assignment_id)
+                ->where('student_id', $assignment->student_id)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            $data = $assignment->toArray();
+            $data['writingSubmissions'] = $submissions->toArray();
+
+            if (empty($data['writing_task']) && $assignment->assignment) {
+                $taskId = $assignment->assignment->task_id;
+                if ($taskId) {
+                    $writingTask = \App\Models\WritingTask::with('taskQuestions')->find($taskId);
+                    if ($writingTask) {
+                        $data['writing_task'] = $writingTask->toArray();
+                    }
+                }
+            }
+
+            return response()->json(['data' => $data]);
+        }
+
+        // Fallback for Discover Tests (Standalone Submissions without StudentAssignment)
+        $submission = WritingSubmission::with(['student', 'writingTask.taskQuestions', 'latestReview'])->find($assignmentId);
+        
+        if (!$submission) {
+            return response()->json(['message' => 'Assignment or Submission not found'], 404);
+        }
+
+        // Check auth
+        if (Auth::user()->role !== 'admin' && $submission->writingTask?->creator_id !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Load writing submissions separately to avoid the dynamic $this->student_id issue
-        $submissions = WritingSubmission::with('latestReview')
-            ->where('assignment_id', $assignment->assignment_id)
-            ->where('student_id', $assignment->student_id)
-            ->orderBy('created_at', 'asc')
-            ->get();
+        // Mock the StudentAssignment structure so the frontend Review UI works seamlessly
+        $data = [
+            'id' => $submission->id,
+            'student_id' => $submission->student_id,
+            'assignment_id' => null,
+            'score' => $submission->score,
+            'status' => $submission->status,
+            'student' => $submission->student ? $submission->student->toArray() : null,
+            'assignment' => [
+                'title' => $submission->writingTask?->title ?? 'Discover Test'
+            ],
+            'writing_task' => $submission->writingTask ? $submission->writingTask->toArray() : null,
+            'writingSubmissions' => [$submission->toArray()]
+        ];
 
-        $data = $assignment->toArray();
-        $data['writingSubmissions'] = $submissions->toArray();
-
-        // If writingTask didn't load via hasOneThrough, try direct lookup
-        if (empty($data['writing_task']) && $assignment->assignment) {
-            $taskId = $assignment->assignment->task_id;
-            if ($taskId) {
-                $writingTask = \App\Models\WritingTask::with('taskQuestions')->find($taskId);
-                if ($writingTask) {
-                    $data['writing_task'] = $writingTask->toArray();
-                }
-            }
-        }
-
-        return response()->json([
-            'data' => $data
-        ]);
+        return response()->json(['data' => $data]);
     }
 
     /**
@@ -181,55 +208,88 @@ class WritingReviewController extends Controller implements HasMiddleware
             'feedback_json' => 'nullable|array',
         ]);
 
-        $assignment = StudentAssignment::findOrFail($assignmentId);
+        $assignment = StudentAssignment::find($assignmentId);
+        
+        if ($assignment) {
+            // Check auth
+            if (Auth::user()->role !== 'admin' && $assignment->writingTask->creator_id !== Auth::id()) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
 
-        // Check auth
-        if (Auth::user()->role !== 'admin' && $assignment->writingTask->creator_id !== Auth::id()) {
+            try {
+                DB::transaction(function () use ($assignment, $request) {
+                    $assignment->update([
+                        'score' => $request->overall_score,
+                        'status' => 'graded',
+                        'completed_at' => now(),
+                    ]);
+
+                    foreach ($request->items as $item) {
+                        WritingReview::updateOrCreate(
+                            [
+                                'assignment_id' => $assignment->id,
+                                'submission_id' => $item['submission_id']
+                            ],
+                            [
+                                'teacher_id' => Auth::id(),
+                                'score' => $item['score'],
+                                'comments' => $item['comments'] ?? '',
+                                'feedback_json' => $request->feedback_json,
+                                'reviewed_at' => now(),
+                            ]
+                        );
+
+                        WritingSubmission::where('id', $item['submission_id'])->update(['status' => 'reviewed']);
+                    }
+                });
+
+                $assignment->student->notify(new \App\Notifications\TaskGradedNotification($assignment));
+
+                return response()->json([
+                    'message' => 'Assignment and all parts reviewed successfully',
+                    'status' => 'graded'
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['message' => 'Failed to submit review', 'error' => $e->getMessage()], 500);
+            }
+        }
+
+        // Fallback for Discover Tests (Standalone Submissions)
+        $submission = WritingSubmission::find($assignmentId);
+        if (!$submission) {
+             return response()->json(['message' => 'Assignment or Submission not found'], 404);
+        }
+
+        if (Auth::user()->role !== 'admin' && $submission->writingTask?->creator_id !== Auth::id()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         try {
-            DB::transaction(function () use ($assignment, $request) {
-                // 1. Update Student Assignment (Overall Result)
-                $assignment->update([
-                    'score' => $request->overall_score,
-                    'status' => 'graded',
-                    'completed_at' => now(),
-                ]);
-
-                // 2. Process each submission review
+            DB::transaction(function () use ($submission, $request) {
                 foreach ($request->items as $item) {
                     WritingReview::updateOrCreate(
                         [
-                            'assignment_id' => $assignment->id,
                             'submission_id' => $item['submission_id']
                         ],
                         [
                             'teacher_id' => Auth::id(),
                             'score' => $item['score'],
                             'comments' => $item['comments'] ?? '',
-                            'feedback_json' => $request->feedback_json, // Global for now or per item? Keep global for schema
+                            'feedback_json' => $request->feedback_json,
                             'reviewed_at' => now(),
                         ]
                     );
 
-                    // Update individual submission status
-                    WritingSubmission::where('id', $item['submission_id'])->update(['status' => 'reviewed']);
+                    WritingSubmission::where('id', $item['submission_id'])->update(['status' => 'reviewed', 'score' => $item['score']]);
                 }
             });
 
-            // Notify the student
-            $assignment->student->notify(new \App\Notifications\TaskGradedNotification($assignment));
-
             return response()->json([
-                'message' => 'Assignment and all parts reviewed successfully',
+                'message' => 'Submission reviewed successfully',
                 'status' => 'graded'
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to submit review',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Failed to submit review', 'error' => $e->getMessage()], 500);
         }
     }
 }

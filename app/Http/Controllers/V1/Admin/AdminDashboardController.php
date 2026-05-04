@@ -37,4 +37,48 @@ class AdminDashboardController extends Controller
             'data' => $overview
         ]);
     }
+
+    public function getReviewQueue(): JsonResponse
+    {
+        $writingSubmissions = \App\Models\WritingSubmission::with(['student', 'writingTask'])
+            ->whereNull('assignment_id')
+            ->where('status', 'submitted')
+            ->orderBy('submitted_at', 'desc')
+            ->get()
+            // Only keep the latest attempt per student per task to avoid spam
+            ->unique(function ($item) {
+                return $item->student_id . $item->writing_task_id;
+            })
+            ->values()
+            ->map(function ($s) {
+                $s->type = 'writing';
+                $s->test_title = $s->writingTask?->title ?? 'Writing Test';
+                return $s;
+            });
+
+        $speakingSubmissions = \App\Models\SpeakingSubmission::with(['student', 'speakingTask'])
+            ->whereNull('assignment_id')
+            ->where('status', 'submitted')
+            ->orderBy('submitted_at', 'desc')
+            ->get()
+            // Only keep the latest attempt per student per task to avoid spam
+            ->unique(function ($item) {
+                return $item->student_id . $item->speaking_task_id;
+            })
+            ->values()
+            ->map(function ($s) {
+                $s->type = 'speaking';
+                $s->test_title = $s->speakingTask?->title ?? 'Speaking Test';
+                return $s;
+            });
+
+        $queue = $writingSubmissions->concat($speakingSubmissions)
+            ->sortByDesc('submitted_at')
+            ->values();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $queue
+        ]);
+    }
 }

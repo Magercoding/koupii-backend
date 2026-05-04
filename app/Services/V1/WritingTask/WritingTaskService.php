@@ -171,7 +171,7 @@ class WritingTaskService
                 'title', 'description', 'instructions', 'sample_answer', 
                 'word_limit', 'allow_retake', 'max_retake_attempts', 
                 'retake_options', 'timer_type', 'time_limit_seconds', 
-                'allow_submission_files', 'is_public', 'is_published', 'due_date', 'questions'
+                'allow_submission_files', 'is_public', 'is_published', 'due_date', 'questions', 'passages'
             ];
 
             foreach ($fields as $field) {

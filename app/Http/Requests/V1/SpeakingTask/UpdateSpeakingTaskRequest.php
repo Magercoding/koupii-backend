@@ -104,6 +104,22 @@ class UpdateSpeakingTaskRequest extends BaseRequest
             }
         }
 
+        // sections may arrive as a JSON string due to FormData
+        if ($this->has('sections') && is_string($this->input('sections'))) {
+            $decoded = json_decode($this->input('sections'), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $merge['sections'] = $decoded;
+            }
+        }
+
+        // questions may arrive as a JSON string
+        if ($this->has('questions') && is_string($this->input('questions'))) {
+            $decoded = json_decode($this->input('questions'), true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $merge['questions'] = $decoded;
+            }
+        }
+
         if (!empty($merge)) {
             $this->merge($merge);
         }
