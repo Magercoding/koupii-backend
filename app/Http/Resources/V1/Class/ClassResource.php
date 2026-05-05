@@ -22,6 +22,8 @@ class ClassResource extends JsonResource
 
             'teacher' => new ClassTeacherResource($this->teacher),
 
+            'co_teachers' => ClassTeacherResource::collection($this->coTeachers ?? collect()),
+
             'students' => ClassStudentResource::collection($this->students),
 
             'can_edit' => $user->can('update', $this->resource),

@@ -25,14 +25,14 @@ class ClassAssignmentController extends Controller
         ]);
 
         try {
-            // Verify class ownership
-            $class = Classes::where('id', $classId)
-                ->where('teacher_id', Auth::id())
-                ->firstOrFail();
+            $class = Classes::where('id', $classId)->firstOrFail();
 
-            // Verify test ownership and that it belongs to this class
+            if (!$class->hasTeacher(Auth::id()) && Auth::user()->role !== 'admin') {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            // Verify test belongs to this class and is published
             $test = Test::where('id', $testId)
-                ->where('creator_id', Auth::id())
                 ->where('class_id', $classId)
                 ->where('is_published', true)
                 ->firstOrFail();

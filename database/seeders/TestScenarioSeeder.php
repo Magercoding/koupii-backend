@@ -18,6 +18,11 @@ class TestScenarioSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production') && !env('SEED_DEMO_DATA', false)) {
+            $this->command?->warn('Skipping TestScenarioSeeder in production.');
+            return;
+        }
+
         // Get existing test users created by UserSeeder
         $teacher = User::where('email', 'teacher@koupii.com')->first();
         $student1 = User::where('email', 'student1@koupii.com')->first();

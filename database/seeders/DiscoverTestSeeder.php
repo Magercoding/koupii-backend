@@ -11,6 +11,11 @@ class DiscoverTestSeeder extends Seeder
      */
     public function run(): void
     {
+        if (app()->environment('production') && !env('SEED_DEMO_DATA', false)) {
+            $this->command?->warn('Skipping DiscoverTestSeeder in production.');
+            return;
+        }
+
         $this->call([
             DiscoverReadingSeeder::class,
             DiscoverListeningSeeder::class,

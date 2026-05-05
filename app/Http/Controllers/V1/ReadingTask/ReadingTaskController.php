@@ -50,8 +50,15 @@ class ReadingTaskController extends Controller implements HasMiddleware
                 }
             ]);
         } else {
-            // Teachers see their own tasks
-            $query->where('created_by', $user->id);
+            // Teachers see their own tasks, plus tasks for classes they co-teach.
+            $query->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                    ->orWhereHas('assignments.class', function ($classQuery) use ($user) {
+                        $classQuery->where('teacher_id', $user->id)
+                            ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+                    })
+                    ->orWhereHas('creator', fn ($creatorQuery) => $creatorQuery->where('role', 'admin'));
+            });
         }
 
         // Apply filters
@@ -160,7 +167,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
         $task = ReadingTask::findOrFail($id);
 
         // Check permissions
-        if ($user->role !== 'admin' && $task->created_by !== $user->id) {
+        if ($user->role !== 'admin' && !$this->canTeacherManageTask($task, $user)) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
@@ -187,7 +194,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
         $task = ReadingTask::findOrFail($id);
 
         // Check permissions
-        if ($user->role !== 'admin' && $task->created_by !== $user->id) {
+        if ($user->role !== 'admin' && !$this->canTeacherManageTask($task, $user)) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
@@ -214,7 +221,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
         $task = ReadingTask::findOrFail($id);
 
         // Check permissions
-        if ($user->role !== 'admin' && $task->created_by !== $user->id) {
+        if ($user->role !== 'admin' && !$this->canTeacherManageTask($task, $user)) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
@@ -269,10 +276,31 @@ class ReadingTaskController extends Controller implements HasMiddleware
     {
         return \Illuminate\Support\Facades\DB::table('assignments')
             ->join('classes', 'assignments.class_id', '=', 'classes.id')
+            ->leftJoin('class_teachers', 'classes.id', '=', 'class_teachers.class_id')
             ->where('assignments.task_id', $task->id)
             ->where('assignments.task_type', 'reading_task')
-            ->where('classes.teacher_id', $user->id)
+            ->where(function ($query) use ($user) {
+                $query->where('classes.teacher_id', $user->id)
+                    ->orWhere('class_teachers.teacher_id', $user->id);
+            })
             ->exists();
     }
-}
 
+    private function canTeacherManageTask(ReadingTask $task, $user): bool
+    {
+        if ($task->created_by === $user->id) {
+            return true;
+        }
+
+        if ($task->class_id) {
+            return \App\Models\Classes::where('id', $task->class_id)
+                ->where(function ($query) use ($user) {
+                    $query->where('teacher_id', $user->id)
+                        ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+                })
+                ->exists();
+        }
+
+        return $this->isTeacherAssigned($task, $user);
+    }
+}

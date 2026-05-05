@@ -34,8 +34,27 @@ class SpeakingTaskService
                     });
                 });
         } elseif ($user->role !== 'admin') {
-            // Teachers see only their own tasks
-            $query->where('created_by', $user->id);
+            // Teachers see their own tasks, plus tasks for classes they co-teach.
+            $query->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                    ->orWhereIn('class_id', function ($subquery) use ($user) {
+                        $subquery->select('classes.id')
+                            ->from('classes')
+                            ->where(function ($classQuery) use ($user) {
+                                $classQuery->where('teacher_id', $user->id)
+                                    ->orWhereExists(function ($coTeacherQuery) use ($user) {
+                                        $coTeacherQuery->selectRaw('1')
+                                            ->from('class_teachers')
+                                            ->whereColumn('class_teachers.class_id', 'classes.id')
+                                            ->where('class_teachers.teacher_id', $user->id);
+                                    });
+                            });
+                    })
+                    ->orWhereHas('assignments.class', function ($classQuery) use ($user) {
+                        $classQuery->where('teacher_id', $user->id)
+                            ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+                    });
+            });
         }
 
         // Apply filters

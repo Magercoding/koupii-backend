@@ -48,8 +48,15 @@ class ListeningTaskController extends Controller implements HasMiddleware
                 }
             ]);
         } else {
-            // Teachers see only their own tasks
-            $query->where('created_by', '=', $user->id)
+            // Teachers see their own tasks, plus tasks for classes they co-teach.
+            $query->where(function ($q) use ($user) {
+                $q->where('created_by', $user->id)
+                    ->orWhereHas('assignments.class', function ($classQuery) use ($user) {
+                        $classQuery->where('teacher_id', $user->id)
+                            ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+                    })
+                    ->orWhereHas('creator', fn ($creatorQuery) => $creatorQuery->where('role', 'admin'));
+            })
                 ->with(['submissions.review', 'assignments']);
         }
 
@@ -121,7 +128,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
             // Teachers can view their own tasks, or published tasks created by admin
             $isAdminTask = $task->is_published && $task->creator && $task->creator->role === 'admin';
             
-            if ($task->created_by !== $user->id && !$isAdminTask) {
+            if (!$this->canTeacherManageTask($task, $user) && !$isAdminTask) {
                 return response()->json([
                     'message' => 'Task not found or unauthorized access',
                 ], 403);
@@ -142,7 +149,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
         $task = ListeningTask::findOrFail($id);
 
         // Check authorization
-        if (Auth::user()->role !== 'admin' && $task->created_by !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && !$this->canTeacherManageTask($task, Auth::user())) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -174,7 +181,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
         $task = ListeningTask::findOrFail($id);
 
         // Check authorization
-        if (Auth::user()->role !== 'admin' && $task->created_by !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && !$this->canTeacherManageTask($task, Auth::user())) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -192,5 +199,28 @@ class ListeningTaskController extends Controller implements HasMiddleware
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function canTeacherManageTask(ListeningTask $task, $user): bool
+    {
+        if ($task->created_by === $user->id) {
+            return true;
+        }
+
+        if ($task->class_id) {
+            return \App\Models\Classes::where('id', $task->class_id)
+                ->where(function ($query) use ($user) {
+                    $query->where('teacher_id', $user->id)
+                        ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+                })
+                ->exists();
+        }
+
+        return $task->assignments()
+            ->whereHas('class', function ($query) use ($user) {
+                $query->where('teacher_id', $user->id)
+                    ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+            })
+            ->exists();
     }
 }

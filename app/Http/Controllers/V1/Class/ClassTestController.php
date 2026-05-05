@@ -15,7 +15,6 @@ use App\Models\SpeakingTask;
 use App\Models\WritingTask;
 use App\Models\Classes;
 use App\Models\Assignment;
-use App\Models\ClassEnrollment;
 use App\Events\TestAssignedToClass;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -50,12 +49,9 @@ class ClassTestController extends Controller
 
             $user = auth()->user();
             $isOwner = $class->teacher_id === $user->id;
-            $isEnrolledTeacher = $user->role === 'teacher' && ClassEnrollment::where('class_id', $classId)
-                ->where('student_id', $user->id)
-                ->where('status', 'active')
-                ->exists();
+            $isCoTeacher = $user->role === 'teacher' && $class->coTeachers()->whereKey($user->id)->exists();
 
-            if (!$isOwner && !$isEnrolledTeacher && $user->role !== 'admin') {
+            if (!$isOwner && !$isCoTeacher && $user->role !== 'admin') {
                 return response()->json([
                     'message' => 'Unauthorized',
                     'error' => 'You do not have access to this class'
@@ -220,10 +216,11 @@ class ClassTestController extends Controller
     public function store(StoreTestRequest $request, string $classId): JsonResponse
     {
         try {
-            // Verify class ownership
-            $class = Classes::where('id', $classId)
-                ->where('teacher_id', auth()->id())
-                ->firstOrFail();
+            $class = Classes::where('id', $classId)->firstOrFail();
+
+            if (!$class->hasTeacher(auth()->id()) && auth()->user()->role !== 'admin') {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
 
             $testData = $request->validated();
             $testData['class_id'] = $classId;
@@ -256,10 +253,11 @@ class ClassTestController extends Controller
     public function show(string $classId, string $testId): JsonResponse
     {
         try {
-            // Verify class ownership
-            $class = Classes::where('id', $classId)
-                ->where('teacher_id', auth()->id())
-                ->firstOrFail();
+            $class = Classes::where('id', $classId)->firstOrFail();
+
+            if (!$class->hasTeacher(auth()->id()) && auth()->user()->role !== 'admin') {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
 
             $test = Test::where('id', $testId)
                 ->where('class_id', $classId)
@@ -312,10 +310,11 @@ class ClassTestController extends Controller
     public function update(UpdateTestRequest $request, string $classId, string $testId): JsonResponse
     {
         try {
-            // Verify class ownership
-            $class = Classes::where('id', $classId)
-                ->where('teacher_id', auth()->id())
-                ->firstOrFail();
+            $class = Classes::where('id', $classId)->firstOrFail();
+
+            if (!$class->hasTeacher(auth()->id()) && auth()->user()->role !== 'admin') {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
 
             $test = Test::where('id', $testId)
                 ->where('class_id', $classId)
@@ -350,10 +349,11 @@ class ClassTestController extends Controller
     public function destroy(string $classId, string $testId): JsonResponse
     {
         try {
-     
-            $class = Classes::where('id', $classId)
-                ->where('teacher_id', auth()->id())
-                ->firstOrFail();
+            $class = Classes::where('id', $classId)->firstOrFail();
+
+            if (!$class->hasTeacher(auth()->id()) && auth()->user()->role !== 'admin') {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
 
             $test = Test::where('id', $testId)
                 ->where('class_id', $classId)
@@ -397,10 +397,11 @@ class ClassTestController extends Controller
         ]);
 
         try {
-            // Verify class ownership
-            $class = Classes::where('id', $classId)
-                ->where('teacher_id', auth()->id())
-                ->firstOrFail();
+            $class = Classes::where('id', $classId)->firstOrFail();
+
+            if (!$class->hasTeacher(auth()->id()) && auth()->user()->role !== 'admin') {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
 
             $test = Test::where('id', $testId)
                 ->where('class_id', $classId)

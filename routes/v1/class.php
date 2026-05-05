@@ -20,7 +20,11 @@ Route::middleware('auth:sanctum')
             Route::delete('/{classId}/students/{studentId}', [ClassController::class, 'removeStudent']);
         });
         Route::post('/join', [ClassController::class, 'joinByCode'])
-            ->middleware('role:student');
+            ->middleware('role:student,teacher');
+        Route::delete('/{classId}/teachers/{teacherId}', [ClassController::class, 'removeCoTeacher'])
+            ->middleware('role:admin,teacher');
+        Route::post('/{classId}/invite-teacher', [ClassController::class, 'inviteTeacher'])
+            ->middleware('role:admin,teacher');
     });
 
 Route::middleware('auth:sanctum')

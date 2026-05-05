@@ -281,6 +281,28 @@ class ReadingSubmissionService
                 foreach ($group['questions'] ?? [] as $question) {
                     $items = $question['items'] ?? null;
 
+                    // For note_completion questions, expand each blank into a separate answer record
+                    // so each blank gets its own point (like paragraph_completion items).
+                    if (($question['question_type'] ?? '') === 'note_completion') {
+                        $correctAnswers = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
+                        $parentKey = (string) ($question['id'] ?? $question['question_number'] ?? '');
+                        if (is_array($correctAnswers) && count($correctAnswers) > 0) {
+                            foreach ($correctAnswers as $blank) {
+                                $blankKey = $blank['option_key'] ?? null;
+                                if ($blankKey === null) continue;
+                                $answerId = $parentKey !== '' ? "{$parentKey}-blank-{$blankKey}" : "blank-{$blankKey}";
+                                $submission->answers()->create([
+                                    'reading_task_question_id' => $answerId,
+                                    'question_id' => null,
+                                    'student_answer' => null,
+                                    'correct_answer' => $blank['option_text'] ?? '',
+                                    'is_correct' => null,
+                                    'points_earned' => 0,
+                                ]);
+                            }
+                            continue;
+                        }
+                    }
                     // For matching_* questions that have items (e.g. matching_heading),
                     // treat each item as a separate graded question so scoring/counts match the UI.
                     if (is_array($items) && count($items) > 0) {

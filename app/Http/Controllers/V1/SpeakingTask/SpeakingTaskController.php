@@ -115,7 +115,7 @@ class SpeakingTaskController extends Controller
                 // Teachers can view their own tasks, or published tasks created by admin
                 $isAdminTask = $task->is_published && $task->creator && $task->creator->role === 'admin';
                 
-                if ($task->created_by !== $user->id && !$isAdminTask) {
+                if (!$this->canTeacherManageTask($task, $user) && !$isAdminTask) {
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Task not found or unauthorized access',
@@ -142,6 +142,13 @@ class SpeakingTaskController extends Controller
     public function update(UpdateSpeakingTaskRequest $request, SpeakingTask $speakingTask): JsonResponse
     {
         try {
+            if ($request->user()->role !== 'admin' && !$this->canTeacherManageTask($speakingTask, $request->user())) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized',
+                ], 403);
+            }
+
             $taskData = $request->validated();
             $task = $this->speakingTaskService->updateSpeakingTask($speakingTask, $taskData);
 
@@ -164,6 +171,14 @@ class SpeakingTaskController extends Controller
     public function destroy(SpeakingTask $speakingTask): JsonResponse
     {
         try {
+            $user = request()->user();
+            if ($user->role !== 'admin' && !$this->canTeacherManageTask($speakingTask, $user)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized',
+                ], 403);
+            }
+
             $this->speakingTaskService->deleteSpeakingTask($speakingTask);
 
             return response()->json([
@@ -252,6 +267,13 @@ class SpeakingTaskController extends Controller
     public function assign(Request $request, SpeakingTask $speakingTask): JsonResponse
     {
         try {
+            if ($request->user()->role !== 'admin' && !$this->canTeacherManageTask($speakingTask, $request->user())) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized',
+                ], 403);
+            }
+
             $assignmentData = $request->validate([
                 'assignment_type' => 'required|string|in:class,individual',
                 'class_ids' => 'nullable|array',
@@ -276,5 +298,28 @@ class SpeakingTaskController extends Controller
                 'message' => 'Failed to assign speaking task: ' . $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private function canTeacherManageTask(SpeakingTask $task, $user): bool
+    {
+        if ($task->created_by === $user->id) {
+            return true;
+        }
+
+        if ($task->class_id) {
+            return \App\Models\Classes::where('id', $task->class_id)
+                ->where(function ($query) use ($user) {
+                    $query->where('teacher_id', $user->id)
+                        ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+                })
+                ->exists();
+        }
+
+        return $task->assignments()
+            ->whereHas('class', function ($query) use ($user) {
+                $query->where('teacher_id', $user->id)
+                    ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+            })
+            ->exists();
     }
 }

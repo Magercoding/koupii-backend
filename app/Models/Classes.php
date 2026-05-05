@@ -44,6 +44,30 @@ class Classes extends Model
         return $this->belongsTo(User::class, 'teacher_id');
     }
 
+    /**
+     * Co-teachers who joined via class code (excludes the owner).
+     */
+    public function coTeachers()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'class_teachers',
+            'class_id',
+            'teacher_id'
+        )->using(ClassTeacher::class)->withPivot('joined_at')->withTimestamps();
+    }
+
+    /**
+     * Returns true if the given user is the owner OR a co-teacher of this class.
+     */
+    public function hasTeacher(string $userId): bool
+    {
+        if ($this->teacher_id === $userId) {
+            return true;
+        }
+        return $this->coTeachers()->whereKey($userId)->exists();
+    }
+
     public function students()
     {
         return $this->belongsToMany(
@@ -92,13 +116,15 @@ class Classes extends Model
 
     public function scopeForAdmin($query)
     {
-        return $query->with(['teacher:id,name,email,avatar,bio', 'students:id,name,email,avatar']);
+        return $query->with(['teacher:id,name,email,avatar,bio', 'students:id,name,email,avatar', 'coTeachers:id,name,email,avatar']);
     }
 
     public function scopeForTeacher($query, $teacherId)
     {
-        return $query->where('teacher_id', $teacherId)
-            ->with(['teacher:id,name,email,avatar,bio', 'students:id,name,email,avatar']);
+        return $query->where(function ($q) use ($teacherId) {
+            $q->where('teacher_id', $teacherId)
+              ->orWhereHas('coTeachers', fn($cq) => $cq->where('users.id', $teacherId));
+        })->with(['teacher:id,name,email,avatar,bio', 'students:id,name,email,avatar', 'coTeachers:id,name,email,avatar']);
     }
 
     public function scopeForStudent($query, $studentId)
@@ -106,13 +132,17 @@ class Classes extends Model
         return $query->whereHas('students', function ($q) use ($studentId) {
             $q->where('users.id', $studentId);
         })
-            ->with(['teacher:id,name,email,avatar,bio', 'students:id,name,email,avatar']);
+            ->with(['teacher:id,name,email,avatar,bio', 'students:id,name,email,avatar', 'coTeachers:id,name,email,avatar']);
     }
+
     public function scopeVisibleTo($query, $user)
     {
         return match ($user->role) {
             'admin' => $query,
-            'teacher' => $query->where('teacher_id', $user->id),
+            'teacher' => $query->where(function ($q) use ($user) {
+                $q->where('teacher_id', $user->id)
+                  ->orWhereHas('coTeachers', fn($cq) => $cq->where('users.id', $user->id));
+            }),
             'student' => $query->whereHas(
                 'students',
                 fn($q) =>

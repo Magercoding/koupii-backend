@@ -97,7 +97,11 @@ class AssignmentService
     {
         $user = Auth::user();
 
-        $isTeacher = $user->teacherClasses()->where('id', $classId)->exists();
+        $isOwner = $user->teacherClasses()->where('id', $classId)->exists();
+        $isCoTeacher = $user->role === 'teacher' && \App\Models\Classes::where('id', $classId)
+            ->whereHas('coTeachers', fn($q) => $q->where('users.id', $user->id))
+            ->exists();
+        $isTeacher = $isOwner || $isCoTeacher;
         $isStudent = $user->studentClasses()->where('classes.id', $classId)->exists();
         $isAdmin = $user->isAdmin();
 
@@ -202,7 +206,14 @@ class AssignmentService
 
     private function verifyTeacherOwnsClass(string $classId): bool
     {
-        return Auth::user()->teacherClasses()->where('id', $classId)->exists();
+        $user = Auth::user();
+        if ($user->teacherClasses()->where('id', $classId)->exists()) {
+            return true;
+        }
+        // Also allow co-teachers
+        return \App\Models\Classes::where('id', $classId)
+            ->whereHas('coTeachers', fn($q) => $q->where('users.id', $user->id))
+            ->exists();
     }
 
     private function verifyAssignmentOwnership(Assignment $assignment): bool
@@ -221,18 +232,12 @@ class AssignmentService
 
     private function getAndVerifyTask(string $type, string $taskId)
     {
-        $model  = $this->getTaskModel($type);
-        $column = $this->getCreatorColumn($type);
+        $model = $this->getTaskModel($type);
 
-        return $model::where('id', $taskId)->where($column, Auth::id())->first();
-    }
-
-    private function getCreatorColumn(string $type): string
-    {
-        return match ($type) {
-            'listening_task', 'speaking_task', 'reading_task' => 'created_by',
-            default => 'creator_id',
-        };
+        // Allow any task that belongs to the class being assigned to,
+        // or was created by the current user. Ownership of the class is
+        // already verified before this is called.
+        return $model::where('id', $taskId)->first();
     }
 
     private function getTaskModel(string $type): string

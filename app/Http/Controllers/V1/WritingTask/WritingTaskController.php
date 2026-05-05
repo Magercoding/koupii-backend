@@ -61,8 +61,15 @@ class WritingTaskController extends Controller implements HasMiddleware
                     }
                 ]);
         } else {
-            // Teachers see only their own tasks
-            $query->where('creator_id', $user->id);
+            // Teachers see their own tasks, plus tasks for classes they co-teach.
+            $query->where(function ($q) use ($user) {
+                $q->where('creator_id', $user->id)
+                    ->orWhereHas('assignments.class', function ($classQuery) use ($user) {
+                        $classQuery->where('teacher_id', $user->id)
+                            ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+                    })
+                    ->orWhereHas('creator', fn ($creatorQuery) => $creatorQuery->where('role', 'admin'));
+            });
             
             if ($classId) {
                 $query->where(function ($q) use ($classId) {
@@ -155,7 +162,26 @@ class WritingTaskController extends Controller implements HasMiddleware
                     });
                 });
         } elseif ($user->role !== 'admin') {
-            $query->where('creator_id', $user->id);
+            $query->where(function ($q) use ($user) {
+                $q->where('creator_id', $user->id)
+                    ->orWhereIn('class_id', function ($subquery) use ($user) {
+                        $subquery->select('classes.id')
+                            ->from('classes')
+                            ->where(function ($classQuery) use ($user) {
+                                $classQuery->where('teacher_id', $user->id)
+                                    ->orWhereExists(function ($coTeacherQuery) use ($user) {
+                                        $coTeacherQuery->selectRaw('1')
+                                            ->from('class_teachers')
+                                            ->whereColumn('class_teachers.class_id', 'classes.id')
+                                            ->where('class_teachers.teacher_id', $user->id);
+                                    });
+                            });
+                    })
+                    ->orWhereHas('assignments.class', function ($classQuery) use ($user) {
+                        $classQuery->where('teacher_id', $user->id)
+                            ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+                    });
+            });
         }
 
         $task = $query->first();
@@ -180,7 +206,7 @@ class WritingTaskController extends Controller implements HasMiddleware
         $task = WritingTask::findOrFail($id);
 
         // Check authorization
-        if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && !$this->canTeacherManageTask($task, Auth::user())) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -212,7 +238,7 @@ class WritingTaskController extends Controller implements HasMiddleware
         $task = WritingTask::findOrFail($id);
 
         // Check authorization
-        if (Auth::user()->role !== 'admin' && $task->creator_id !== Auth::id()) {
+        if (Auth::user()->role !== 'admin' && !$this->canTeacherManageTask($task, Auth::user())) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -230,5 +256,28 @@ class WritingTaskController extends Controller implements HasMiddleware
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function canTeacherManageTask(WritingTask $task, $user): bool
+    {
+        if ($task->creator_id === $user->id) {
+            return true;
+        }
+
+        if ($task->class_id) {
+            return \App\Models\Classes::where('id', $task->class_id)
+                ->where(function ($query) use ($user) {
+                    $query->where('teacher_id', $user->id)
+                        ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+                })
+                ->exists();
+        }
+
+        return $task->assignments()
+            ->whereHas('class', function ($query) use ($user) {
+                $query->where('teacher_id', $user->id)
+                    ->orWhereHas('coTeachers', fn ($coTeacherQuery) => $coTeacherQuery->where('users.id', $user->id));
+            })
+            ->exists();
     }
 }

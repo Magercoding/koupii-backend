@@ -15,9 +15,13 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(UserSeeder::class);
         $this->call(CategorySeeder::class);
-        $this->call(TestScenarioSeeder::class);
-        $this->call(DiscoverTestSeeder::class);
-        $this->call(MissionSeeder::class);
+
+        if (!app()->environment('production') || env('SEED_DEMO_DATA', false)) {
+            $this->call(TestScenarioSeeder::class);
+            $this->call(DiscoverTestSeeder::class);
+            $this->call(MissionSeeder::class);
+        }
+
         $this->call(VocabularySeeder::class);
     }
 }

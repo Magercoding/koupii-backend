@@ -87,6 +87,22 @@ class ReadingSubmission extends Model
                     foreach ($group['questions'] ?? [] as $question) {
                         $items = $question['items'] ?? null;
                         $parentKey = (string) ($question['id'] ?? $question['question_number'] ?? '');
+                        $qType = $question['question_type'] ?? '';
+
+                        // Note-completion: blanks are stored as separate answer records
+                        if ($qType === 'note_completion') {
+                            $blankCorrectAnswers = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
+                            if (is_array($blankCorrectAnswers) && count($blankCorrectAnswers) > 0) {
+                                foreach ($blankCorrectAnswers as $blank) {
+                                    $blankKey = $blank['option_key'] ?? null;
+                                    if ($blankKey !== null) {
+                                        $answerId = $parentKey !== '' ? "{$parentKey}-blank-{$blankKey}" : "blank-{$blankKey}";
+                                        $validReadingTaskIds[] = $answerId;
+                                    }
+                                }
+                                continue;
+                            }
+                        }
 
                         if (is_array($items) && count($items) > 0) {
                             foreach ($items as $idx => $item) {
@@ -116,9 +132,9 @@ class ReadingSubmission extends Model
         }
 
         $totalQuestions = $answersQuery->count();
-        $correctAnswers = (clone $answersQuery)->where('is_correct', true)->count();
-        $incorrectAnswers = (clone $answersQuery)->where('is_correct', false)->count();
-        $unanswered = $totalQuestions - $correctAnswers - $incorrectAnswers;
+        $correctCount = (clone $answersQuery)->where('is_correct', true)->count();
+        $incorrectCount = (clone $answersQuery)->where('is_correct', false)->count();
+        $unanswered = $totalQuestions - $correctCount - $incorrectCount;
 
         $totalPoints = (clone $answersQuery)->sum('points_earned');
         
@@ -130,7 +146,25 @@ class ReadingSubmission extends Model
             foreach ($passages as $passage) {
                 foreach ($passage['question_groups'] ?? [] as $group) {
                     foreach ($group['questions'] ?? [] as $question) {
+                        $qType = $question['question_type'] ?? '';
                         $items = $question['items'] ?? null;
+
+                        // Note-completion: sum per-blank points_value
+                        if ($qType === 'note_completion') {
+                            $blankAnswers = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
+                            if (is_array($blankAnswers) && count($blankAnswers) > 0) {
+                                $questionTotal = (float) ($question['points_value'] ?? $question['points'] ?? 1);
+                                $blankCount = count($blankAnswers);
+                                foreach ($blankAnswers as $blank) {
+                                    $maxPossiblePoints += (float) (
+                                        $blank['points_value']
+                                        ?? floor($questionTotal / $blankCount)
+                                    );
+                                }
+                                continue;
+                            }
+                        }
+
                         if (is_array($items) && count($items) > 0) {
                             foreach ($items as $item) {
                                 $maxPossiblePoints += (
@@ -151,7 +185,6 @@ class ReadingSubmission extends Model
             }
         } elseif ($this->test_id && $this->test) {
             // Legacy Test: calculate from related tables (Passage -> QuestionGroup -> TestQuestion)
-            // Using sum on the relation results in 0 if the hasManyThrough is broken
             $maxPossiblePoints = 0;
             $this->test->loadMissing('passages.questionGroups.questions');
             foreach ($this->test->passages as $passage) {
@@ -166,8 +199,8 @@ class ReadingSubmission extends Model
         $this->update([
             'total_score' => $totalPoints,
             'percentage' => $percentage,
-            'total_correct' => $correctAnswers,
-            'total_incorrect' => $incorrectAnswers,
+            'total_correct' => $correctCount,
+            'total_incorrect' => $incorrectCount,
             'total_unanswered' => $unanswered,
         ]);
     }

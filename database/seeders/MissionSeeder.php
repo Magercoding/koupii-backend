@@ -21,6 +21,11 @@ class MissionSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production') && !env('SEED_DEMO_DATA', false)) {
+            $this->command?->warn('Skipping MissionSeeder in production.');
+            return;
+        }
+
         // Cleanup existing test data to avoid UUID conflicts
         \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         \DB::table('student_assignments')->truncate();

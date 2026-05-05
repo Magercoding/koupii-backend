@@ -107,6 +107,51 @@ class ReadingQuestionAnswer extends Model
 
         $questionIdStr = (string) $questionId;
 
+        // Check if this is a note-completion blank ID: "{parentId}-blank-{blankKey}"
+        if (preg_match('/^(.+)-blank-(\w+)$/', $questionIdStr, $m)) {
+            $parentId = $m[1];
+            $blankKey = $m[2];
+            foreach ($task->passages as $passage) {
+                foreach ($passage['question_groups'] ?? [] as $group) {
+                    foreach ($group['questions'] ?? [] as $question) {
+                        $qId = (string) ($question['id'] ?? $question['question_number'] ?? '');
+                        if ($qId === $parentId && ($question['question_type'] ?? '') === 'note_completion') {
+                            // Return a synthetic question representing just this blank
+                            $blankAnswers = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
+                            $blankEntry = null;
+                            $blankCount = 0;
+                            if (is_array($blankAnswers)) {
+                                $blankCount = count($blankAnswers);
+                                foreach ($blankAnswers as $blank) {
+                                    if ((string) ($blank['option_key'] ?? '') === $blankKey) {
+                                        $blankEntry = $blank;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Per-blank points: use stored points_value if available,
+                            // otherwise distribute question total evenly across blanks
+                            $questionTotal = (float) ($question['points_value'] ?? $question['points'] ?? 1);
+                            $perBlankPoints = $blankCount > 0
+                                ? ($blankEntry['points_value'] ?? floor($questionTotal / $blankCount))
+                                : 1;
+
+                            return [
+                                'id' => $questionIdStr,
+                                'question_type' => 'note_completion_blank',
+                                'correct_answer' => $blankEntry['option_text'] ?? '',
+                                'correct_answers' => $blankEntry['option_text'] ?? '',
+                                'points' => $perBlankPoints,
+                                'points_value' => $perBlankPoints,
+                            ];
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         foreach ($task->passages as $passage) {
             foreach ($passage['question_groups'] ?? [] as $group) {
                 foreach ($group['questions'] ?? [] as $question) {
@@ -164,7 +209,9 @@ class ReadingQuestionAnswer extends Model
             'true_false_not_given' => $this->compareTrueFalseNotGiven($studentAnswer, $correctAnswer),
             'yes_no_not_given' => $this->compareYesNoNotGiven($studentAnswer, $correctAnswer),
             'matching_heading', 'matching_information', 'matching_features', 'matching_sentence_ending' => $this->compareMatching($studentAnswer, $correctAnswer),
-            'sentence_completion', 'paragraph_completion', 'paragraph_summary_completion', 'note_completion', 'table_completion', 'flowchart_completion', 'diagram_label_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
+            'note_completion' => $this->compareNoteCompletion($studentAnswer, $correctAnswer),
+            'note_completion_blank' => $this->compareShortAnswer($studentAnswer, $correctAnswer),
+            'sentence_completion', 'paragraph_completion', 'paragraph_summary_completion', 'table_completion', 'flowchart_completion', 'diagram_label_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
             'short_answer_question' => $this->compareShortAnswer($studentAnswer, $correctAnswer),
             default => false
         };
@@ -343,6 +390,47 @@ class ReadingQuestionAnswer extends Model
                     $this->extractComparableValues($value)
                 )) === 0
             ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Grade note-completion questions.
+     */
+    private function compareNoteCompletion($studentAnswer, $correctAnswer): bool
+    {
+        // Student answer must be an associative array {"1": "val", "2": "val"}
+        if (!is_array($studentAnswer) || empty($studentAnswer)) {
+            // Fallback: treat as plain text completion
+            return $this->compareTextCompletion($studentAnswer, $correctAnswer);
+        }
+
+        // Build a map of blank_index => correct_text from the correct answer array
+        $correctMap = [];
+        if (is_array($correctAnswer)) {
+            foreach ($correctAnswer as $item) {
+                if (is_array($item)) {
+                    $key = $item['option_key'] ?? null;
+                    $text = $item['option_text'] ?? $item['text'] ?? null;
+                    if ($key !== null && $text !== null) {
+                        $correctMap[(string) $key] = $this->normalizeValue($text);
+                    }
+                }
+            }
+        }
+
+        if (empty($correctMap)) {
+            // No structured correct answers — fall back to text comparison
+            return $this->compareTextCompletion($studentAnswer, $correctAnswer);
+        }
+
+        // Every blank in the correct map must be answered correctly
+        foreach ($correctMap as $blankKey => $correctText) {
+            $studentText = $this->normalizeValue($studentAnswer[$blankKey] ?? '');
+            if (!$this->isTextMatch($studentText, $correctText)) {
                 return false;
             }
         }
