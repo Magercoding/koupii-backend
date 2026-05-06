@@ -11,6 +11,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Exception;
 
@@ -76,23 +77,15 @@ class SpeakingTaskService
 
     /**
      * Create a new speaking task
-     *
-     * Task 5.1: Accept `passages` key and persist to `speaking_tasks.questions` JSON column.
-     *           Convert timer_mode/timer_settings → timer_type/time_limit_seconds.
-     * Task 5.2: Handle `image_context` file uploads per passage.
-     * Task 5.3: Create Assignment record when class_id is provided.
      */
     public function createSpeakingTask(array $data, ?Request $request = null): SpeakingTask
     {
         return DB::transaction(function () use ($data, $request) {
-            // --- Task 5.1: timer conversion ---
             $timerType = $this->mapTimerMode($data['timer_mode'] ?? null);
             $timeLimitSeconds = $this->parseTimerSettings($data['timer_settings'] ?? null);
 
-            // --- Task 5.1: read passages (not sections) ---
             $passages = $data['passages'] ?? $data['sections'] ?? $data['questions'] ?? null;
 
-            // Persist the task first (without images) so we have a real task ID for the upload path
             $task = SpeakingTask::create([
                 'class_id'           => $data['class_id'] ?? null,
                 'title'              => $data['title'],
@@ -111,13 +104,11 @@ class SpeakingTaskService
                 'created_by'         => Auth::id(),
             ]);
 
-            // --- Task 5.2: upload image_context files now that we have the real task id ---
             if ($passages && $request) {
                 $passages = $this->handlePassageImageUploads($passages, $request, $task->id);
                 $task->update(['questions' => $passages]);
             }
 
-            // --- Task 5.3: create Assignment only when explicitly requested ---
             if (!empty($data['class_id']) && !empty($data['assign_on_create'])) {
                 Log::info('Attempting to assign speaking task to class', [
                     'class_id' => $data['class_id'],
@@ -262,12 +253,16 @@ class SpeakingTaskService
     public function deleteSpeakingTask(SpeakingTask $task): bool
     {
         return DB::transaction(function () use ($task) {
-            // Check if there are any submissions for this task
-            if ($task->submissions()->exists()) {
-                throw new Exception('Cannot delete speaking task that has submissions');
-            }
+            Storage::disk('public')->deleteDirectory("speaking/images/{$task->id}");
 
-            // Delete assignments first
+            $task->submissions->each(function ($submission) {
+                $submission->recordings()->each(fn ($recording) => $recording->delete());
+            });
+
+            $task->submissions->each(fn ($submission) => $submission->review()->delete());
+
+            $task->submissions()->delete();
+
             $task->assignments()->delete();
 
             return $task->delete();

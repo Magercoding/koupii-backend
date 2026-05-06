@@ -170,22 +170,47 @@ class ReadingQuestionAnswer extends Model
                     $items = $question['items'] ?? null;
                     if (is_array($items)) {
                         $parentKey = (string) ($question['id'] ?? $question['question_number'] ?? '');
+                        $parentType = $question['question_type'] ?? null;
+                        // Each item earns the full parent points_value (not divided across items)
+                        $parentPoints = (float) ($question['points'] ?? $question['points_value'] ?? 1);
+
                         foreach ($items as $item) {
+                            $matched = false;
+
                             $iId = $item['id'] ?? null;
                             if ($iId !== null && (string) $iId === (string) $questionId) {
-                                return $item;
-                            }
-                            $iNumber = $item['question_number'] ?? null;
-                            if ($iNumber !== null && (string) $iNumber === (string) $questionId) {
-                                return $item;
+                                $matched = true;
                             }
 
-                            // Support composite keys like "{parentKey}-item-{itemNumber}"
-                            if ($parentKey !== '') {
-                                $composite = $parentKey . '-item-' . (string) ($iNumber ?? '');
-                                if ($iNumber !== null && $composite === $questionIdStr) {
-                                    return $item;
+                            if (!$matched) {
+                                $iNumber = $item['question_number'] ?? null;
+                                if ($iNumber !== null && (string) $iNumber === (string) $questionId) {
+                                    $matched = true;
                                 }
+
+                                // Support composite keys like "{parentKey}-item-{itemNumber}"
+                                if (!$matched && $parentKey !== '' && $iNumber !== null) {
+                                    $composite = $parentKey . '-item-' . (string) $iNumber;
+                                    if ($composite === $questionIdStr) {
+                                        $matched = true;
+                                    }
+                                }
+                            }
+
+                            if ($matched) {
+                                // Merge parent question_type and per-item points into the item
+                                // so checkAnswer() can grade it correctly.
+                                // Each item earns the full parent points_value when correct.
+                                $parentTypeSuffix = $parentType ? $parentType . '_item' : null;
+                                return array_merge($item, [
+                                    'question_type' => $item['question_type'] ?? $parentTypeSuffix ?? $parentType,
+                                    'points'        => $item['points'] ?? $item['points_value'] ?? $parentPoints,
+                                    'points_value'  => $item['points'] ?? $item['points_value'] ?? $parentPoints,
+                                    // Normalise correct_answer → correct_answers for compareAnswers()
+                                    'correct_answers' => $item['correct_answers']
+                                        ?? $item['correct_answer']
+                                        ?? [],
+                                ]);
                             }
                         }
                     }
@@ -208,7 +233,10 @@ class ReadingQuestionAnswer extends Model
             'choose_multiple_answer' => $this->compareMultipleChoice($studentAnswer, $correctAnswer),
             'true_false_not_given' => $this->compareTrueFalseNotGiven($studentAnswer, $correctAnswer),
             'yes_no_not_given' => $this->compareYesNoNotGiven($studentAnswer, $correctAnswer),
+            // Whole-group matching (legacy path — student answer is a map of all pairs)
             'matching_heading', 'matching_information', 'matching_features', 'matching_sentence_ending' => $this->compareMatching($studentAnswer, $correctAnswer),
+            // Per-item matching (each item graded individually — student answer is a single selection)
+            'matching_heading_item', 'matching_information_item', 'matching_features_item', 'matching_sentence_ending_item' => $this->compareSingleChoice($studentAnswer, $correctAnswer),
             'note_completion' => $this->compareNoteCompletion($studentAnswer, $correctAnswer),
             'note_completion_blank' => $this->compareShortAnswer($studentAnswer, $correctAnswer),
             'sentence_completion', 'paragraph_completion', 'paragraph_summary_completion', 'table_completion', 'flowchart_completion', 'diagram_label_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),

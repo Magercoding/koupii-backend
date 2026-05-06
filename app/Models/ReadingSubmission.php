@@ -166,11 +166,14 @@ class ReadingSubmission extends Model
                         }
 
                         if (is_array($items) && count($items) > 0) {
+                            // Use item-level points_value when available (each item has its own),
+                            // otherwise fall back to parent points_value per item.
+                            $parentPoints = (float) ($question['points'] ?? $question['points_value'] ?? 1);
                             foreach ($items as $item) {
-                                $maxPossiblePoints += (
+                                $maxPossiblePoints += (float) (
                                     $item['points']
                                     ?? $item['points_value']
-                                    ?? 1
+                                    ?? $parentPoints
                                 );
                             }
                         } else {

@@ -130,7 +130,11 @@ class WritingTestController extends Controller implements HasMiddleware
 
     public function destroy(string $id)
     {
-        $test = Test::findOrFail($id);
+        $test = Test::find($id);
+
+        if (!$test) {
+            return response()->json(['message' => 'Writing test not found'], 404);
+        }
 
         Gate::authorize('delete', $test);
 

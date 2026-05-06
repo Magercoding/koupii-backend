@@ -31,16 +31,22 @@ class WritingTaskDeleteService
                 // Delete task-related files
                 $this->deleteTaskFiles($task);
 
-                // Check if task has submissions
-                $submissionsCount = WritingSubmission::where('writing_task_id', $task->id)->count();
-
-                if ($submissionsCount > 0) {
-                    // If task has submissions, soft delete or archive instead
-                    $this->archiveTaskWithSubmissions($task);
-                } else {
-                    // Safe to hard delete if no submissions
-                    $this->hardDeleteTask($task);
+                // Delete all submissions and their related data
+                $submissions = WritingSubmission::where('writing_task_id', $task->id)->get();
+                foreach ($submissions as $submission) {
+                    // Delete reviews
+                    $submission->reviews()->delete();
+                    // Delete feedback
+                    $submission->feedback()->delete();
+                    // Delete submission
+                    $submission->delete();
                 }
+
+                // Delete assignments
+                Assignment::where('task_id', $task->id)->where('task_type', 'writing_task')->delete();
+
+                // Delete the task
+                $task->delete();
             });
 
             return ['message' => 'Writing task deleted successfully', 'status' => 200];

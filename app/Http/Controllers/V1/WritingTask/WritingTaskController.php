@@ -235,7 +235,11 @@ class WritingTaskController extends Controller implements HasMiddleware
      */
     public function destroy(string $id)
     {
-        $task = WritingTask::findOrFail($id);
+        $task = WritingTask::find($id);
+
+        if (!$task) {
+            return response()->json(['message' => 'Writing task not found'], 404);
+        }
 
         // Check authorization
         if (Auth::user()->role !== 'admin' && !$this->canTeacherManageTask($task, Auth::user())) {

@@ -6,7 +6,6 @@ use App\Models\Test;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use App\Models\WritingTask;
 class WritingTestDeleteService
 {
     /**
@@ -28,14 +27,6 @@ class WritingTestDeleteService
             DB::transaction(function () use ($test) {
                 // Delete any test-related files
                 $this->deleteTestFiles($test);
-
-                // Check if any WritingTasks reference this test
-                $referencingTasks = WritingTask::where('test_template_id', $test->id)->count();
-
-                if ($referencingTasks > 0) {
-                    // Don't delete if tasks are using this template
-                    throw new \Exception('Cannot delete test template that is being used by active tasks');
-                }
 
                 // Delete the test
                 $test->delete();
