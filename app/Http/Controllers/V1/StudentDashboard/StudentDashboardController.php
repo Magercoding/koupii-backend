@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1\StudentDashboard;
 
 use App\Http\Controllers\Controller;
+use App\Models\Classes;
 use App\Models\ReadingSubmission;
 use App\Models\StudentAssignment;
 use App\Models\ClassEnrollment;
@@ -452,10 +453,23 @@ class StudentDashboardController extends Controller
 
         $user = auth()->user();
         
-        // Allow teachers to preview the assignment if they own the class or created it
+        // Allow teachers (and admins) to preview/take the assignment if they own the class,
+        // are a co-teacher of that class, or created the assignment.
         if ($user->role === 'teacher' || $user->role === 'admin') {
-            return $user->teacherClasses()->where('id', $assignment->class_id)->exists()
-                || $assignment->assigned_by === $user->id;
+            if ($assignment->assigned_by === $user->id) {
+                return true;
+            }
+
+            return Classes::query()
+                ->whereKey($assignment->class_id)
+                ->where(function ($q) use ($user) {
+                    $q->where('teacher_id', $user->id)
+                        ->orWhereHas(
+                            'coTeachers',
+                            fn ($cq) => $cq->where('users.id', $user->id),
+                        );
+                })
+                ->exists();
         }
 
         // Check if student is enrolled in the class (any status — active or pending)

@@ -31,7 +31,7 @@ class ListeningQuestion extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    // 15 Question Types for Listening
+    // Listening question type labels (QT9 flowchart removed from product; legacy DB rows may still use flowchart_completion).
     public const QUESTION_TYPES = [
         'multiple_choice' => 'Multiple Choice (QT1)',
         'multiple_answer' => 'Multiple Answer (QT2)', 
@@ -41,7 +41,6 @@ class ListeningQuestion extends Model
         'short_answer' => 'Short Answer Question (QT6)',
         'form_completion' => 'Form Completion (QT7)',
         'note_completion' => 'Note Completion (QT8)',
-        'flowchart_completion' => 'Flowchart Completion (QT9)',
         'summary_completion' => 'Summary Completion (QT10)',
         'diagram_labeling' => 'Diagram Labeling (QT11)',
         'classification' => 'Classification (QT12)',

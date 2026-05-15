@@ -104,6 +104,20 @@ class ReadingSubmission extends Model
                             }
                         }
 
+                        // Table completion: same composite id pattern as the student UI (`{id}-blank-{row}-{col}`)
+                        if ($qType === 'table_completion') {
+                            $tableBlanks = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
+                            if (is_array($tableBlanks) && count($tableBlanks) > 0 && $parentKey !== '') {
+                                foreach ($tableBlanks as $blank) {
+                                    $cellKey = $blank['option_key'] ?? null;
+                                    if ($cellKey !== null && (string) $cellKey !== '') {
+                                        $validReadingTaskIds[] = "{$parentKey}-blank-{$cellKey}";
+                                    }
+                                }
+                                continue;
+                            }
+                        }
+
                         if (is_array($items) && count($items) > 0) {
                             foreach ($items as $idx => $item) {
                                 $itemNum = $item['question_number'] ?? ($idx + 1);
@@ -151,6 +165,22 @@ class ReadingSubmission extends Model
 
                         // Note-completion: sum per-blank points_value
                         if ($qType === 'note_completion') {
+                            $blankAnswers = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
+                            if (is_array($blankAnswers) && count($blankAnswers) > 0) {
+                                $questionTotal = (float) ($question['points_value'] ?? $question['points'] ?? 1);
+                                $blankCount = count($blankAnswers);
+                                foreach ($blankAnswers as $blank) {
+                                    $maxPossiblePoints += (float) (
+                                        $blank['points_value']
+                                        ?? floor($questionTotal / $blankCount)
+                                    );
+                                }
+                                continue;
+                            }
+                        }
+
+                        // Table completion: per-blank max points (matches note_completion)
+                        if ($qType === 'table_completion') {
                             $blankAnswers = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
                             if (is_array($blankAnswers) && count($blankAnswers) > 0) {
                                 $questionTotal = (float) ($question['points_value'] ?? $question['points'] ?? 1);

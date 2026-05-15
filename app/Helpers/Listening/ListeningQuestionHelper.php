@@ -6,7 +6,7 @@ use App\Models\TestQuestion;
 
 class ListeningQuestionHelper
 {
-    // All 15 listening question types
+    // Listening QT registry (QT9 flowchart removed from authoring; codes QT1–QT8, QT10–QT15).
     public const QUESTION_TYPES = [
         'QT1' => [
             'code' => 'multiple_choice',
@@ -55,12 +55,6 @@ class ListeningQuestionHelper
             'name' => 'Note Completion',
             'description' => 'Complete notes with missing information',
             'validation_type' => 'note_gaps'
-        ],
-        'QT9' => [
-            'code' => 'flowchart_completion',
-            'name' => 'Flowchart Completion',
-            'description' => 'Complete flowcharts with missing steps/information',
-            'validation_type' => 'flowchart_nodes'
         ],
         'QT10' => [
             'code' => 'summary_completion',
@@ -133,10 +127,22 @@ class ListeningQuestionHelper
             case 'table_completion':
             case 'form_completion':
             case 'note_completion':
-            case 'flowchart_completion':
             case 'summary_completion':
             case 'sentence_completion':
             case 'gap_fill_listening':
+                return static::getStructuredAnswerText($question);
+
+            case 'flowchart_completion':
+                $questionData = $question->question_data ?? [];
+                if (isset($questionData['nodes']) && is_array($questionData['nodes'])) {
+                    $parts = [];
+                    foreach ($questionData['nodes'] as $nodeId => $nodeData) {
+                        $parts[] = $nodeId . ': ' . (is_array($nodeData)
+                            ? ($nodeData['correct_answer'] ?? '')
+                            : (string) $nodeData);
+                    }
+                    return implode('; ', $parts);
+                }
                 return static::getStructuredAnswerText($question);
 
             case 'diagram_labeling':
@@ -375,7 +381,7 @@ class ListeningQuestionHelper
     }
 
     /**
-     * Format flowchart answers
+     * Format flowchart answers (legacy rows with question_type flowchart_completion).
      */
     private static function formatFlowchartAnswers($answerData): string
     {
@@ -383,7 +389,7 @@ class ListeningQuestionHelper
             $nodes = $answerData['answer_data']['nodes'];
             $formatted = [];
             foreach ($nodes as $nodeId => $nodeValue) {
-                $formatted[] = "Node " . $nodeId . ': ' . $nodeValue;
+                $formatted[] = 'Node ' . $nodeId . ': ' . $nodeValue;
             }
             return implode(' → ', $formatted);
         }

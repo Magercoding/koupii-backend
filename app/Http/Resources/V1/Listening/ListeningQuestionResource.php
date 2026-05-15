@@ -83,7 +83,6 @@ class ListeningQuestionResource extends JsonResource
             'QT6' => ['name' => 'Short Answer Question', 'code' => 'short_answer'],
             'QT7' => ['name' => 'Form Completion', 'code' => 'form_completion'],
             'QT8' => ['name' => 'Note Completion', 'code' => 'note_completion'],
-            'QT9' => ['name' => 'Flowchart Completion', 'code' => 'flowchart_completion'],
             'QT10' => ['name' => 'Summary Completion', 'code' => 'summary_completion'],
             'QT11' => ['name' => 'Diagram Labeling', 'code' => 'diagram_labeling'],
             'QT12' => ['name' => 'Classification', 'code' => 'classification'],

@@ -303,6 +303,29 @@ class ReadingSubmissionService
                             continue;
                         }
                     }
+                    // Table completion: one answer row per cell blank (same id pattern as student UI).
+                    if (($question['question_type'] ?? '') === 'table_completion') {
+                        $correctAnswers = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
+                        $parentKey = (string) ($question['id'] ?? $question['question_number'] ?? '');
+                        if (is_array($correctAnswers) && count($correctAnswers) > 0 && $parentKey !== '') {
+                            foreach ($correctAnswers as $blank) {
+                                $cellKey = $blank['option_key'] ?? null;
+                                if ($cellKey === null || (string) $cellKey === '') {
+                                    continue;
+                                }
+                                $answerId = "{$parentKey}-blank-{$cellKey}";
+                                $submission->answers()->create([
+                                    'reading_task_question_id' => $answerId,
+                                    'question_id' => null,
+                                    'student_answer' => null,
+                                    'correct_answer' => $blank['option_text'] ?? '',
+                                    'is_correct' => null,
+                                    'points_earned' => 0,
+                                ]);
+                            }
+                            continue;
+                        }
+                    }
                     // For matching_* questions that have items (e.g. matching_heading),
                     // treat each item as a separate graded question so scoring/counts match the UI.
                     if (is_array($items) && count($items) > 0) {

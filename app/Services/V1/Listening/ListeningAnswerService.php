@@ -302,7 +302,7 @@ class ListeningAnswerService
     }
 
     /**
-     * Evaluate flowchart completion question (QT9)
+     * Evaluate flowchart completion question (legacy; type removed from authoring).
      */
     private function evaluateFlowchartCompletion(ListeningQuestionAnswer $answer): void
     {
@@ -317,7 +317,7 @@ class ListeningAnswerService
             if (isset($correctNodes[$nodeId])) {
                 $correctAnswer = strtolower(trim($correctNodes[$nodeId]['correct_answer'] ?? ''));
                 $userAnswer = strtolower(trim($userAnswer));
-                
+
                 if ($correctAnswer === $userAnswer) {
                     $correctCount++;
                 }

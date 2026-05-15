@@ -107,16 +107,22 @@ class ReadingQuestionAnswer extends Model
 
         $questionIdStr = (string) $questionId;
 
-        // Check if this is a note-completion blank ID: "{parentId}-blank-{blankKey}"
-        if (preg_match('/^(.+)-blank-(\w+)$/', $questionIdStr, $m)) {
+        // Composite blank IDs: "{parentId}-blank-{blankKey}".
+        // Non-greedy parent: question ids may contain hyphens (e.g. UUIDs); table cell keys may be "1-2".
+        if (preg_match('/^(.+?)-blank-(.+)$/', $questionIdStr, $m)) {
             $parentId = $m[1];
             $blankKey = $m[2];
             foreach ($task->passages as $passage) {
                 foreach ($passage['question_groups'] ?? [] as $group) {
                     foreach ($group['questions'] ?? [] as $question) {
                         $qId = (string) ($question['id'] ?? $question['question_number'] ?? '');
-                        if ($qId === $parentId && ($question['question_type'] ?? '') === 'note_completion') {
-                            // Return a synthetic question representing just this blank
+                        if ($qId !== $parentId) {
+                            continue;
+                        }
+
+                        $qType = (string) ($question['question_type'] ?? '');
+
+                        if ($qType === 'note_completion') {
                             $blankAnswers = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
                             $blankEntry = null;
                             $blankCount = 0;
@@ -129,9 +135,10 @@ class ReadingQuestionAnswer extends Model
                                     }
                                 }
                             }
+                            if ($blankEntry === null) {
+                                continue;
+                            }
 
-                            // Per-blank points: use stored points_value if available,
-                            // otherwise distribute question total evenly across blanks
                             $questionTotal = (float) ($question['points_value'] ?? $question['points'] ?? 1);
                             $perBlankPoints = $blankCount > 0
                                 ? ($blankEntry['points_value'] ?? floor($questionTotal / $blankCount))
@@ -146,9 +153,42 @@ class ReadingQuestionAnswer extends Model
                                 'points_value' => $perBlankPoints,
                             ];
                         }
+
+                        if ($qType === 'table_completion') {
+                            $blankAnswers = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
+                            $blankEntry = null;
+                            $blankCount = 0;
+                            if (is_array($blankAnswers)) {
+                                $blankCount = count($blankAnswers);
+                                foreach ($blankAnswers as $blank) {
+                                    if ((string) ($blank['option_key'] ?? '') === $blankKey) {
+                                        $blankEntry = $blank;
+                                        break;
+                                    }
+                                }
+                            }
+                            if ($blankEntry === null) {
+                                continue;
+                            }
+
+                            $questionTotal = (float) ($question['points_value'] ?? $question['points'] ?? 1);
+                            $perBlankPoints = $blankCount > 0
+                                ? (float) ($blankEntry['points_value'] ?? floor($questionTotal / $blankCount))
+                                : 1.0;
+
+                            return [
+                                'id' => $questionIdStr,
+                                'question_type' => 'table_completion_blank',
+                                'correct_answer' => $blankEntry['option_text'] ?? '',
+                                'correct_answers' => $blankEntry['option_text'] ?? '',
+                                'points' => $perBlankPoints,
+                                'points_value' => $perBlankPoints,
+                            ];
+                        }
                     }
                 }
             }
+
             return null;
         }
 
@@ -239,7 +279,8 @@ class ReadingQuestionAnswer extends Model
             'matching_heading_item', 'matching_information_item', 'matching_features_item', 'matching_sentence_ending_item' => $this->compareSingleChoice($studentAnswer, $correctAnswer),
             'note_completion' => $this->compareNoteCompletion($studentAnswer, $correctAnswer),
             'note_completion_blank' => $this->compareShortAnswer($studentAnswer, $correctAnswer),
-            'sentence_completion', 'paragraph_completion', 'paragraph_summary_completion', 'table_completion', 'flowchart_completion', 'diagram_label_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
+            'table_completion_blank' => $this->compareShortAnswer($studentAnswer, $correctAnswer),
+            'sentence_completion', 'paragraph_completion', 'paragraph_completion_item', 'paragraph_summary_completion', 'table_completion', 'diagram_label_completion', 'diagram_label_completion_item', 'flowchart_completion' => $this->compareTextCompletion($studentAnswer, $correctAnswer),
             'short_answer_question' => $this->compareShortAnswer($studentAnswer, $correctAnswer),
             default => false
         };

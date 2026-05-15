@@ -44,7 +44,7 @@ class CreateListeningTaskRequest extends FormRequest
             'replay_settings.replay_delay_seconds' => 'nullable|integer|min:0|max:60',
             'difficulty_level' => 'nullable|string|in:beginner,elementary,intermediate,upper_intermediate,advanced,proficiency',
             'question_types' => 'nullable|array',
-            'question_types.*' => 'string|in:QT1,QT2,QT3,QT4,QT5,QT6,QT7,QT8,QT9,QT10,QT11,QT12,QT13,QT14,QT15'
+            'question_types.*' => 'string|in:QT1,QT2,QT3,QT4,QT5,QT6,QT7,QT8,QT10,QT11,QT12,QT13,QT14,QT15'
         ];
     }
 
@@ -140,7 +140,7 @@ class CreateListeningTaskRequest extends FormRequest
             // Real-time audio interaction types shouldn't be mixed with complex completion types
             'realtime_with_complex' => [
                 'realtime' => ['QT14', 'QT15'], // gap_fill_listening, audio_dictation
-                'complex' => ['QT4', 'QT8', 'QT9'] // table_completion, note_completion, flowchart_completion
+                'complex' => ['QT4', 'QT8'] // table_completion, note_completion
             ]
         ];
 
@@ -150,7 +150,7 @@ class CreateListeningTaskRequest extends FormRequest
         if ($hasRealtime && $hasComplex) {
             $validator->errors()->add(
                 'question_types',
-                'Real-time audio interaction questions (QT14, QT15) cannot be combined with complex completion questions (QT4, QT8, QT9)'
+                'Real-time audio interaction questions (QT14, QT15) cannot be combined with complex completion questions (QT4, QT8)'
             );
         }
 
@@ -165,8 +165,8 @@ class CreateListeningTaskRequest extends FormRequest
     {
         $taskTypeCompatibility = [
             'conversation' => ['QT1', 'QT2', 'QT6', 'QT7', 'QT13', 'QT14', 'QT15'],
-            'monologue' => ['QT1', 'QT2', 'QT4', 'QT5', 'QT6', 'QT8', 'QT9', 'QT10', 'QT13'],
-            'lecture' => ['QT1', 'QT2', 'QT4', 'QT5', 'QT8', 'QT9', 'QT10', 'QT12', 'QT13'],
+            'monologue' => ['QT1', 'QT2', 'QT4', 'QT5', 'QT6', 'QT8', 'QT10', 'QT13'],
+            'lecture' => ['QT1', 'QT2', 'QT4', 'QT5', 'QT8', 'QT10', 'QT12', 'QT13'],
             'discussion' => ['QT1', 'QT2', 'QT6', 'QT12', 'QT13'],
             'interview' => ['QT1', 'QT2', 'QT6', 'QT7', 'QT13'],
             'news' => ['QT1', 'QT2', 'QT5', 'QT6', 'QT10', 'QT13'],
