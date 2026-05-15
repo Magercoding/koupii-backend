@@ -7,6 +7,7 @@ use App\Models\Test;
 use App\Helpers\FileUploadHelper;
 use App\Traits\CreatesStudentAssignments;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -52,15 +53,21 @@ class ReadingTaskService
     /**
      * Create a new reading task
      */
-    public function create(array $taskData): ReadingTask
+    public function create(array $taskData, ?Request $request = null): ReadingTask
     {
-        return DB::transaction(function () use ($taskData) {
+        return DB::transaction(function () use ($taskData, $request) {
             // Handle file uploads
             $fileData = $this->handleFileUploads($taskData);
 
             // Prepare task data
             $passages = $this->parsePassages($taskData['passages']);
             $normalizedPassages = $this->normalizePassages($passages);
+            if ($request) {
+                $normalizedPassages = $this->mergeQuestionImagesIntoPassages(
+                    $normalizedPassages,
+                    $request,
+                );
+            }
 
             $readingTaskData = [
                 'id' => Str::uuid(),
@@ -132,9 +139,9 @@ class ReadingTaskService
     /**
      * Update a reading task
      */
-    public function update(ReadingTask $task, array $taskData): ReadingTask
+    public function update(ReadingTask $task, array $taskData, ?Request $request = null): ReadingTask
     {
-        return DB::transaction(function () use ($task, $taskData) {
+        return DB::transaction(function () use ($task, $taskData, $request) {
             // Handle file uploads
             $fileData = $this->handleFileUploads($taskData);
 
@@ -197,6 +204,12 @@ class ReadingTaskService
             if (isset($taskData['passages'])) {
                 $passages = $this->parsePassages($taskData['passages']);
                 $normalizedPassages = $this->normalizePassages($passages);
+                if ($request) {
+                    $normalizedPassages = $this->mergeQuestionImagesIntoPassages(
+                        $normalizedPassages,
+                        $request,
+                    );
+                }
                 $updateData['passages'] = $normalizedPassages;
                 $updateData['suggest_time_minutes'] = $this->calculateSuggestedTimeFromNormalized($normalizedPassages);
                 $updateData['question_types'] = $this->extractQuestionTypesFromNormalized($normalizedPassages);
@@ -253,19 +266,113 @@ class ReadingTaskService
     }
 
     /**
-     * Parse passages JSON string
+     * Parse passages from JSON string or structured multipart array.
      */
-    private function parsePassages(string $passagesJson): array
+    private function parsePassages(mixed $passagesInput): array
     {
+        if (is_array($passagesInput)) {
+            return $passagesInput;
+        }
+
+        if (!is_string($passagesInput) || trim($passagesInput) === '') {
+            throw new \InvalidArgumentException('Invalid passages data');
+        }
+
         try {
-            $passages = json_decode($passagesJson, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
+            $passages = json_decode($passagesInput, true);
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($passages)) {
                 throw new \InvalidArgumentException('Invalid JSON in passages data');
             }
             return $passages;
         } catch (\Exception $e) {
             throw new \InvalidArgumentException('Failed to parse passages data: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Upload question diagram/images and persist paths on question_data.image_path.
+     * Files are sent as question_images[p][g][q][i] so they do not collide with passages JSON.
+     */
+    private function mergeQuestionImagesIntoPassages(array $passages, Request $request): array
+    {
+        foreach ($passages as $pIndex => &$passage) {
+            if (!isset($passage['question_groups']) && isset($passage['questionGroups'])) {
+                $passage['question_groups'] = $passage['questionGroups'];
+                unset($passage['questionGroups']);
+            }
+
+            if (!isset($passage['question_groups']) || !is_array($passage['question_groups'])) {
+                continue;
+            }
+
+            foreach ($passage['question_groups'] as $gIndex => &$group) {
+                if (!isset($group['questions']) || !is_array($group['questions'])) {
+                    continue;
+                }
+
+                foreach ($group['questions'] as $qIndex => &$question) {
+                    $questionData = $question['question_data'] ?? [];
+                    if (!is_array($questionData)) {
+                        $questionData = [];
+                    }
+
+                    $imageKey = "question_images.{$pIndex}.{$gIndex}.{$qIndex}";
+                    $existingPaths = $questionData['image_path'] ?? [];
+                    if (!is_array($existingPaths)) {
+                        $existingPaths = $existingPaths ? [$existingPaths] : [];
+                    }
+
+                    if (!empty($questionData['remove_images']) && is_array($questionData['remove_images'])) {
+                        foreach ($questionData['remove_images'] as $removePath) {
+                            FileUploadHelper::delete(str_replace('/storage/', '', (string) $removePath));
+                        }
+                        $existingPaths = array_values(
+                            array_diff($existingPaths, $questionData['remove_images']),
+                        );
+                    }
+
+                    $newPaths = [];
+                    if ($request->hasFile($imageKey)) {
+                        $files = $request->file($imageKey);
+                        $files = is_array($files) ? $files : [$files];
+                        foreach ($files as $file) {
+                            if ($file && $file->isValid()) {
+                                $uploaded = FileUploadHelper::upload(
+                                    $file,
+                                    'reading-passages/question-images',
+                                );
+                                if ($uploaded) {
+                                    $newPaths[] = $uploaded;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!empty($newPaths)) {
+                        foreach ($existingPaths as $oldPath) {
+                            FileUploadHelper::delete(str_replace('/storage/', '', (string) $oldPath));
+                        }
+                        $finalPaths = $newPaths;
+                    } else {
+                        $finalPaths = $existingPaths;
+                    }
+
+                    unset($questionData['images'], $questionData['remove_images']);
+
+                    if (!empty($finalPaths)) {
+                        $questionData['image_path'] = array_values($finalPaths);
+                        $question['question_data'] = $questionData;
+                    } elseif (!empty($questionData)) {
+                        unset($questionData['image_path']);
+                        $question['question_data'] = $questionData;
+                    } else {
+                        unset($question['question_data']);
+                    }
+                }
+            }
+        }
+
+        return $passages;
     }
 
     /**
@@ -283,14 +390,25 @@ class ReadingTaskService
     /**
      * Parse timer settings JSON
      */
-    private function parseTimerSettings(?string $timerSettings): ?int
+    private function parseTimerSettings(mixed $timerSettings): ?int
     {
         if (empty($timerSettings)) {
             return null;
         }
 
+        if (is_array($timerSettings)) {
+            $settings = $timerSettings;
+        } elseif (is_string($timerSettings)) {
+            try {
+                $settings = json_decode($timerSettings, true);
+            } catch (\Exception $e) {
+                return null;
+            }
+        } else {
+            return null;
+        }
+
         try {
-            $settings = json_decode($timerSettings, true);
             if (!is_array($settings)) {
                 return null;
             }

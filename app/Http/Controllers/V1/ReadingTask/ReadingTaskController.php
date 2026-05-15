@@ -94,7 +94,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
             \Illuminate\Support\Facades\Log::info('ReadingTaskController: Validated data', ['data' => $validated]);
 
             $service = app(ReadingTaskService::class);
-            $task = $service->create($validated);
+            $task = $service->create($validated, $request);
 
             return new ReadingTaskResource($task->load(['creator', 'assignments']));
         } catch (\Exception $e) {
@@ -173,7 +173,7 @@ class ReadingTaskController extends Controller implements HasMiddleware
 
         try {
             $service = app(ReadingTaskService::class);
-            $task = $service->update($task, $request->validated());
+            $task = $service->update($task, $request->validated(), $request);
 
             return new ReadingTaskResource($task->load(['creator', 'assignments']));
         } catch (\Exception $e) {

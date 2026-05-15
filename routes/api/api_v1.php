@@ -10,11 +10,6 @@ use Illuminate\Support\Facades\Route;
  */
 Route::get('/health', fn() => response()->json(['ok' => true, 'time' => time()]));
 
-/**
- * Public audio streaming route — supports HTTP Range requests for seeking.
- * Used by the frontend audio player to stream listening task audio files.
- * @unauthenticated
- */
 Route::get('/audio/{path}', function (string $path) {
     // Try local public storage first
     $fullPath = storage_path('app/public/' . $path);
@@ -41,6 +36,83 @@ Route::get('/audio/{path}', function (string $path) {
     abort(404, 'Audio file not found');
 })->where('path', '.*');
 
+/**
+ * Public image proxy route — serves question/passage images from local storage
+ * or generates a temporary signed URL for R2/cloud-stored images.
+ *
+ * Accepts ?url=<encoded-full-url> for R2 URLs, or /{path} for relative paths.
+ * @unauthenticated
+ */
+Route::get('/images', function (\Illuminate\Http\Request $request) {
+    $r2Bucket = env('CLOUDFLARE_R2_BUCKET', '');
+    $rawUrl   = $request->query('url', '');
+    $path     = $request->query('path', '');
+
+    if ($rawUrl) {
+        $parsed    = parse_url($rawUrl);
+        $objectKey = ltrim($parsed['path'] ?? '', '/');
+        if ($r2Bucket && str_starts_with($objectKey, $r2Bucket . '/')) {
+            $objectKey = substr($objectKey, strlen($r2Bucket) + 1);
+        }
+        $path = $objectKey;
+    }
+
+    if (!$path) {
+        abort(400, 'Missing image path or url parameter');
+    }
+
+    $fullPath = storage_path('app/public/' . $path);
+    if (file_exists($fullPath)) {
+        return response()->file($fullPath, ['Cache-Control' => 'public, max-age=3600']);
+    }
+
+    try {
+        $disk = \Illuminate\Support\Facades\Storage::disk(config('filesystems.default', 'public'));
+        if ($disk->exists($path)) {
+            return redirect($disk->temporaryUrl($path, now()->addHour()));
+        }
+    } catch (\Exception $e) {
+        // fall through
+    }
+
+    abort(404, 'Image not found');
+});
+
+Route::get('/images/{path}', function (string $path) {
+    $r2Bucket = env('CLOUDFLARE_R2_BUCKET', '');
+    $decoded  = urldecode($path);
+
+    if (str_starts_with($decoded, 'http://') || str_starts_with($decoded, 'https://')) {
+        $parsed = parse_url($decoded);
+        $objectKey = ltrim($parsed['path'] ?? '', '/');
+        if ($r2Bucket && str_starts_with($objectKey, $r2Bucket . '/')) {
+            $objectKey = substr($objectKey, strlen($r2Bucket) + 1);
+        }
+        $path = $objectKey;
+    } else {
+        $path = $decoded;
+    }
+
+    $fullPath = storage_path('app/public/' . $path);
+    if (file_exists($fullPath)) {
+        return response()->file($fullPath, [
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
+    }
+
+    try {
+        $disk = \Illuminate\Support\Facades\Storage::disk(config('filesystems.default', 'public'));
+        if ($disk->exists($path)) {
+            $signedUrl = $disk->temporaryUrl($path, now()->addHour());
+            return redirect($signedUrl);
+        }
+    } catch (\Exception $e) {
+
+    }
+
+    abort(404, 'Image not found');
+})->where('path', '.*');
+
 
 /**
  * @unauthenticated
@@ -53,7 +125,6 @@ Route::get('/version', function () {
         'timestamp' => now()->toISOString(),
     ];
 
-    // Add git commit if available
     if (file_exists(base_path('.git/HEAD'))) {
         $head = trim(file_get_contents(base_path('.git/HEAD')));
         if (strpos($head, 'ref:') === 0) {

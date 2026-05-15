@@ -35,7 +35,8 @@ class UpdateReadingTaskRequest extends BaseRequest
             'due_date' => 'nullable|date',
             'max_retake_attempts' => 'nullable|integer|min:1|max:10',
             'settings' => 'nullable|string',
-            'passages' => 'sometimes|required|string', // JSON string of passages array
+            // JSON string, or array when legacy nested uploads were used
+            'passages' => 'sometimes|required',
             'vocabularies' => 'nullable|string', // JSON string of vocabularies array
             'passage_images' => 'nullable|array',
             'passage_images.*' => 'file|mimes:jpg,jpeg,png,gif|max:5120', // 5MB max
@@ -119,8 +120,16 @@ class UpdateReadingTaskRequest extends BaseRequest
             // Validate passages JSON structure if provided
             if ($this->filled('passages')) {
                 try {
-                    $passages = json_decode($this->passages, true);
-                    if (json_last_error() !== JSON_ERROR_NONE) {
+                    $rawPassages = $this->input('passages');
+                    if (is_array($rawPassages)) {
+                        $passages = $rawPassages;
+                    } elseif (is_string($rawPassages)) {
+                        $passages = json_decode($rawPassages, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            $validator->errors()->add('passages', 'Passages must be valid JSON');
+                            return;
+                        }
+                    } else {
                         $validator->errors()->add('passages', 'Passages must be valid JSON');
                         return;
                     }

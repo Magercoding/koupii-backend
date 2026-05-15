@@ -33,7 +33,7 @@ class StoreReadingTaskRequest extends BaseRequest
             'is_public' => 'boolean',
             'is_published' => 'boolean',
             'settings' => 'nullable|string',
-            'passages' => 'required|string', // JSON string of passages array
+            'passages' => 'required',
             'vocabularies' => 'nullable|string', // JSON string of vocabularies array
             'passage_images' => 'nullable|array',
             'passage_images.*' => 'file|mimes:jpg,jpeg,png,gif|max:5120', // 5MB max
@@ -114,8 +114,16 @@ class StoreReadingTaskRequest extends BaseRequest
             // Validate passages JSON structure
             if ($this->filled('passages')) {
                 try {
-                    $passages = json_decode($this->passages, true);
-                    if (json_last_error() !== JSON_ERROR_NONE) {
+                    $rawPassages = $this->input('passages');
+                    if (is_array($rawPassages)) {
+                        $passages = $rawPassages;
+                    } elseif (is_string($rawPassages)) {
+                        $passages = json_decode($rawPassages, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            $validator->errors()->add('passages', 'Passages must be valid JSON');
+                            return;
+                        }
+                    } else {
                         $validator->errors()->add('passages', 'Passages must be valid JSON');
                         return;
                     }
