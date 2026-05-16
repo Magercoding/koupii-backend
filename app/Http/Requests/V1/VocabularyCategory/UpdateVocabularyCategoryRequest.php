@@ -21,7 +21,7 @@ class UpdateVocabularyCategoryRequest extends FormRequest
      */
     public function rules(): array
     {
-        $id = $this->route('id'); // ambil ID dari route
+        $id = $this->route('id'); // get ID from route
 
         return [
             'name' => "required|string|max:255|unique:vocabulary_categories,name,$id",

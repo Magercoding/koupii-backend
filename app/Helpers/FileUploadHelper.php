@@ -8,11 +8,11 @@ use Illuminate\Http\UploadedFile;
 class FileUploadHelper
 {
     /**
-     * Simpan file ke storage/public/{folder} dan return URL-nya.
+     * Store a file in storage/public/{folder} and return its URL.
      *
      * @param UploadedFile $file
      * @param string $folder
-     * @return string URL ke file yang disimpan
+     * @return string URL of the stored file
      */
     public static function upload(UploadedFile $file, string $folder): string
     {
@@ -41,7 +41,7 @@ class FileUploadHelper
     }
 
     /**
-     * Hapus file berdasarkan URL `/storage/...`
+     * Delete a file by URL `/storage/...`
      *
      * @param string $fileUrl
      * @return void

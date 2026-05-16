@@ -145,20 +145,24 @@ class ListeningTaskService
 
                             // Create questions
                             if (!empty($group['questions']) && is_array($group['questions'])) {
-                                foreach ($group['questions'] as $question) {
+                                foreach ($group['questions'] as $qIdx => $question) {
                                     $questionOrder++;
 
-                                    $q = ListeningQuestion::create([
+                                    $payload = $this->buildListeningQuestionPayload(
+                                        is_array($question) ? $question : [],
+                                        $request,
+                                        $pIndex,
+                                        $gIndex,
+                                        is_int($qIdx) ? $qIdx : (int) $qIdx,
+                                    );
+
+                                    $q = ListeningQuestion::create(array_merge([
                                         'listening_task_id' => $task->id,
                                         'passage_index'     => $pIndex,
-                                        'question_type'     => $question['question_type'] ?? 'multiple_choice',
-                                        'question_text'     => $question['question_text'] ?? '',
-                                        'options'           => $question['options'] ?? null,
-                                        'correct_answers'   => $this->normalizeCorrectAnswer($question['correct_answer'] ?? null),
-                                        'points'            => (int) ($question['points'] ?? $question['points_value'] ?? 1),
-                                        'order_index'       => $question['question_number'] ?? $questionOrder,
-                                        'explanation'       => $question['breakdown']['explanation'] ?? null,
-                                    ]);
+                                        'order_index'       => ($question['question_number'] ?? null) !== null
+                                            ? (int) $question['question_number']
+                                            : $questionOrder,
+                                    ], $payload));
 
                                     $passageQuestionIds[] = $q->id;
                                 }
@@ -354,20 +358,24 @@ class ListeningTaskService
 
                             // Create questions
                             if (!empty($group['questions']) && is_array($group['questions'])) {
-                                foreach ($group['questions'] as $qIndex => $question) {
+                                foreach ($group['questions'] as $qIdx => $question) {
                                     $questionOrder++;
 
-                                    $q = \App\Models\ListeningQuestion::create([
+                                    $payload = $this->buildListeningQuestionPayload(
+                                        is_array($question) ? $question : [],
+                                        $request,
+                                        $pIndex,
+                                        $gIndex,
+                                        is_int($qIdx) ? $qIdx : (int) $qIdx,
+                                    );
+
+                                    $q = ListeningQuestion::create(array_merge([
                                         'listening_task_id' => $task->id,
                                         'passage_index'     => $pIndex,
-                                        'question_type'     => $question['question_type'] ?? 'multiple_choice',
-                                        'question_text'     => $question['question_text'] ?? '',
-                                        'options'           => $question['options'] ?? null,
-                                        'correct_answers'   => $this->normalizeCorrectAnswer($question['correct_answer'] ?? null),
-                                        'points'            => (int) ($question['points'] ?? $question['points_value'] ?? 1),
-                                        'order_index'       => $question['question_number'] ?? $questionOrder,
-                                        'explanation'       => $question['breakdown']['explanation'] ?? null,
-                                    ]);
+                                        'order_index'       => ($question['question_number'] ?? null) !== null
+                                            ? (int) $question['question_number']
+                                            : $questionOrder,
+                                    ], $payload));
 
                                     $passageQuestionIds[] = $q->id;
                                 }
@@ -390,6 +398,100 @@ class ListeningTaskService
 
             return $task->fresh(['creator', 'questions']);
         });
+    }
+
+    /**
+     * Build attributes for ListeningQuestion rows (listening task payloads).
+     */
+    private function buildListeningQuestionPayload(
+        array $question,
+        ?\Illuminate\Http\Request $request,
+        int $passageIdx,
+        int $groupIdx,
+        int $qIdx,
+    ): array {
+        $type = $question['question_type'] ?? 'multiple_choice';
+        $questionText = $question['question_text'] ?? '';
+
+        $options = $question['options'] ?? null;
+        $correct = $this->normalizeCorrectAnswer($question['correct_answer'] ?? null);
+
+        if ($type === 'map_labeling' && !empty($question['items']) && is_array($question['items'])) {
+            $dotKey = "passages.{$passageIdx}.question_groups.{$groupIdx}.questions.{$qIdx}.question_data.images.0";
+            $imagePath = null;
+
+            if ($request && $request->hasFile($dotKey)) {
+                $uploadedFile = $request->file($dotKey);
+                if ($uploadedFile instanceof \Illuminate\Http\UploadedFile && $uploadedFile->isValid()) {
+                    $upload = FileUploadHelper::uploadWithMeta($uploadedFile, 'listening/map');
+                    $imagePath = $upload['url'] ?? null;
+                }
+            }
+
+            if (!$imagePath && !empty($question['question_data']) && is_array($question['question_data'])) {
+                $qd = $question['question_data'];
+                $ip = $qd['image_path'] ?? null;
+                if (is_string($ip) && $ip !== '') {
+                    $imagePath = $ip;
+                } elseif (is_array($ip)) {
+                    $firstIp = reset($ip);
+                    if (is_string($firstIp) && $firstIp !== '') {
+                        $imagePath = $firstIp;
+                    }
+                }
+            }
+
+            $slotRows = [];
+            $correctTexts = [];
+
+            foreach ($question['items'] as $item) {
+                $ca = (is_array($item) && is_array($item['correct_answer'] ?? null))
+                    ? $item['correct_answer']
+                    : [];
+                $optionKey = trim((string) ($ca['option_key'] ?? ''));
+                $optionText = preg_replace('/\s+/', ' ', trim((string) ($ca['option_text'] ?? '')));
+
+                $lp = $item['label_position'] ?? null;
+                $x = null;
+                $y = null;
+                if (is_array($lp) && isset($lp['x_pct'], $lp['y_pct'])) {
+                    $x = (float) $lp['x_pct'];
+                    $y = (float) $lp['y_pct'];
+                }
+
+                $slotRows[] = [
+                    'kind' => 'listening_map_slot',
+                    'option_key' => $optionKey,
+                    'option_text' => $optionText,
+                    'label_x_pct' => $x,
+                    'label_y_pct' => $y,
+                ];
+                $correctTexts[] = $optionText;
+            }
+
+            $options = array_merge([
+                [
+                    'kind' => 'listening_map_meta',
+                    'image_path' => $imagePath,
+                ],
+            ], $slotRows);
+
+            $correct = $correctTexts;
+        }
+
+        return [
+            'question_type' => $type,
+            'question_text' => $questionText,
+            'options' => $options,
+            'correct_answers' => $correct ?? [],
+            'question_data' => isset($question['question_data']) && is_array($question['question_data'])
+                ? $question['question_data']
+                : null,
+            'points' => (int) ($question['points'] ?? $question['points_value'] ?? 1),
+            'explanation' => is_array($question['breakdown'] ?? null)
+                ? ($question['breakdown']['explanation'] ?? null)
+                : null,
+        ];
     }
 
     /**

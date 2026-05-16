@@ -84,6 +84,18 @@ class UpdateListeningTaskRequest extends FormRequest
             'passages.*.question_groups.*.questions.*.items' => 'nullable|array',
             'passages.*.question_groups.*.questions.*.question_data' => 'nullable|array',
 
+            'passages.*.question_groups.*.questions.*.items.*.correct_answer.option_key' => 'nullable|string|max:64',
+            'passages.*.question_groups.*.questions.*.items.*.correct_answer.option_text' => 'nullable|string|max:2000',
+            'passages.*.question_groups.*.questions.*.items.*.label_position' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.items.*.label_position.x_pct' => 'nullable|numeric|between:0,100',
+            'passages.*.question_groups.*.questions.*.items.*.label_position.y_pct' => 'nullable|numeric|between:0,100',
+            'passages.*.question_groups.*.questions.*.question_data.images.*' => 'nullable|file|mimes:jpeg,jpg,png|max:5120',
+            'passages.*.question_groups.*.questions.*.question_data.image_path' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.question_data.image_path.*' => 'nullable|string|max:2048',
+            'passages.*.question_groups.*.questions.*.question_data.table' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.question_data.table.*' => 'nullable|array',
+            'passages.*.question_groups.*.questions.*.question_data.table.*.*' => 'nullable|string',
+
             // Legacy flat fields (kept for backward compatibility)
             'task_type' => 'nullable|string',
             'audio_url' => 'nullable|string|url',

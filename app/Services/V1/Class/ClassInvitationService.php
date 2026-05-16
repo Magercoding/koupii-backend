@@ -72,7 +72,7 @@ class ClassInvitationService
             'is_registered' => $is_registered,
             'message' => $is_registered 
                 ? 'Invitation sent successfully' 
-                : 'Email belum terdaftar di platform, undangan tetap dikirim'
+                : 'Email is not registered on the platform; invitation was still sent'
         ];
     }
 

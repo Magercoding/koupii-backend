@@ -69,6 +69,7 @@ class ListeningTaskResource extends JsonResource
                             'order_index'   => $q->order_index ?? $q->order ?? 0,
                             'passage_index' => $q->passage_index ?? 0,
                             'points'        => $q->points,
+                            'question_data' => $q->question_data,
                             'options'       => collect($q->options ?? [])->map(function ($opt, $idx) {
                                 if (is_string($opt)) {
                                     return ['id' => (string) $idx, 'text' => $opt];

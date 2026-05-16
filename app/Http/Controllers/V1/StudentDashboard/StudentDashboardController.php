@@ -597,10 +597,12 @@ class StudentDashboardController extends Controller
                             'order_index'      => $q->order_index,
                             'passage_index'    => $q->passage_index ?? 0,
                             'options'          => $q->options ?? [],
+                            'correct_answers'  => $q->correct_answers ?? [],
                             'points'           => $q->points,
                             'start_time'       => $q->start_time,
                             'end_time'         => $q->end_time,
                             'explanation'      => $q->explanation,
+                            'question_data'    => $q->question_data,
                         ];
                     })->values()->toArray(),
                 ]),

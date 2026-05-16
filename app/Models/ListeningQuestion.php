@@ -61,11 +61,13 @@ class ListeningQuestion extends Model
         'start_time',
         'end_time',
         'explanation',
+        'question_data',
     ];
 
     protected $casts = [
         'options' => 'array',
         'correct_answers' => 'array',
+        'question_data' => 'array',
         'start_time' => 'decimal:2',
         'end_time' => 'decimal:2',
     ];
@@ -103,9 +105,13 @@ class ListeningQuestion extends Model
             return false;
         }
 
+        if ($this->question_type === 'map_labeling' || $this->question_type === 'table_completion') {
+            return $this->studentMapLabelAnswersMatchExpected($answer);
+        }
+
         // If it's a comma-separated string from the frontend, split it first
         // But NOT for sentence_completion-like types where commas can be part of a single gap's answer
-        $noSplitTypes = ['sentence_completion', 'short_answer', 'note_completion', 'form_completion', 'gap_fill', 'summary_completion', 'table_completion', 'flowchart_completion'];
+        $noSplitTypes = ['sentence_completion', 'short_answer', 'note_completion', 'form_completion', 'gap_fill', 'summary_completion', 'flowchart_completion'];
         if (is_string($answer) && str_contains($answer, ',') && !in_array($this->question_type, $noSplitTypes)) {
             $answer = array_map('trim', explode(',', $answer));
         }
@@ -186,7 +192,7 @@ class ListeningQuestion extends Model
 
         // 2. For completion questions, check if student input matches the phrase joined together
         // This handles cases where multi-word answers are stored as separate array elements in DB
-        $completionTypes = ['sentence_completion', 'short_answer', 'note_completion', 'form_completion', 'gap_fill', 'summary_completion', 'table_completion', 'flowchart_completion'];
+        $completionTypes = ['sentence_completion', 'short_answer', 'note_completion', 'form_completion', 'gap_fill', 'summary_completion', 'flowchart_completion'];
         if (in_array($this->question_type, $completionTypes) && count($normalizedCorrectAnswers) > 1) {
             $joinedPhrase = implode(' ', $normalizedCorrectAnswers);
             $joinedPhraseComma = implode(', ', $normalizedCorrectAnswers);
@@ -197,6 +203,57 @@ class ListeningQuestion extends Model
         }
 
         return false;
+    }
+
+    private function studentMapLabelAnswersMatchExpected($answer): bool
+    {
+        $sep = chr(30);
+        $correct = $this->correct_answers;
+        if (is_string($correct)) {
+            $decoded = json_decode($correct, true);
+            $correct = is_array($decoded) ? $decoded : [$correct];
+        }
+        if (! is_array($correct) || count($correct) === 0) {
+            return false;
+        }
+
+        $normalize = static function (?string $s): string {
+            return preg_replace('/\s+/', ' ', strtolower(trim((string) $s)));
+        };
+
+        $expected = [];
+        foreach ($correct as $item) {
+            if (is_array($item)) {
+                $txt = trim((string) ($item['option_text'] ?? $item['text'] ?? ''));
+            } else {
+                $txt = trim((string) $item);
+            }
+            $expected[] = $normalize($txt);
+        }
+
+        $studentRaw = is_array($answer) ? implode($sep, array_map('strval', $answer)) : (string) $answer;
+        $studentRawTrim = preg_replace('/\s+/', ' ', trim($studentRaw));
+        $parts = explode($sep, $studentRaw);
+
+        if (count($expected) === 1) {
+            if (! str_contains($studentRawTrim, $sep)) {
+                return $normalize($studentRawTrim) === $expected[0];
+            }
+
+            return $normalize($parts[0] ?? '') === $expected[0];
+        }
+
+        if (count($parts) < count($expected)) {
+            return false;
+        }
+
+        foreach ($expected as $i => $want) {
+            if ($normalize((string) ($parts[$i] ?? '')) !== $want) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
