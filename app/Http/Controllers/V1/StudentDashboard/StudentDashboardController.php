@@ -1135,12 +1135,16 @@ class StudentDashboardController extends Controller
 
     private function getCategoryPerformance($userId)
     {
-        // 1. Get legacy test question performance
-        $stats = DB::table('reading_question_answers')
+        // Accumulator: category_key => ['total' => int, 'correct' => int]
+        $acc = [];
+
+        // ── 1. Legacy test questions (question_id is set) ──────────────────────
+        $legacyStats = DB::table('reading_question_answers')
             ->join('reading_submissions', 'reading_question_answers.submission_id', '=', 'reading_submissions.id')
             ->join('test_questions', 'reading_question_answers.question_id', '=', 'test_questions.id')
             ->where('reading_submissions.student_id', $userId)
             ->whereNotNull('reading_submissions.submitted_at')
+            ->whereNotNull('reading_question_answers.question_id')
             ->select(
                 'test_questions.question_type as category',
                 DB::raw('COUNT(*) as total'),
@@ -1149,23 +1153,121 @@ class StudentDashboardController extends Controller
             ->groupBy('test_questions.question_type')
             ->get();
 
+        foreach ($legacyStats as $stat) {
+            $key = $stat->category;
+            if (!isset($acc[$key])) {
+                $acc[$key] = ['total' => 0, 'correct' => 0];
+            }
+            $acc[$key]['total']   += (int) $stat->total;
+            $acc[$key]['correct'] += (int) $stat->correct;
+        }
+
+        // ── 2. New ReadingTask JSON-based questions (reading_task_question_id is set) ──
+        // Load all completed submissions that use a reading_task, with their answers
+        // and the task's passages JSON so we can look up question_type per answer.
+        $taskSubmissions = \App\Models\ReadingSubmission::with([
+                'answers' => fn($q) => $q->whereNotNull('reading_task_question_id')
+                                         ->whereNotNull('is_correct'),
+                'readingTask',
+            ])
+            ->where('student_id', $userId)
+            ->whereNotNull('submitted_at')
+            ->whereNotNull('reading_task_id')
+            ->get();
+
+        foreach ($taskSubmissions as $submission) {
+            $task = $submission->readingTask;
+            if (!$task || empty($task->passages)) {
+                continue;
+            }
+
+            // Build a flat map: answer_id => question_type from the task JSON
+            $typeMap = [];
+            foreach ($task->passages as $passage) {
+                foreach ($passage['question_groups'] ?? [] as $group) {
+                    foreach ($group['questions'] ?? [] as $question) {
+                        $qType    = $question['question_type'] ?? null;
+                        $parentId = (string) ($question['id'] ?? $question['question_number'] ?? '');
+                        $items    = $question['items'] ?? null;
+
+                        if (!$qType) continue;
+
+                        // note_completion / table_completion: blanks stored as "{parentId}-blank-{key}"
+                        if (in_array($qType, ['note_completion', 'table_completion'])) {
+                            $blanks = $question['correct_answers'] ?? $question['correct_answer'] ?? [];
+                            if (is_array($blanks) && count($blanks) > 0 && $parentId !== '') {
+                                foreach ($blanks as $blank) {
+                                    $blankKey = $blank['option_key'] ?? null;
+                                    if ($blankKey !== null) {
+                                        $typeMap["{$parentId}-blank-{$blankKey}"] = $qType;
+                                    }
+                                }
+                                continue;
+                            }
+                        }
+
+                        // matching_* with items: stored as "{parentId}-item-{itemNumber}"
+                        if (is_array($items) && count($items) > 0) {
+                            foreach ($items as $idx => $item) {
+                                $itemNum = $item['question_number'] ?? ($idx + 1);
+                                $itemKey = $item['id']
+                                    ?? ($parentId !== '' ? "{$parentId}-item-{$itemNum}" : (string) $itemNum);
+                                $typeMap[(string) $itemKey] = $qType;
+                            }
+                            continue;
+                        }
+
+                        // Regular question
+                        if ($parentId !== '') {
+                            $typeMap[$parentId] = $qType;
+                        }
+                    }
+                }
+            }
+
+            // Tally each answer against its question type
+            foreach ($submission->answers as $answer) {
+                $answerId = (string) ($answer->reading_task_question_id ?? '');
+                $qType    = $typeMap[$answerId] ?? null;
+
+                // Strip the "_item" / "_blank" suffixes added during grading
+                if ($qType === null) {
+                    // Try stripping composite suffixes to find the base type
+                    foreach ($typeMap as $mapId => $mapType) {
+                        if (str_starts_with($answerId, $mapId)) {
+                            $qType = $mapType;
+                            break;
+                        }
+                    }
+                }
+
+                if ($qType === null) continue;
+
+                // Normalise per-item/blank type variants back to their base type
+                $baseType = preg_replace('/_(item|blank)$/', '', $qType);
+
+                if (!isset($acc[$baseType])) {
+                    $acc[$baseType] = ['total' => 0, 'correct' => 0];
+                }
+                $acc[$baseType]['total']++;
+                if ($answer->is_correct) {
+                    $acc[$baseType]['correct']++;
+                }
+            }
+        }
+
+        // ── 3. Build results array ─────────────────────────────────────────────
         $results = [];
-        foreach ($stats as $stat) {
-            $categoryName = $this->formatCategoryName($stat->category);
+        foreach ($acc as $rawType => $data) {
+            if ($data['total'] === 0) continue;
             $results[] = [
-                'category' => $categoryName,
-                'score' => round(($stat->correct / $stat->total) * 100, 1)
+                'category' => $this->formatCategoryName($rawType),
+                'score'    => round(($data['correct'] / $data['total']) * 100, 1),
             ];
         }
 
-        if (empty($results)) {
-            return [
-                ['category' => 'Multiple Choice', 'score' => 0],
-                ['category' => 'Identifying Information', 'score' => 0],
-                ['category' => 'Matching Headings', 'score' => 0],
-                ['category' => 'Sentence Completion', 'score' => 0]
-            ];
-        }
+        // Sort by score ascending so weakest appears first
+        usort($results, fn($a, $b) => $a['score'] <=> $b['score']);
 
         return $results;
     }
@@ -1173,12 +1275,30 @@ class StudentDashboardController extends Controller
     private function formatCategoryName($raw)
     {
         $map = [
-            'multiple_choice' => 'Multiple Choice',
-            'tfng' => 'True/False/Not Given',
-            'y n ng' => 'Yes/No/Not Given',
-            'matching_heading' => 'Matching Headings',
-            'short_answer' => 'Short Answer',
-            'completion' => 'Completion',
+            // Legacy types
+            'multiple_choice'              => 'Multiple Choice',
+            'tfng'                         => 'True/False/Not Given',
+            'y n ng'                       => 'Yes/No/Not Given',
+            'matching_heading'             => 'Matching Headings',
+            'short_answer'                 => 'Short Answer',
+            'completion'                   => 'Completion',
+            // New ReadingTask JSON types
+            'choose_correct_answer'        => 'Multiple Choice',
+            'choose_multiple_answer'       => 'Multiple Choice (Multi)',
+            'true_false_not_given'         => 'True/False/Not Given',
+            'yes_no_not_given'             => 'Yes/No/Not Given',
+            'matching_information'         => 'Matching Information',
+            'matching_features'            => 'Matching Features',
+            'matching_sentence_ending'     => 'Matching Sentence Endings',
+            'note_completion'              => 'Note Completion',
+            'table_completion'             => 'Table Completion',
+            'sentence_completion'          => 'Sentence Completion',
+            'paragraph_completion'         => 'Paragraph Completion',
+            'paragraph_summary_completion' => 'Summary Completion',
+            'diagram_label_completion'     => 'Diagram Label Completion',
+            'flowchart_completion'         => 'Flowchart Completion',
+            'short_answer_question'        => 'Short Answer',
+            'identifying_information'      => 'Identifying Information',
         ];
 
         if (isset($map[$raw])) return $map[$raw];

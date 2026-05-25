@@ -372,12 +372,20 @@ class ListeningAnalyticsService
         $startDate = $this->getStartDateForTimeframe($timeframe);
         
         // Fetch all submitted submissions for this student
+        // Include all completed statuses: submitted, reviewed, done, completed
         $submissions = ListeningSubmission::where('student_id', $student->id)
-            ->where('status', 'submitted')
+            ->where(function ($q) {
+                $q->whereIn('status', [
+                    ListeningSubmission::STATUS_SUBMITTED,
+                    ListeningSubmission::STATUS_REVIEWED,
+                    ListeningSubmission::STATUS_DONE,
+                    'completed', // legacy/alternate status value
+                ])->orWhereNotNull('submitted_at'); // catch any submission that was submitted regardless of status label
+            })
             ->when($timeframe !== 'all', function($q) use ($startDate) {
                 return $q->where('submitted_at', '>=', $startDate);
             })
-            ->with(['task'])
+            ->with(['task', 'answers.question'])
             ->get();
 
         // Get best submission per task
@@ -719,14 +727,17 @@ class ListeningAnalyticsService
 
         foreach ($allSubmissions as $sub) {
             $subDate = $sub->submitted_at ?: $sub->created_at;
-            $diff = now()->diffInWeeks($subDate);
-            if ($diff <= 3) {
-                foreach ($sub->answers as $ans) {
-                    $key = $typeMapping[$ans->question->question_type ?? ''] ?? null;
-                    if ($key) {
-                        $weeks[$diff][$key] += $ans->is_correct ? 100 : 0;
-                        $weeks[$diff]['counts'][$key]++;
-                    }
+            if (!$subDate) continue;
+            $diff = (int) now()->diffInWeeks($subDate, false); // false = signed diff
+            // Negative means future date; positive means past. We only care about last 4 weeks (0-3).
+            if ($diff < 0 || $diff > 3) continue;
+            foreach ($sub->answers as $ans) {
+                $questionType = $ans->question->question_type ?? null;
+                if ($questionType === null) continue;
+                $key = $typeMapping[$questionType] ?? null;
+                if ($key && isset($weeks[$diff])) {
+                    $weeks[$diff][$key] += $ans->is_correct ? 100 : 0;
+                    $weeks[$diff]['counts'][$key]++;
                 }
             }
         }
@@ -745,7 +756,9 @@ class ListeningAnalyticsService
         $types = [];
         foreach ($bestSubmissions as $sub) {
             foreach ($sub->answers as $ans) {
-                $type = $ans->question->question_type ?? 'unknown';
+                // question may be null if the question was deleted
+                $type = $ans->question->question_type ?? null;
+                if ($type === null || $type === 'unknown') continue;
                 if (!isset($types[$type])) $types[$type] = ['c' => 0, 't' => 0];
                 $types[$type]['t']++;
                 if ($ans->is_correct) $types[$type]['c']++;
@@ -754,11 +767,16 @@ class ListeningAnalyticsService
 
         $res = [];
         foreach ($types as $type => $stats) {
+            if ($stats['t'] === 0) continue;
             $res[] = [
                 'test_name' => ListeningQuestion::QUESTION_TYPES[$type] ?? ucwords(str_replace('_', ' ', $type)),
                 'accuracy' => round(($stats['c'] / $stats['t']) * 100, 1)
             ];
         }
+
+        // Sort ascending so weakest appears first (matches the "Weakest" card default)
+        usort($res, fn($a, $b) => $a['accuracy'] <=> $b['accuracy']);
+
         return $res;
     }
 
@@ -768,7 +786,12 @@ class ListeningAnalyticsService
             return $sub->student_id . '_' . $sub->listening_task_id;
         })->map(function ($studentTaskWork) {
             return $studentTaskWork->filter(function($sub) {
-                return in_array($sub->status, [ListeningSubmission::STATUS_SUBMITTED, ListeningSubmission::STATUS_REVIEWED, ListeningSubmission::STATUS_DONE]);
+                return in_array($sub->status, [
+                    ListeningSubmission::STATUS_SUBMITTED,
+                    ListeningSubmission::STATUS_REVIEWED,
+                    ListeningSubmission::STATUS_DONE,
+                    'completed',
+                ]) || $sub->submitted_at !== null;
             })->sortByDesc('total_score')->first();
         })->filter()->values();
     }
