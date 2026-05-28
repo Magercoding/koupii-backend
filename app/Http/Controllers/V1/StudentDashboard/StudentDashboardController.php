@@ -767,6 +767,7 @@ class StudentDashboardController extends Controller
     {
         // Teachers can view stats for a specific student by passing ?student_id=xxx
         $requestedId = $request->query('student_id');
+        $classId     = $request->query('class_id');
         $authUser = auth()->user();
         if ($requestedId && in_array($authUser->role, ['teacher', 'admin'])) {
             $userId = $requestedId;
@@ -774,10 +775,22 @@ class StudentDashboardController extends Controller
             $userId = auth()->id();
         }
 
+        // Collect assignment IDs scoped to the class (when class_id is provided)
+        $classAssignmentIds = null;
+        if ($classId) {
+            $classAssignmentIds = DB::table('assignments')
+                ->where('class_id', $classId)
+                ->pluck('id');
+        }
+
         // Basic Stats
         $baseSubmissions = DB::table('reading_submissions')
             ->where('student_id', $userId)
             ->whereNotNull('submitted_at');
+
+        if ($classAssignmentIds !== null) {
+            $baseSubmissions->whereIn('assignment_id', $classAssignmentIds);
+        }
 
         $tasksCompleted = (clone $baseSubmissions)->count();
         
@@ -790,12 +803,17 @@ class StudentDashboardController extends Controller
         $avgScore = (clone $baseSubmissions)->avg('percentage');
 
         // Recent Submissions
-        $recentSubmissions = DB::table('reading_submissions')
+        $recentQuery = DB::table('reading_submissions')
             ->leftJoin('reading_tasks', 'reading_submissions.reading_task_id', '=', 'reading_tasks.id')
             ->leftJoin('tests', 'reading_submissions.test_id', '=', 'tests.id')
             ->where('reading_submissions.student_id', $userId)
-            ->whereNotNull('reading_submissions.submitted_at')
-            ->select(
+            ->whereNotNull('reading_submissions.submitted_at');
+
+        if ($classAssignmentIds !== null) {
+            $recentQuery->whereIn('reading_submissions.assignment_id', $classAssignmentIds);
+        }
+
+        $recentSubmissions = $recentQuery->select(
                 DB::raw('COALESCE(reading_tasks.title, tests.title) as task_title'),
                 'reading_submissions.percentage as score',
                 'reading_submissions.submitted_at'
@@ -811,10 +829,15 @@ class StudentDashboardController extends Controller
             $monthStart = $date->copy()->startOfMonth();
             $monthEnd = $date->copy()->endOfMonth();
 
-            $monthlyAvg = DB::table('reading_submissions')
+            $trendQuery = DB::table('reading_submissions')
                 ->where('student_id', $userId)
-                ->whereBetween('submitted_at', [$monthStart, $monthEnd])
-                ->avg('percentage');
+                ->whereBetween('submitted_at', [$monthStart, $monthEnd]);
+
+            if ($classAssignmentIds !== null) {
+                $trendQuery->whereIn('assignment_id', $classAssignmentIds);
+            }
+
+            $monthlyAvg = $trendQuery->avg('percentage');
 
             $performanceTrends[] = [
                 'month' => $date->format('M'),
@@ -823,7 +846,7 @@ class StudentDashboardController extends Controller
         }
 
         // Category Performance
-        $categoryPerf = $this->getCategoryPerformance($userId);
+        $categoryPerf = $this->getCategoryPerformance($userId, $classAssignmentIds);
 
         return response()->json([
             'status' => 'success',
@@ -844,6 +867,7 @@ class StudentDashboardController extends Controller
     public function listeningStatistics(Request $request): JsonResponse
     {
         $requestedId = $request->query('student_id');
+        $classId     = $request->query('class_id');
         $authUser = auth()->user();
         if ($requestedId && in_array($authUser->role, ['teacher', 'admin'])) {
             $userId = $requestedId;
@@ -851,10 +875,22 @@ class StudentDashboardController extends Controller
             $userId = auth()->id();
         }
 
+        // Collect assignment IDs scoped to the class (when class_id is provided)
+        $classAssignmentIds = null;
+        if ($classId) {
+            $classAssignmentIds = DB::table('assignments')
+                ->where('class_id', $classId)
+                ->pluck('id');
+        }
+
         // Basic Stats
         $baseSubmissions = DB::table('listening_submissions')
             ->where('student_id', $userId)
             ->whereNotNull('submitted_at');
+
+        if ($classAssignmentIds !== null) {
+            $baseSubmissions->whereIn('assignment_id', $classAssignmentIds);
+        }
 
         $tasksCompleted = (clone $baseSubmissions)->count();
         
@@ -867,11 +903,16 @@ class StudentDashboardController extends Controller
         $avgScore = (clone $baseSubmissions)->avg('percentage');
 
         // Recent Submissions
-        $recentSubmissions = DB::table('listening_submissions')
+        $recentQuery = DB::table('listening_submissions')
             ->leftJoin('listening_tasks', 'listening_submissions.listening_task_id', '=', 'listening_tasks.id')
             ->where('listening_submissions.student_id', $userId)
-            ->whereNotNull('listening_submissions.submitted_at')
-            ->select(
+            ->whereNotNull('listening_submissions.submitted_at');
+
+        if ($classAssignmentIds !== null) {
+            $recentQuery->whereIn('listening_submissions.assignment_id', $classAssignmentIds);
+        }
+
+        $recentSubmissions = $recentQuery->select(
                 DB::raw('COALESCE(listening_tasks.title, "Listening Task") as task_title'),
                 'listening_submissions.percentage as score',
                 'listening_submissions.submitted_at'
@@ -887,10 +928,15 @@ class StudentDashboardController extends Controller
             $monthStart = $date->copy()->startOfMonth();
             $monthEnd = $date->copy()->endOfMonth();
 
-            $monthlyAvg = DB::table('listening_submissions')
+            $trendQuery = DB::table('listening_submissions')
                 ->where('student_id', $userId)
-                ->whereBetween('submitted_at', [$monthStart, $monthEnd])
-                ->avg('percentage');
+                ->whereBetween('submitted_at', [$monthStart, $monthEnd]);
+
+            if ($classAssignmentIds !== null) {
+                $trendQuery->whereIn('assignment_id', $classAssignmentIds);
+            }
+
+            $monthlyAvg = $trendQuery->avg('percentage');
 
             $performanceTrends[] = [
                 'month' => $date->format('M'),
@@ -900,12 +946,17 @@ class StudentDashboardController extends Controller
 
         // Question Type Accuracy (for weakest/best question type panel)
         try {
-            $questionTypeAccuracy = DB::table('listening_question_answers as lqa')
+            $qtaQuery = DB::table('listening_question_answers as lqa')
                 ->join('listening_questions as lq', 'lqa.question_id', '=', 'lq.id')
                 ->join('listening_submissions as ls', 'lqa.submission_id', '=', 'ls.id')
                 ->where('ls.student_id', $userId)
-                ->whereNotNull('ls.submitted_at')
-                ->select(
+                ->whereNotNull('ls.submitted_at');
+
+            if ($classAssignmentIds !== null) {
+                $qtaQuery->whereIn('ls.assignment_id', $classAssignmentIds);
+            }
+
+            $questionTypeAccuracy = $qtaQuery->select(
                     'lq.question_type as test_name',
                     DB::raw('COUNT(*) as total'),
                     DB::raw('SUM(CASE WHEN lqa.is_correct = 1 THEN 1 ELSE 0 END) as correct')
@@ -940,6 +991,7 @@ class StudentDashboardController extends Controller
     public function speakingStatistics(Request $request): JsonResponse
     {
         $requestedId = $request->query('student_id');
+        $classId     = $request->query('class_id');
         $authUser = auth()->user();
         if ($requestedId && in_array($authUser->role, ['teacher', 'admin'])) {
             $userId = $requestedId;
@@ -947,10 +999,22 @@ class StudentDashboardController extends Controller
             $userId = auth()->id();
         }
 
+        // Collect assignment IDs scoped to the class (when class_id is provided)
+        $classAssignmentIds = null;
+        if ($classId) {
+            $classAssignmentIds = DB::table('assignments')
+                ->where('class_id', $classId)
+                ->pluck('id');
+        }
+
         // 1. Basic Stats
         $baseSubmissions = DB::table('speaking_submissions')
             ->where('student_id', $userId)
             ->whereNotNull('submitted_at');
+
+        if ($classAssignmentIds !== null) {
+            $baseSubmissions->whereIn('assignment_id', $classAssignmentIds);
+        }
 
         $tasksCompleted = (clone $baseSubmissions)->count();
         
@@ -961,19 +1025,29 @@ class StudentDashboardController extends Controller
         if ($hours == 0 && $minutes == 0) $timeSpent = "0h";
 
         // Average score from reviews
-        $avgScore = DB::table('speaking_reviews')
+        $avgScoreQuery = DB::table('speaking_reviews')
             ->join('speaking_submissions', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
-            ->where('speaking_submissions.student_id', $userId)
-            ->avg('speaking_reviews.total_score');
+            ->where('speaking_submissions.student_id', $userId);
+
+        if ($classAssignmentIds !== null) {
+            $avgScoreQuery->whereIn('speaking_submissions.assignment_id', $classAssignmentIds);
+        }
+
+        $avgScore = $avgScoreQuery->avg('speaking_reviews.total_score');
 
         // 2. Recent Submissions
-        $recentSubmissions = DB::table('speaking_submissions')
+        $recentQuery = DB::table('speaking_submissions')
             ->leftJoin('speaking_tasks', 'speaking_submissions.speaking_task_id', '=', 'speaking_tasks.id')
             ->leftJoin('tests', 'speaking_submissions.test_id', '=', 'tests.id')
             ->leftJoin('speaking_reviews', 'speaking_submissions.id', '=', 'speaking_reviews.submission_id')
             ->where('speaking_submissions.student_id', $userId)
-            ->whereNotNull('speaking_submissions.submitted_at')
-            ->select(
+            ->whereNotNull('speaking_submissions.submitted_at');
+
+        if ($classAssignmentIds !== null) {
+            $recentQuery->whereIn('speaking_submissions.assignment_id', $classAssignmentIds);
+        }
+
+        $recentSubmissions = $recentQuery->select(
                 'speaking_submissions.id',
                 DB::raw('COALESCE(speaking_tasks.title, tests.title, "Speaking Task") as task_title'),
                 'speaking_reviews.total_score as score',
@@ -991,11 +1065,16 @@ class StudentDashboardController extends Controller
             $monthStart = $monthDate->copy()->startOfMonth();
             $monthEnd = $monthDate->copy()->endOfMonth();
 
-            $monthlyAvg = DB::table('speaking_reviews')
+            $trendQuery = DB::table('speaking_reviews')
                 ->join('speaking_submissions', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
                 ->where('speaking_submissions.student_id', $userId)
-                ->whereBetween('speaking_reviews.created_at', [$monthStart, $monthEnd])
-                ->avg('speaking_reviews.total_score');
+                ->whereBetween('speaking_reviews.created_at', [$monthStart, $monthEnd]);
+
+            if ($classAssignmentIds !== null) {
+                $trendQuery->whereIn('speaking_submissions.assignment_id', $classAssignmentIds);
+            }
+
+            $monthlyAvg = $trendQuery->avg('speaking_reviews.total_score');
 
             $performanceTrends[] = [
                 'month' => $monthDate->format('M'),
@@ -1004,7 +1083,7 @@ class StudentDashboardController extends Controller
         }
 
         // 4. Criteria mastery (Skill Scores)
-        $criteriaMastery = $this->getSpeakingCriteriaMastery($userId);
+        $criteriaMastery = $this->getSpeakingCriteriaMastery($userId, $classAssignmentIds);
 
         return response()->json([
             'status' => 'success',
@@ -1025,6 +1104,7 @@ class StudentDashboardController extends Controller
     public function writingStatistics(Request $request): JsonResponse
     {
         $requestedId = $request->query('student_id');
+        $classId     = $request->query('class_id');
         $authUser = auth()->user();
         if ($requestedId && in_array($authUser->role, ['teacher', 'admin'])) {
             $userId = $requestedId;
@@ -1032,10 +1112,22 @@ class StudentDashboardController extends Controller
             $userId = auth()->id();
         }
 
+        // Collect assignment IDs scoped to the class (when class_id is provided)
+        $classAssignmentIds = null;
+        if ($classId) {
+            $classAssignmentIds = DB::table('assignments')
+                ->where('class_id', $classId)
+                ->pluck('id');
+        }
+
         // 1. Basic Stats
         $baseSubmissions = DB::table('writing_submissions')
             ->where('student_id', $userId)
             ->whereNotNull('submitted_at');
+
+        if ($classAssignmentIds !== null) {
+            $baseSubmissions->whereIn('assignment_id', $classAssignmentIds);
+        }
 
         $tasksCompleted = (clone $baseSubmissions)->count();
         
@@ -1046,18 +1138,28 @@ class StudentDashboardController extends Controller
         if ($hours == 0 && $minutes == 0) $timeSpent = "0h";
 
         // Average score from reviews
-        $avgScore = DB::table('writing_reviews')
+        $avgScoreQuery = DB::table('writing_reviews')
             ->join('writing_submissions', 'writing_reviews.submission_id', '=', 'writing_submissions.id')
-            ->where('writing_submissions.student_id', $userId)
-            ->avg('writing_reviews.score');
+            ->where('writing_submissions.student_id', $userId);
+
+        if ($classAssignmentIds !== null) {
+            $avgScoreQuery->whereIn('writing_submissions.assignment_id', $classAssignmentIds);
+        }
+
+        $avgScore = $avgScoreQuery->avg('writing_reviews.score');
 
         // 2. Recent Submissions
-        $recentSubmissions = DB::table('writing_submissions')
+        $recentQuery = DB::table('writing_submissions')
             ->join('writing_tasks', 'writing_submissions.writing_task_id', '=', 'writing_tasks.id')
             ->leftJoin('writing_reviews', 'writing_submissions.id', '=', 'writing_reviews.submission_id')
             ->where('writing_submissions.student_id', $userId)
-            ->whereNotNull('writing_submissions.submitted_at')
-            ->select(
+            ->whereNotNull('writing_submissions.submitted_at');
+
+        if ($classAssignmentIds !== null) {
+            $recentQuery->whereIn('writing_submissions.assignment_id', $classAssignmentIds);
+        }
+
+        $recentSubmissions = $recentQuery->select(
                 'writing_tasks.title as task_title',
                 'writing_reviews.score as score',
                 'writing_submissions.submitted_at',
@@ -1074,11 +1176,16 @@ class StudentDashboardController extends Controller
             $monthStart = $monthDate->copy()->startOfMonth();
             $monthEnd = $monthDate->copy()->endOfMonth();
 
-            $monthlyAvg = DB::table('writing_reviews')
+            $trendQuery = DB::table('writing_reviews')
                 ->join('writing_submissions', 'writing_reviews.submission_id', '=', 'writing_submissions.id')
                 ->where('writing_submissions.student_id', $userId)
-                ->whereBetween('writing_reviews.created_at', [$monthStart, $monthEnd])
-                ->avg('writing_reviews.score');
+                ->whereBetween('writing_reviews.created_at', [$monthStart, $monthEnd]);
+
+            if ($classAssignmentIds !== null) {
+                $trendQuery->whereIn('writing_submissions.assignment_id', $classAssignmentIds);
+            }
+
+            $monthlyAvg = $trendQuery->avg('writing_reviews.score');
 
             $performanceTrends[] = [
                 'month' => $monthDate->format('M'),
@@ -1087,7 +1194,7 @@ class StudentDashboardController extends Controller
         }
 
         // 4. Criteria mastery
-        $criteriaMastery = $this->getWritingCriteriaMastery($userId);
+        $criteriaMastery = $this->getWritingCriteriaMastery($userId, $classAssignmentIds);
 
         return response()->json([
             'status' => 'success',
@@ -1102,13 +1209,18 @@ class StudentDashboardController extends Controller
         ]);
     }
 
-    private function getWritingCriteriaMastery($studentId)
+    private function getWritingCriteriaMastery($studentId, $classAssignmentIds = null)
     {
-        $reviews = DB::table('writing_reviews')
+        $query = DB::table('writing_reviews')
             ->join('writing_submissions', 'writing_reviews.submission_id', '=', 'writing_submissions.id')
             ->where('writing_submissions.student_id', $studentId)
-            ->whereNotNull('writing_reviews.feedback_json')
-            ->get();
+            ->whereNotNull('writing_reviews.feedback_json');
+
+        if ($classAssignmentIds !== null) {
+            $query->whereIn('writing_submissions.assignment_id', $classAssignmentIds);
+        }
+
+        $reviews = $query->get();
 
         $scores = [
             'task_achievement' => ['total' => 0, 'count' => 0],
@@ -1138,14 +1250,19 @@ class StudentDashboardController extends Controller
         ];
     }
 
-    private function getSpeakingCriteriaMastery($studentId)
+    private function getSpeakingCriteriaMastery($studentId, $classAssignmentIds = null)
     {
-        $reviews = DB::table('speaking_reviews')
+        $query = DB::table('speaking_reviews')
             ->join('speaking_submissions', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
             ->where('speaking_submissions.student_id', $studentId)
             ->whereNotNull('speaking_reviews.skill_scores')
-            ->select('speaking_reviews.skill_scores')
-            ->get();
+            ->select('speaking_reviews.skill_scores');
+
+        if ($classAssignmentIds !== null) {
+            $query->whereIn('speaking_submissions.assignment_id', $classAssignmentIds);
+        }
+
+        $reviews = $query->get();
 
         $scores = [
             'fluency' => ['total' => 0, 'count' => 0],
@@ -1181,19 +1298,24 @@ class StudentDashboardController extends Controller
         return round(($data['total'] / ($data['count'] * 9)) * 100, 1);
     }
 
-    private function getCategoryPerformance($userId)
+    private function getCategoryPerformance($userId, $classAssignmentIds = null)
     {
         // Accumulator: category_key => ['total' => int, 'correct' => int]
         $acc = [];
 
         // ── 1. Legacy test questions (question_id is set) ──────────────────────
-        $legacyStats = DB::table('reading_question_answers')
+        $legacyQuery = DB::table('reading_question_answers')
             ->join('reading_submissions', 'reading_question_answers.submission_id', '=', 'reading_submissions.id')
             ->join('test_questions', 'reading_question_answers.question_id', '=', 'test_questions.id')
             ->where('reading_submissions.student_id', $userId)
             ->whereNotNull('reading_submissions.submitted_at')
-            ->whereNotNull('reading_question_answers.question_id')
-            ->select(
+            ->whereNotNull('reading_question_answers.question_id');
+
+        if ($classAssignmentIds !== null) {
+            $legacyQuery->whereIn('reading_submissions.assignment_id', $classAssignmentIds);
+        }
+
+        $legacyStats = $legacyQuery->select(
                 'test_questions.question_type as category',
                 DB::raw('COUNT(*) as total'),
                 DB::raw('SUM(CASE WHEN reading_question_answers.is_correct = 1 THEN 1 ELSE 0 END) as correct')
@@ -1213,15 +1335,20 @@ class StudentDashboardController extends Controller
         // ── 2. New ReadingTask JSON-based questions (reading_task_question_id is set) ──
         // Load all completed submissions that use a reading_task, with their answers
         // and the task's passages JSON so we can look up question_type per answer.
-        $taskSubmissions = \App\Models\ReadingSubmission::with([
+        $taskSubmissionsQuery = \App\Models\ReadingSubmission::with([
                 'answers' => fn($q) => $q->whereNotNull('reading_task_question_id')
                                          ->whereNotNull('is_correct'),
                 'readingTask',
             ])
             ->where('student_id', $userId)
             ->whereNotNull('submitted_at')
-            ->whereNotNull('reading_task_id')
-            ->get();
+            ->whereNotNull('reading_task_id');
+
+        if ($classAssignmentIds !== null) {
+            $taskSubmissionsQuery->whereIn('assignment_id', $classAssignmentIds);
+        }
+
+        $taskSubmissions = $taskSubmissionsQuery->get();
 
         foreach ($taskSubmissions as $submission) {
             $task = $submission->readingTask;
