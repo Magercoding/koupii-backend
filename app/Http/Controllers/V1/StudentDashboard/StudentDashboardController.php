@@ -765,7 +765,14 @@ class StudentDashboardController extends Controller
      */
     public function readingStatistics(Request $request): JsonResponse
     {
-        $userId = auth()->id();
+        // Teachers can view stats for a specific student by passing ?student_id=xxx
+        $requestedId = $request->query('student_id');
+        $authUser = auth()->user();
+        if ($requestedId && in_array($authUser->role, ['teacher', 'admin'])) {
+            $userId = $requestedId;
+        } else {
+            $userId = auth()->id();
+        }
 
         // Basic Stats
         $baseSubmissions = DB::table('reading_submissions')
@@ -836,7 +843,13 @@ class StudentDashboardController extends Controller
      */
     public function listeningStatistics(Request $request): JsonResponse
     {
-        $userId = auth()->id();
+        $requestedId = $request->query('student_id');
+        $authUser = auth()->user();
+        if ($requestedId && in_array($authUser->role, ['teacher', 'admin'])) {
+            $userId = $requestedId;
+        } else {
+            $userId = auth()->id();
+        }
 
         // Basic Stats
         $baseSubmissions = DB::table('listening_submissions')
@@ -855,11 +868,11 @@ class StudentDashboardController extends Controller
 
         // Recent Submissions
         $recentSubmissions = DB::table('listening_submissions')
-            ->join('listening_tasks', 'listening_submissions.listening_task_id', '=', 'listening_tasks.id')
+            ->leftJoin('listening_tasks', 'listening_submissions.listening_task_id', '=', 'listening_tasks.id')
             ->where('listening_submissions.student_id', $userId)
             ->whereNotNull('listening_submissions.submitted_at')
             ->select(
-                'listening_tasks.title as task_title',
+                DB::raw('COALESCE(listening_tasks.title, "Listening Task") as task_title'),
                 'listening_submissions.percentage as score',
                 'listening_submissions.submitted_at'
             )
@@ -885,6 +898,28 @@ class StudentDashboardController extends Controller
             ];
         }
 
+        // Question Type Accuracy (for weakest/best question type panel)
+        try {
+            $questionTypeAccuracy = DB::table('listening_question_answers as lqa')
+                ->join('listening_questions as lq', 'lqa.question_id', '=', 'lq.id')
+                ->join('listening_submissions as ls', 'lqa.submission_id', '=', 'ls.id')
+                ->where('ls.student_id', $userId)
+                ->whereNotNull('ls.submitted_at')
+                ->select(
+                    'lq.question_type as test_name',
+                    DB::raw('COUNT(*) as total'),
+                    DB::raw('SUM(CASE WHEN lqa.is_correct = 1 THEN 1 ELSE 0 END) as correct')
+                )
+                ->groupBy('lq.question_type')
+                ->get()
+                ->map(function ($row) {
+                    $accuracy = $row->total > 0 ? round(($row->correct / $row->total) * 100, 1) : 0;
+                    return ['test_name' => $row->test_name ?? 'Unknown', 'accuracy' => $accuracy];
+                });
+        } catch (\Exception $e) {
+            $questionTypeAccuracy = collect([]);
+        }
+
         return response()->json([
             'status' => 'success',
             'data' => [
@@ -893,7 +928,8 @@ class StudentDashboardController extends Controller
                 'average_score' => round($avgScore ?? 0, 1),
                 'recent_submissions' => $recentSubmissions,
                 'performance_trends' => $performanceTrends,
-                'category_performance' => [] // Fallback for now
+                'question_type_accuracy' => $questionTypeAccuracy,
+                'category_performance' => []
             ]
         ]);
     }
@@ -903,7 +939,13 @@ class StudentDashboardController extends Controller
      */
     public function speakingStatistics(Request $request): JsonResponse
     {
-        $userId = auth()->id();
+        $requestedId = $request->query('student_id');
+        $authUser = auth()->user();
+        if ($requestedId && in_array($authUser->role, ['teacher', 'admin'])) {
+            $userId = $requestedId;
+        } else {
+            $userId = auth()->id();
+        }
 
         // 1. Basic Stats
         $baseSubmissions = DB::table('speaking_submissions')
@@ -982,7 +1024,13 @@ class StudentDashboardController extends Controller
      */
     public function writingStatistics(Request $request): JsonResponse
     {
-        $userId = auth()->id();
+        $requestedId = $request->query('student_id');
+        $authUser = auth()->user();
+        if ($requestedId && in_array($authUser->role, ['teacher', 'admin'])) {
+            $userId = $requestedId;
+        } else {
+            $userId = auth()->id();
+        }
 
         // 1. Basic Stats
         $baseSubmissions = DB::table('writing_submissions')

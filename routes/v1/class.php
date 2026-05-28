@@ -13,6 +13,8 @@ Route::middleware('auth:sanctum')
         Route::get('/', [ClassController::class, 'index']);
         Route::get('/{id}', [ClassController::class, 'show']);
         Route::get('/{id}/students', [ClassController::class, 'students']);
+        Route::get('/{classId}/students/{studentId}/dashboard', [ClassController::class, 'studentDashboard'])
+            ->middleware('role:admin,teacher');
         Route::middleware(['role:admin,teacher'])->group(function () {
             Route::post('/create', [ClassController::class, 'store']);
             Route::post('/update/{id}', [ClassController::class, 'update']); 

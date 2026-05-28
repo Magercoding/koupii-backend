@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\V1\Class\ClassRequest;
 use App\Http\Resources\V1\Class\ClassResource;
 use App\Http\Resources\V1\User\UserResource;
+use App\Models\Assignment;
 use App\Models\ClassEnrollment;
 use App\Models\Classes;
 use App\Models\User;
@@ -13,6 +14,7 @@ use App\Services\V1\Class\ClassService;
 use App\Events\StudentEnrolledInClass;
 use App\Mail\CoTeacherInvitationMail;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 
@@ -138,6 +140,170 @@ class ClassController extends Controller
 
         return response()->json([
             'message' => 'Class deleted successfully',
+        ]);
+    }
+
+    /**
+     * Get a student's dashboard data scoped to a specific class (for teacher view).
+     */
+    public function studentDashboard(Request $request, string $classId, string $studentId): JsonResponse
+    {
+        $teacher = Auth::user();
+
+        // Only teachers and admins can view this
+        if (!in_array($teacher->role, ['teacher', 'admin'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $class = Classes::find($classId);
+        if (!$class) {
+            return response()->json(['message' => 'Class not found'], 404);
+        }
+
+        // Verify the teacher owns or co-teaches this class
+        $isOwner = $class->teacher_id === $teacher->id;
+        $isCoTeacher = $class->coTeachers()->whereKey($teacher->id)->exists();
+        if ($teacher->role !== 'admin' && !$isOwner && !$isCoTeacher) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Verify the student is enrolled in this class
+        $enrollment = ClassEnrollment::where('class_id', $classId)
+            ->where('student_id', $studentId)
+            ->first();
+        if (!$enrollment) {
+            return response()->json(['message' => 'Student is not enrolled in this class'], 404);
+        }
+
+        $search  = $request->query('search');
+        $module  = $request->query('module');
+        $status  = $request->query('status');
+        $perPage = $request->query('size', 10);
+
+        // Fetch all assignments for this class
+        $allAssignments = Assignment::where('class_id', $classId)
+            ->where('is_published', true)
+            ->with(['studentAssignments' => function ($q) use ($studentId) {
+                $q->where('student_id', $studentId);
+            }])
+            ->get();
+
+        $completedCount = 0;
+        $pendingCount   = 0;
+        $overdueCount   = 0;
+        $scoreSum       = 0;
+        $scoredCount    = 0;
+
+        foreach ($allAssignments as $assignment) {
+            $sa        = $assignment->studentAssignments->first();
+            $asgnStatus = $sa?->status ?? 'pending';
+
+            if (in_array($asgnStatus, ['completed', 'submitted', 'graded', 'done'])) {
+                $completedCount++;
+                if ($sa && $sa->score !== null) {
+                    $scoreSum += $sa->score;
+                    $scoredCount++;
+                }
+            } else {
+                if ($assignment->due_date && $assignment->due_date->isPast()) {
+                    $overdueCount++;
+                } else {
+                    $pendingCount++;
+                }
+            }
+        }
+
+        $averageScore = $scoredCount > 0 ? round($scoreSum / $scoredCount, 1) : 0;
+
+        // Time spent across modules for this student
+        $readingSeconds  = DB::table('reading_submissions')->where('student_id', $studentId)->sum('time_taken_seconds');
+        $listeningSeconds = DB::table('listening_submissions')->where('student_id', $studentId)->sum('time_taken_seconds');
+        $speakingSeconds = DB::table('speaking_submissions')->where('student_id', $studentId)->sum('total_time_seconds');
+        $writingSeconds  = DB::table('student_assignments')
+            ->where('student_id', $studentId)
+            ->where('assignment_type', 'writing_task')
+            ->sum('time_spent_seconds');
+
+        $totalSeconds = $readingSeconds + $listeningSeconds + $speakingSeconds + $writingSeconds;
+        $hours   = floor($totalSeconds / 3600);
+        $minutes = floor(($totalSeconds / 60) % 60);
+        $timeSpent = "{$hours}h" . ($minutes > 0 ? " {$minutes}m" : "");
+        if ($hours == 0 && $minutes == 0) $timeSpent = "0h";
+
+        // Filtered assignment list
+        $query = Assignment::where('class_id', $classId)
+            ->where('is_published', true)
+            ->with(['studentAssignments' => function ($q) use ($studentId) {
+                $q->where('student_id', $studentId);
+            }]);
+
+        if ($search) {
+            $query->where('title', 'like', "%{$search}%");
+        }
+
+        if ($module) {
+            $modules = is_array($module) ? $module : explode(',', $module);
+            $query->whereIn('type', $modules);
+        }
+
+        if ($status) {
+            $statuses = is_array($status) ? $status : explode(',', $status);
+            $statusMap = [
+                'done'   => ['completed', 'submitted', 'graded', 'done'],
+                'todo'   => ['pending', 'not_started', 'in_progress'],
+                'review' => ['reviewed'],
+            ];
+            $mapped = [];
+            foreach ($statuses as $s) {
+                $mapped = array_merge($mapped, $statusMap[$s] ?? [$s]);
+            }
+            $query->where(function ($q) use ($studentId, $mapped) {
+                if (in_array('pending', $mapped) || in_array('not_started', $mapped)) {
+                    $q->whereDoesntHave('studentAssignments', fn ($sq) => $sq->where('student_id', $studentId))
+                      ->orWhereHas('studentAssignments', fn ($sq) => $sq->where('student_id', $studentId)->whereIn('status', $mapped));
+                } else {
+                    $q->whereHas('studentAssignments', fn ($sq) => $sq->where('student_id', $studentId)->whereIn('status', $mapped));
+                }
+            });
+        }
+
+        $paginated = $query->orderBy('due_date')->paginate($perPage);
+
+        $assignments = collect($paginated->items())->map(function ($assignment) use ($studentId, $class) {
+            $sa   = $assignment->studentAssignments->first();
+            $task = $assignment->getTask();
+            return [
+                'id'          => $assignment->id,
+                'type'        => $assignment->type ?? $assignment->task_type,
+                'title'       => $assignment->getAssignmentTitle(),
+                'description' => $assignment->description ?? $task?->description,
+                'class_name'  => $class->name ?? 'Unknown Class',
+                'due_date'    => $assignment->due_date,
+                'status'      => $sa?->status ?? 'pending',
+                'score'       => $sa?->score,
+            ];
+        });
+
+        $student = User::find($studentId);
+
+        return response()->json([
+            'message' => 'Student dashboard retrieved successfully',
+            'data' => [
+                'student_name'           => $student?->name,
+                'total_assignments'      => $allAssignments->count(),
+                'completed_assignments'  => $completedCount,
+                'pending_assignments'    => $pendingCount,
+                'overdue_assignments'    => $overdueCount,
+                'average_score'          => $averageScore,
+                'total_time_spent'       => $timeSpent,
+                'assignments'            => $assignments->values(),
+                'pagination'             => [
+                    'current_page' => $paginated->currentPage(),
+                    'last_page'    => $paginated->lastPage(),
+                    'per_page'     => $paginated->perPage(),
+                    'total'        => $paginated->total(),
+                ],
+            ],
         ]);
     }
 
