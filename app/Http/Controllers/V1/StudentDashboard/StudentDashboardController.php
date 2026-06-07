@@ -276,8 +276,18 @@ class StudentDashboardController extends Controller
             $latestWritingSubmissionId = DB::table('writing_submissions')
                 ->where('assignment_id', $assignmentId)
                 ->where('student_id', $studentId)
-                ->whereNull('submitted_at')
-                ->orderByDesc('created_at')
+                ->whereNotNull('submitted_at')
+                ->orderByDesc('submitted_at')
+                ->value('id');
+        }
+
+        $latestListeningSubmissionId = null;
+        if ($type === 'listening_task') {
+            $latestListeningSubmissionId = DB::table('listening_submissions')
+                ->where('assignment_id', $resolvedAssignmentId)
+                ->where('student_id', $studentId)
+                ->whereNotNull('submitted_at')
+                ->orderByDesc('submitted_at')
                 ->value('id');
         }
 
@@ -293,6 +303,7 @@ class StudentDashboardController extends Controller
                 'latest_reading_submission_id' => $latestReadingSubmissionId,
                 'latest_speaking_submission_id' => $latestSpeakingSubmissionId,
                 'latest_writing_submission_id' => $latestWritingSubmissionId,
+                'latest_listening_submission_id' => $latestListeningSubmissionId,
                 'task' => $type === 'speaking_task' && $resolvedTask 
                     ? new \App\Http\Resources\V1\SpeakingTask\SpeakingTaskResource($resolvedTask) 
                     : $resolvedTask,
@@ -1294,8 +1305,9 @@ class StudentDashboardController extends Controller
     private function calcPercentage($data)
     {
         if ($data['count'] === 0) return 0;
-        // IELTS scores are usually 0-9
-        return round(($data['total'] / ($data['count'] * 9)) * 100, 1);
+        // Skill scores are stored on a 0-100 scale
+        $avg = $data['total'] / $data['count'];
+        return round(min(100, $avg), 1);
     }
 
     private function getCategoryPerformance($userId, $classAssignmentIds = null)

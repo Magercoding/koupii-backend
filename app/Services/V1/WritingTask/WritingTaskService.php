@@ -180,6 +180,15 @@ class WritingTaskService
                 }
             }
 
+            // Handle new image_context file uploads per passage (same as create)
+            if (isset($updateData['passages']) && is_array($updateData['passages']) && $request) {
+                $updateData['passages'] = $this->handlePassageImageUploads(
+                    $updateData['passages'],
+                    $request,
+                    $task->id
+                );
+            }
+
             if (!empty($updateData)) {
                 $task->update($updateData);
             }

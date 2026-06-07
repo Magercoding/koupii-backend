@@ -44,32 +44,48 @@ Route::get('/audio/{path}', function (string $path) {
  * @unauthenticated
  */
 Route::get('/images', function (\Illuminate\Http\Request $request) {
-    $r2Bucket = env('CLOUDFLARE_R2_BUCKET', '');
-    $rawUrl   = $request->query('url', '');
-    $path     = $request->query('path', '');
+    $r2Bucket  = env('CLOUDFLARE_R2_BUCKET', '');
+    $rawUrl    = $request->query('url', '');
+    $path      = $request->query('path', '');
+    $isR2Url   = false;
 
     if ($rawUrl) {
         $parsed    = parse_url($rawUrl);
         $objectKey = ltrim($parsed['path'] ?? '', '/');
+        // Virtual-hosted style: bucket is subdomain, path has no bucket prefix
+        // Path-style: path starts with bucket name
         if ($r2Bucket && str_starts_with($objectKey, $r2Bucket . '/')) {
             $objectKey = substr($objectKey, strlen($r2Bucket) + 1);
         }
-        $path = $objectKey;
+        $path    = $objectKey;
+        $isR2Url = true;
     }
 
     if (!$path) {
         abort(400, 'Missing image path or url parameter');
     }
 
+    // Try local storage first
     $fullPath = storage_path('app/public/' . $path);
     if (file_exists($fullPath)) {
         return response()->file($fullPath, ['Cache-Control' => 'public, max-age=3600']);
     }
 
+    // For R2-stored files: generate a presigned URL via the default disk
     try {
-        $disk = \Illuminate\Support\Facades\Storage::disk(config('filesystems.default', 'public'));
+        $defaultDisk = config('filesystems.default', 'public');
+        $disk = \Illuminate\Support\Facades\Storage::disk($defaultDisk);
         if ($disk->exists($path)) {
-            return redirect($disk->temporaryUrl($path, now()->addHour()));
+            $signedUrl = $disk->temporaryUrl($path, now()->addHour());
+            return redirect($signedUrl);
+        }
+
+        // If not found on default disk and it was an R2 URL, try r2 disk explicitly
+        if ($isR2Url && $defaultDisk !== 'r2') {
+            $r2Disk = \Illuminate\Support\Facades\Storage::disk('r2');
+            if ($r2Disk->exists($path)) {
+                return redirect($r2Disk->temporaryUrl($path, now()->addHour()));
+            }
         }
     } catch (\Exception $e) {
         // fall through

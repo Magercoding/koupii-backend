@@ -825,10 +825,11 @@ class TeacherDashboardController extends Controller
         foreach ($criteriaTotals as $key => $total) {
             $count = $criteriaCounts[$key] ?? 0;
             $avg = $count > 0 ? ($total / $count) : 0;
+            // Skill scores are stored on a 0-100 scale — average directly and cap at 100
             $criteriaMastery[] = [
                 'id' => $key,
                 'label' => $labels[$key],
-                'score' => round(($avg / 9) * 100, 0)
+                'score' => round(min(100, $avg), 1)
             ];
         }
 

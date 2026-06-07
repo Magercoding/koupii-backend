@@ -39,6 +39,15 @@ class UpdateWritingTaskRequest extends BaseRequest
             'is_published' => 'sometimes|boolean',
             'due_date' => 'nullable|date',
             
+            // Passages support (optional on update)
+            'passages'                              => 'nullable|array',
+            'passages.*.title'                      => 'nullable|string|max:255',
+            'passages.*.description'                => 'nullable|string',
+            'passages.*.image_context'              => 'nullable',
+            'passages.*.questions'                  => 'nullable|array',
+            'passages.*.questions.*.question_text'  => 'nullable|string|max:2000',
+            'passages.*.questions.*.question_number'=> 'nullable|integer',
+
             // Multiple questions support (similar to Reading/Listening)
             'questions' => 'nullable|array',
             'questions.*.question_type' => 'required_with:questions|string|in:essay,short_answer,creative_writing,argumentative,descriptive,narrative',
@@ -96,6 +105,12 @@ class UpdateWritingTaskRequest extends BaseRequest
         if ($this->has('questions') && is_string($this->questions)) {
             $this->merge([
                 'questions' => json_decode($this->questions, true)
+            ]);
+        }
+
+        if ($this->has('passages') && is_string($this->input('passages'))) {
+            $this->merge([
+                'passages' => json_decode($this->input('passages'), true)
             ]);
         }
 

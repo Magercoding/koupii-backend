@@ -50,10 +50,15 @@ class ListeningSubmissionResource extends JsonResource
                     'questions' => $this->task->questions->map(function ($q) {
                         return [
                             'id' => $q->id,
+                            'question_number' => $q->order_index,
+                            'question_type' => $q->question_type,
                             'type' => $q->question_type,
+                            'question_text' => $q->question_text,
                             'text' => $q->question_text,
                             'options' => $q->options,
+                            'correct_answers' => $q->correct_answers,
                             'correctAnswers' => $q->correct_answers,
+                            'question_data' => $q->question_data,
                             'explanation' => $q->explanation,
                             'order' => $q->order_index,
                         ];
