@@ -32,7 +32,7 @@ class ListeningTaskController extends Controller implements HasMiddleware
     {
         $user = $request->user();
 
-        $query = ListeningTask::query()->with(['creator', 'assignments']);
+        $query = ListeningTask::query()->with(['creator', 'assignments', 'questions']);
 
         // Role-based access control
         if ($user->role === 'admin') {
@@ -199,6 +199,44 @@ class ListeningTaskController extends Controller implements HasMiddleware
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Publish the specified listening task.
+     */
+    public function publish(string $id)
+    {
+        $task = ListeningTask::findOrFail($id);
+
+        if (Auth::user()->role !== 'admin' && !$this->canTeacherManageTask($task, Auth::user())) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $task->update(['is_published' => true]);
+
+        return response()->json([
+            'message' => 'Listening task published successfully',
+            'data' => new ListeningTaskResource($task->fresh(['creator', 'assignments'])),
+        ], 200);
+    }
+
+    /**
+     * Unpublish the specified listening task.
+     */
+    public function unpublish(string $id)
+    {
+        $task = ListeningTask::findOrFail($id);
+
+        if (Auth::user()->role !== 'admin' && !$this->canTeacherManageTask($task, Auth::user())) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $task->update(['is_published' => false]);
+
+        return response()->json([
+            'message' => 'Listening task unpublished successfully',
+            'data' => new ListeningTaskResource($task->fresh(['creator', 'assignments'])),
+        ], 200);
     }
 
     private function canTeacherManageTask(ListeningTask $task, $user): bool

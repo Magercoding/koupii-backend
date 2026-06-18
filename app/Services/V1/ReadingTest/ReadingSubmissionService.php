@@ -6,6 +6,7 @@ use App\Models\Test;
 use App\Models\ReadingTask;
 use App\Models\ReadingSubmission;
 use App\Models\TestQuestion;
+use App\Services\V1\Test\DualAttemptService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,8 @@ use Exception;
 
 class ReadingSubmissionService
 {
+    private const COMPLETED_STATUSES = ['completed', 'submitted'];
+
     /**
      * Get student's reading test submissions
      */
@@ -38,28 +41,85 @@ class ReadingSubmissionService
      */
     public function startTest(Test $test, string $studentId, array $data): ReadingSubmission
     {
-        return DB::transaction(function () use ($test, $studentId, $data) {
-            if ($test->type !== 'reading') {
-                throw new Exception('Invalid test type for reading submission');
+        if ($test->type !== 'reading') {
+            throw new Exception('Invalid test type for reading submission');
+        }
+
+        $assignmentId = $data['assignment_id'] ?? null;
+
+        $baseQuery = ReadingSubmission::where('test_id', $test->id)
+            ->where('student_id', $studentId);
+
+        if ($assignmentId) {
+            $baseQuery->where('assignment_id', $assignmentId);
+        } else {
+            $baseQuery->where(function ($q) {
+                $q->whereNull('assignment_id')->orWhere('assignment_id', '');
+            });
+        }
+
+        $attemptNumber = isset($data['attempt_number']) && (int) $data['attempt_number'] > 0
+            ? (int) $data['attempt_number']
+            : DualAttemptService::resolveAttemptNumber(clone $baseQuery, self::COMPLETED_STATUSES);
+
+        $inProgress = (clone $baseQuery)
+            ->where('status', 'in_progress')
+            ->first();
+
+        if ($inProgress) {
+            return $inProgress->load(['answers', 'test']);
+        }
+
+        $existing = (clone $baseQuery)
+            ->where('attempt_number', $attemptNumber)
+            ->first();
+
+        if ($existing) {
+            if (DualAttemptService::shouldResetPracticeAttempt($existing, $attemptNumber, self::COMPLETED_STATUSES)) {
+                return $this->resetPracticeSubmission($existing);
             }
 
-            $existing = $this->validateTestAttempt($test, $studentId, $data['attempt_number'] ?? 1);
-            if ($existing) {
-                return $existing;
+            return $existing->load(['answers', 'test']);
+        }
+
+        $submission = ReadingSubmission::create([
+            'test_id' => $test->id,
+            'student_id' => $studentId,
+            'assignment_id' => empty($assignmentId) ? null : $assignmentId,
+            'attempt_number' => $attemptNumber,
+            'status' => 'in_progress',
+            'started_at' => now(),
+        ]);
+
+        $this->initializeAnswersFromTest($submission);
+
+        if ($assignmentId) {
+            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+                ->where('student_id', $studentId)
+                ->first();
+
+            if ($studentAssignment) {
+                $updateData = [
+                    'last_activity_at' => now(),
+                    'attempt_number' => $attemptNumber,
+                    'attempt_count' => max((int) $studentAssignment->attempt_count, $attemptNumber),
+                    'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
+                ];
+
+                if (!$studentAssignment->started_at) {
+                    $updateData['started_at'] = now();
+                }
+
+                if ($attemptNumber === DualAttemptService::PRACTICE_ATTEMPT) {
+                    $updateData['score'] = 0;
+                    $updateData['completed_at'] = null;
+                }
+
+                $studentAssignment->update($updateData);
             }
+        }
 
-            $submission = ReadingSubmission::create([
-                'test_id' => $test->id,
-                'student_id' => $studentId,
-                'attempt_number' => $data['attempt_number'] ?? 1,
-                'status' => 'in_progress',
-                'started_at' => now(),
-            ]);
-
-            $this->initializeAnswersFromTest($submission);
-
-            return $submission->load('test', 'answers');
-        });
+        return $submission->load(['test', 'answers']);
     }
 
     /**
@@ -69,96 +129,71 @@ class ReadingSubmissionService
     {
         $assignmentId = $data['assignment_id'] ?? null;
 
-        // Auto-calculate next attempt number if not provided
-        if (isset($data['attempt_number']) && $data['attempt_number'] > 0) {
-            $attemptNumber = (int) $data['attempt_number'];
+        $baseQuery = ReadingSubmission::query()
+            ->where('reading_task_id', $task->id)
+            ->where('student_id', $studentId);
+
+        if ($assignmentId) {
+            $baseQuery->where('assignment_id', $assignmentId);
         } else {
-            $maxAttempt = (int) (ReadingSubmission::where('reading_task_id', $task->id)
-                ->where('student_id', $studentId)
-                ->max('attempt_number') ?? 0);
-            $attemptNumber = $maxAttempt + 1;
+            $baseQuery->where(function ($q) {
+                $q->whereNull('assignment_id')->orWhere('assignment_id', '');
+            });
         }
 
-        // When an assignment_id is provided, the assignment's max_attempts is the authority.
-        // Skip task-level retake validation so the assignment can control attempt limits.
-        if (empty($assignmentId)) {
-            // Discover Test Logic: If the requested attempt is already finished, increment it.
-            $latestFinished = ReadingSubmission::where('reading_task_id', $task->id)
-                ->where('student_id', $studentId)
-                ->where(function($q) {
-                    $q->whereNull('assignment_id')->orWhere('assignment_id', '');
-                })
-                ->whereIn('status', ['completed', 'submitted'])
-                ->orderBy('attempt_number', 'desc')
-                ->first();
+        $attemptNumber = isset($data['attempt_number']) && (int) $data['attempt_number'] > 0
+            ? (int) $data['attempt_number']
+            : DualAttemptService::resolveAttemptNumber(clone $baseQuery, self::COMPLETED_STATUSES);
 
-            if ($latestFinished && $attemptNumber <= $latestFinished->attempt_number) {
-                $attemptNumber = $latestFinished->attempt_number + 1;
-                \Log::info("Discover Reading Test: Incrementing attempt_number to " . $attemptNumber);
-            }
+        $inProgress = (clone $baseQuery)
+            ->where('status', 'in_progress')
+            ->first();
 
-            $existing = $this->validateTaskAttempt($task, $studentId, $attemptNumber);
-            if ($existing) {
-                return $existing;
-            }
-        } else {
-            // For assignment-based attempts, only resume if this exact attempt number already exists
-            $existing = ReadingSubmission::where('reading_task_id', $task->id)
-                ->where('student_id', $studentId)
-                ->where('assignment_id', $assignmentId)
-                ->where('attempt_number', $attemptNumber)
-                ->first();
-            if ($existing) {
-                return $existing;
-            }
+        if ($inProgress) {
+            return $inProgress->load(['answers', 'readingTask']);
         }
 
-        // Use firstOrCreate to handle race conditions atomically
-        $submission = ReadingSubmission::firstOrCreate(
-            [
-                'reading_task_id' => $task->id,
-                'student_id' => $studentId,
-                'assignment_id' => empty($assignmentId) ? null : $assignmentId,
-                'attempt_number' => $attemptNumber,
-            ],
-            [
-                'status' => 'in_progress',
-                'started_at' => now(),
-            ]
-        );
+        $existing = (clone $baseQuery)
+            ->where('attempt_number', $attemptNumber)
+            ->first();
 
-        // ONLY initialize if we actually created it
-        if ($submission->wasRecentlyCreated) {
-            $this->initializeAnswersFromTask($submission);
+        if ($existing) {
+            if (DualAttemptService::shouldResetPracticeAttempt($existing, $attemptNumber, self::COMPLETED_STATUSES)) {
+                return $this->resetPracticeSubmission($existing);
+            }
+
+            return $existing->load(['answers', 'readingTask']);
         }
 
-        // Sync with StudentAssignment
+        $submission = ReadingSubmission::create([
+            'reading_task_id' => $task->id,
+            'student_id' => $studentId,
+            'assignment_id' => empty($assignmentId) ? null : $assignmentId,
+            'attempt_number' => $attemptNumber,
+            'status' => 'in_progress',
+            'started_at' => now(),
+        ]);
+
+        $this->initializeAnswersFromTask($submission);
+
         if ($assignmentId) {
             $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
                 ->where('student_id', $studentId)
                 ->first();
 
             if ($studentAssignment) {
-                $isNewlyStarted = $attemptNumber > $studentAssignment->attempt_count;
-                $isCompletedInSubmission = in_array($submission->status, ['completed', 'submitted']);
-
                 $updateData = [
                     'last_activity_at' => now(),
                     'attempt_number' => $attemptNumber,
-                    'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
+                    'attempt_count' => max((int) $studentAssignment->attempt_count, $attemptNumber),
+                    'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
                 ];
 
                 if (!$studentAssignment->started_at) {
                     $updateData['started_at'] = now();
                 }
 
-                // ONLY set to IN_PROGRESS if the underlying submission data isn't already completed
-                if (!$isCompletedInSubmission) {
-                    $updateData['status'] = \App\Models\StudentAssignment::STATUS_IN_PROGRESS;
-                }
-
-                // If this is truly a new attempt, clear the global score and completion date
-                if ($isNewlyStarted) {
+                if ($attemptNumber === DualAttemptService::PRACTICE_ATTEMPT) {
                     $updateData['score'] = 0;
                     $updateData['completed_at'] = null;
                 }
@@ -167,7 +202,31 @@ class ReadingSubmissionService
             }
         }
 
-        return $submission;
+        return $submission->load(['answers', 'readingTask']);
+    }
+
+    public function resetPracticeSubmission(ReadingSubmission $submission): ReadingSubmission
+    {
+        $submission->answers()->delete();
+        $submission->update([
+            'status' => 'in_progress',
+            'started_at' => now(),
+            'submitted_at' => null,
+            'time_taken_seconds' => null,
+            'total_score' => null,
+            'percentage' => null,
+            'total_correct' => 0,
+            'total_incorrect' => 0,
+            'total_unanswered' => 0,
+        ]);
+
+        if ($submission->reading_task_id) {
+            $this->initializeAnswersFromTask($submission);
+        } elseif ($submission->test_id) {
+            $this->initializeAnswersFromTest($submission);
+        }
+
+        return $submission->fresh(['answers', 'readingTask', 'test']);
     }
 
     /**
@@ -175,10 +234,18 @@ class ReadingSubmissionService
      */
     public function getTestForStudent(Test $test, string $studentId): Test
     {
-        $existingSubmission = ReadingSubmission::where('test_id', $test->id)
-            ->where('student_id', $studentId)
-            ->latest()
-            ->first();
+        $baseQuery = ReadingSubmission::where('test_id', $test->id)
+            ->where('student_id', $studentId);
+
+        $existingSubmission = DualAttemptService::getStudentDisplaySubmission(
+            $baseQuery,
+            self::COMPLETED_STATUSES,
+            'in_progress',
+        );
+
+        if ($existingSubmission) {
+            $existingSubmission->load('answers');
+        }
 
         $test->load([
             'passages.questionGroups.testQuestions.questionOptions',
@@ -187,7 +254,9 @@ class ReadingSubmissionService
 
         $test->existing_submission = $existingSubmission;
         $test->can_attempt = $this->canStudentAttempt($test, $studentId);
-        $test->next_attempt_number = $this->getNextAttemptNumber($test, $studentId);
+        $test->next_attempt_number = $existingSubmission
+            ? DualAttemptService::resolveAttemptNumber(clone $baseQuery, self::COMPLETED_STATUSES)
+            : DualAttemptService::OFFICIAL_ATTEMPT;
 
         return $test;
     }
@@ -197,15 +266,24 @@ class ReadingSubmissionService
      */
     public function getTaskForStudent(ReadingTask $task, string $studentId): ReadingTask
     {
-        $existingSubmission = ReadingSubmission::where('reading_task_id', $task->id)
-            ->where('student_id', $studentId)
-            ->with('answers')
-            ->latest()
-            ->first();
+        $baseQuery = ReadingSubmission::where('reading_task_id', $task->id)
+            ->where('student_id', $studentId);
+
+        $existingSubmission = DualAttemptService::getStudentDisplaySubmission(
+            $baseQuery,
+            self::COMPLETED_STATUSES,
+            'in_progress',
+        );
+
+        if ($existingSubmission) {
+            $existingSubmission->load('answers');
+        }
 
         $task->existing_submission = $existingSubmission;
         $task->can_attempt = $this->canStudentAttemptTask($task, $studentId);
-        $task->next_attempt_number = $this->getNextTaskAttemptNumber($task, $studentId);
+        $task->next_attempt_number = $existingSubmission
+            ? DualAttemptService::resolveAttemptNumber(clone $baseQuery, self::COMPLETED_STATUSES)
+            : DualAttemptService::OFFICIAL_ATTEMPT;
 
         return $task;
     }
@@ -411,12 +489,14 @@ class ReadingSubmissionService
      */
     private function validateTestAttempt(Test $test, string $studentId, int $attemptNumber): ?ReadingSubmission
     {
-        if ($attemptNumber > 1 && !$test->allow_repetition) {
-            throw new Exception('This test does not allow multiple attempts');
-        }
+        if ($attemptNumber !== DualAttemptService::PRACTICE_ATTEMPT) {
+            if ($attemptNumber > 1 && !$test->allow_repetition) {
+                throw new Exception('This test does not allow multiple attempts');
+            }
 
-        if ($test->max_repetition_count && $attemptNumber > $test->max_repetition_count) {
-            throw new Exception("Maximum number of attempts ({$test->max_repetition_count}) exceeded");
+            if ($test->max_repetition_count && $attemptNumber > $test->max_repetition_count) {
+                throw new Exception("Maximum number of attempts ({$test->max_repetition_count}) exceeded");
+            }
         }
 
         $existingAttempt = ReadingSubmission::where('test_id', $test->id)
@@ -436,28 +516,34 @@ class ReadingSubmissionService
      */
     private function validateTaskAttempt(ReadingTask $task, string $studentId, int $attemptNumber): ?ReadingSubmission
     {
-        if ($attemptNumber > 1 && !$task->allow_retake) {
-            // If retakes not allowed, return latest instead of failing
-            $latest = ReadingSubmission::where('reading_task_id', $task->id)
-                ->where('student_id', $studentId)
-                ->latest()
-                ->first();
-            
-            if ($latest) return $latest;
-            
-            throw new \Exception('This task does not allow multiple attempts');
-        }
+        if ($attemptNumber !== DualAttemptService::PRACTICE_ATTEMPT) {
+            if ($attemptNumber > 1 && !$task->allow_retake) {
+                // If retakes not allowed, return latest instead of failing
+                $latest = ReadingSubmission::where('reading_task_id', $task->id)
+                    ->where('student_id', $studentId)
+                    ->latest()
+                    ->first();
 
-        if ($task->max_retake_attempts && $attemptNumber > $task->max_retake_attempts) {
-            // If max reached, return latest instead of failing
-            $latest = ReadingSubmission::where('reading_task_id', $task->id)
-                ->where('student_id', $studentId)
-                ->latest()
-                ->first();
-            
-            if ($latest) return $latest;
+                if ($latest) {
+                    return $latest;
+                }
 
-            throw new \Exception("Maximum number of attempts ({$task->max_retake_attempts}) exceeded");
+                throw new \Exception('This task does not allow multiple attempts');
+            }
+
+            if ($task->max_retake_attempts && $attemptNumber > $task->max_retake_attempts) {
+                // If max reached, return latest instead of failing
+                $latest = ReadingSubmission::where('reading_task_id', $task->id)
+                    ->where('student_id', $studentId)
+                    ->latest()
+                    ->first();
+
+                if ($latest) {
+                    return $latest;
+                }
+
+                throw new \Exception("Maximum number of attempts ({$task->max_retake_attempts}) exceeded");
+            }
         }
 
         $existingAttempt = ReadingSubmission::where('reading_task_id', $task->id)
@@ -477,21 +563,18 @@ class ReadingSubmissionService
      */
     private function canStudentAttempt(Test $test, string $studentId): bool
     {
-        if (!$test->allow_repetition) {
-            return !ReadingSubmission::where('test_id', $test->id)
-                ->where('student_id', $studentId)
-                ->exists();
+        $baseQuery = ReadingSubmission::where('test_id', $test->id)
+            ->where('student_id', $studentId);
+
+        $first = (clone $baseQuery)
+            ->where('attempt_number', DualAttemptService::OFFICIAL_ATTEMPT)
+            ->first();
+
+        if (!$first) {
+            return true;
         }
 
-        if ($test->max_repetition_count) {
-            $attemptCount = ReadingSubmission::where('test_id', $test->id)
-                ->where('student_id', $studentId)
-                ->count();
-            
-            return $attemptCount < $test->max_repetition_count;
-        }
-
-        return true;
+        return in_array($first->status, self::COMPLETED_STATUSES, true);
     }
 
     /**
@@ -499,21 +582,18 @@ class ReadingSubmissionService
      */
     private function canStudentAttemptTask(ReadingTask $task, string $studentId): bool
     {
-        if (!$task->allow_retake) {
-            return !ReadingSubmission::where('reading_task_id', $task->id)
-                ->where('student_id', $studentId)
-                ->exists();
+        $baseQuery = ReadingSubmission::where('reading_task_id', $task->id)
+            ->where('student_id', $studentId);
+
+        $first = (clone $baseQuery)
+            ->where('attempt_number', DualAttemptService::OFFICIAL_ATTEMPT)
+            ->first();
+
+        if (!$first) {
+            return true;
         }
 
-        if ($task->max_retake_attempts) {
-            $attemptCount = ReadingSubmission::where('reading_task_id', $task->id)
-                ->where('student_id', $studentId)
-                ->count();
-            
-            return $attemptCount < $task->max_retake_attempts;
-        }
-
-        return true;
+        return in_array($first->status, self::COMPLETED_STATUSES, true);
     }
 
     /**

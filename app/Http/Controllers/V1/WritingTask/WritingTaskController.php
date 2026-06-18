@@ -262,6 +262,25 @@ class WritingTaskController extends Controller implements HasMiddleware
         }
     }
 
+    /**
+     * Toggle the published status of a writing task.
+     */
+    public function togglePublish(Request $request, string $id)
+    {
+        $task = WritingTask::findOrFail($id);
+
+        if (Auth::user()->role !== 'admin' && !$this->canTeacherManageTask($task, Auth::user())) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $task->update(['is_published' => !$task->is_published]);
+
+        return response()->json([
+            'message' => 'Writing task publish status updated',
+            'data' => new WritingTaskResource($task->fresh(['creator', 'assignments'])),
+        ], 200);
+    }
+
     private function canTeacherManageTask(WritingTask $task, $user): bool
     {
         if ($task->creator_id === $user->id) {

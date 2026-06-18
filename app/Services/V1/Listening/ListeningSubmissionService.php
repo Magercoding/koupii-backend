@@ -7,6 +7,7 @@ use App\Models\ListeningQuestion;
 use App\Models\ListeningSubmission;
 use App\Models\ListeningQuestionAnswer;
 use App\Models\User;
+use App\Services\V1\Test\DualAttemptService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -15,128 +16,155 @@ use Illuminate\Support\Str;
 
 class ListeningSubmissionService
 {
+    private const COMPLETED_STATUSES = ['submitted', 'reviewed', 'done', 'completed'];
+
     /**
      * Start or resume a listening submission.
      */
     public function startSubmission(ListeningTask $task, User $student, array $data = []): ListeningSubmission
     {
         $assignmentId = $data['assignment_id'] ?? null;
+        $studentId = $student->id;
 
-        // 1. Check for existing "to_do" submission to resume
-        $existing = ListeningSubmission::where('listening_task_id', $task->id)
-            ->where('student_id', $student->id)
+        $baseQuery = ListeningSubmission::where('listening_task_id', $task->id)
+            ->where('student_id', $studentId);
+
+        if ($assignmentId) {
+            $baseQuery->where('assignment_id', $assignmentId);
+        } else {
+            $baseQuery->where(function ($q) {
+                $q->whereNull('assignment_id')->orWhere('assignment_id', '');
+            });
+        }
+
+        $attemptNumber = isset($data['attempt_number']) && (int) $data['attempt_number'] > 0
+            ? (int) $data['attempt_number']
+            : DualAttemptService::resolveAttemptNumber(clone $baseQuery, self::COMPLETED_STATUSES);
+
+        $inProgress = (clone $baseQuery)
             ->where('status', ListeningSubmission::STATUS_TO_DO)
             ->first();
 
-        if ($existing) {
+        if ($inProgress) {
             $updates = [];
-            if (!$existing->started_at) {
+            if (!$inProgress->started_at) {
                 $updates['started_at'] = now();
             }
-            if ($assignmentId && $existing->assignment_id !== $assignmentId) {
+            if ($assignmentId && $inProgress->assignment_id !== $assignmentId) {
                 $updates['assignment_id'] = $assignmentId;
             }
-            
+
             if (!empty($updates)) {
-                $existing->update($updates);
+                $inProgress->update($updates);
             }
-            
-            // Sync status to StudentAssignment
-            if ($assignmentId) {
-                $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
-                    ->where('student_id', $student->id)
-                    ->first();
-                if ($studentAssignment && $studentAssignment->status === \App\Models\StudentAssignment::STATUS_NOT_STARTED) {
-                    $studentAssignment->update(['status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS]);
-                }
+
+            $this->syncStudentAssignmentInProgress($assignmentId, $studentId, (int) $inProgress->attempt_number);
+
+            return $inProgress->load(['answers', 'task', 'review']);
+        }
+
+        $existing = (clone $baseQuery)
+            ->where('attempt_number', $attemptNumber)
+            ->first();
+
+        if ($existing) {
+            if (DualAttemptService::shouldResetPracticeAttempt($existing, $attemptNumber, self::COMPLETED_STATUSES)) {
+                return $this->resetPracticeSubmission($existing, $task);
             }
-            
+
             return $existing->load(['answers', 'task', 'review']);
         }
 
-        // 2. Check retake limits for new attempt
-        // Attempt number is globally unique per task/student, so do not filter by assignment_id
-        $queryAttempt = ListeningSubmission::where('listening_task_id', $task->id)
-            ->where('student_id', $student->id);
+        $submission = ListeningSubmission::create([
+            'listening_task_id' => $task->id,
+            'student_id' => $studentId,
+            'assignment_id' => empty($assignmentId) ? null : $assignmentId,
+            'attempt_number' => $attemptNumber,
+            'status' => ListeningSubmission::STATUS_TO_DO,
+            'started_at' => now(),
+            'total_correct' => 0,
+            'total_incorrect' => 0,
+            'total_unanswered' => $task->questions()->count(),
+            'percentage' => 0,
+            'total_score' => 0,
+        ]);
 
-        $lastSubmission = $queryAttempt->orderBy('attempt_number', 'desc')->first();
+        $this->syncStudentAssignmentInProgress($assignmentId, $studentId, $attemptNumber, $attemptNumber === DualAttemptService::PRACTICE_ATTEMPT);
 
-        $nextAttemptNumber = ($lastSubmission ? $lastSubmission->attempt_number : 0) + 1;
+        return $submission->load(['answers', 'task', 'review']);
+    }
 
-        if ($nextAttemptNumber > 1) {
-            // When an assignment_id is provided, the assignment's max_attempts is the authority.
-            // Skip task-level retake validation so the assignment can control attempt limits.
-            if (empty($assignmentId)) {
-                // Discover Test Logic: If the latest attempt is already finished, increment it for infinite retakes.
-                $latestFinished = ListeningSubmission::where('listening_task_id', $task->id)
-                    ->where('student_id', $student->id)
-                    ->where(function($q) {
-                        $q->whereNull('assignment_id')->orWhere('assignment_id', '');
-                    })
-                    ->whereIn('status', [ListeningSubmission::STATUS_SUBMITTED, 'completed', 'done'])
-                    ->orderBy('attempt_number', 'desc')
-                    ->first();
+    public function resetPracticeSubmission(ListeningSubmission $submission, ?ListeningTask $task = null): ListeningSubmission
+    {
+        $submission->answers()->delete();
 
-                if ($latestFinished && $nextAttemptNumber <= $latestFinished->attempt_number) {
-                    $nextAttemptNumber = $latestFinished->attempt_number + 1;
-                    \Log::info("Discover Listening Test: Incrementing attempt_number to " . $nextAttemptNumber);
-                }
+        $task ??= $submission->task;
+        $questionCount = $task ? $task->questions()->count() : 0;
 
-                if (!$task->allowsRetakes() && $nextAttemptNumber > 1) {
-                    // Fallback: if somehow logic fails, still respect task settings for non-discover
-                    // but since we empty($assignmentId) we handle it above.
-                }
-            } else {
-                // Assignment-based: check the assignment's max_attempts
-                $assignment = \App\Models\Assignment::find($assignmentId);
-                $maxAttempts = $assignment?->max_attempts ?? null;
-                if ($maxAttempts && $nextAttemptNumber > $maxAttempts) {
-                    if ($lastSubmission) {
-                        return $lastSubmission->load(['answers', 'task', 'review']);
-                    }
-                    throw new \Exception("Maximum assignment attempts reached.");
-                }
-            }
-        }
+        $submission->update([
+            'status' => ListeningSubmission::STATUS_TO_DO,
+            'started_at' => now(),
+            'submitted_at' => null,
+            'time_taken_seconds' => null,
+            'total_correct' => 0,
+            'total_incorrect' => 0,
+            'total_unanswered' => $questionCount,
+            'percentage' => 0,
+            'total_score' => 0,
+            'audio_play_counts' => null,
+        ]);
 
-        // 3. Use firstOrCreate to handle race conditions atomically
-        $submission = ListeningSubmission::firstOrCreate(
-            [
-                'listening_task_id' => $task->id,
-                'student_id' => $student->id,
-                'assignment_id' => empty($assignmentId) ? null : $assignmentId,
-                'attempt_number' => $nextAttemptNumber,
-            ],
-            [
-                'status' => ListeningSubmission::STATUS_TO_DO,
-                'started_at' => now(),
-                'total_correct' => 0,
-                'total_incorrect' => 0,
-                'total_unanswered' => $task->questions()->count(),
-                'percentage' => 0,
-                'total_score' => 0,
-            ]
-        );
-
-        // Sync with StudentAssignment
-        if ($assignmentId) {
-            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
-                ->where('student_id', $student->id)
+        if ($submission->assignment_id) {
+            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $submission->assignment_id)
+                ->where('student_id', $submission->student_id)
                 ->first();
-            
+
             if ($studentAssignment) {
-                // If it's a new attempt or the status is not in_progress, update it
                 $studentAssignment->update([
                     'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
-                    'started_at' => $studentAssignment->started_at ?? now(),
+                    'score' => 0,
+                    'completed_at' => null,
                     'last_activity_at' => now(),
-                    'attempt_number' => $nextAttemptNumber,
-                    'attempt_count' => max($studentAssignment->attempt_count, $nextAttemptNumber),
+                    'attempt_number' => DualAttemptService::PRACTICE_ATTEMPT,
                 ]);
             }
         }
 
-        return $submission->load(['answers', 'task', 'review']);
+        return $submission->fresh(['answers', 'task', 'review']);
+    }
+
+    private function syncStudentAssignmentInProgress(
+        ?string $assignmentId,
+        string $studentId,
+        int $attemptNumber,
+        bool $resetScore = false,
+    ): void {
+        if (!$assignmentId) {
+            return;
+        }
+
+        $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
+            ->where('student_id', $studentId)
+            ->first();
+
+        if (!$studentAssignment) {
+            return;
+        }
+
+        $updateData = [
+            'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
+            'started_at' => $studentAssignment->started_at ?? now(),
+            'last_activity_at' => now(),
+            'attempt_number' => $attemptNumber,
+            'attempt_count' => max((int) $studentAssignment->attempt_count, $attemptNumber),
+        ];
+
+        if ($resetScore) {
+            $updateData['score'] = 0;
+            $updateData['completed_at'] = null;
+        }
+
+        $studentAssignment->update($updateData);
     }
 
     /**
@@ -406,9 +434,9 @@ class ListeningSubmissionService
                     (!$task->max_retake_attempts || $attemptCount < $task->max_retake_attempts);
 
         return [
-            'canRetake' => $canRetake,
-            'attemptsUsed' => $attemptCount,
-            'maxAttempts' => $task->max_retake_attempts,
+            'canRetake' => true,
+            'attemptsUsed' => min($attemptCount, DualAttemptService::PRACTICE_ATTEMPT),
+            'maxAttempts' => DualAttemptService::PRACTICE_ATTEMPT,
             'lastAttempt' => $submissions->first() ? [
                 'status' => $submissions->first()->status,
                 'totalScore' => $submissions->first()->total_score,

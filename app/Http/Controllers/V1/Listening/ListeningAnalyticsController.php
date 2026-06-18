@@ -5,35 +5,66 @@ namespace App\Http\Controllers\V1\Listening;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\Listening\ListeningAnalyticsResource;
 use App\Models\ListeningTask;
+use App\Models\Test;
 use App\Models\User;
 use App\Services\V1\Listening\ListeningAnalyticsService;
+use App\Services\V1\Test\TestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 
 class ListeningAnalyticsController extends Controller
 {
     public function __construct(
-        private ListeningAnalyticsService $listeningAnalyticsService
+        private ListeningAnalyticsService $listeningAnalyticsService,
+        private TestService $testService,
     ) {}
 
     /**
      * Get analytics for a specific listening task
      */
-    public function getTaskAnalytics(ListeningTask $listeningTask): JsonResponse
+    public function getTaskAnalytics(Request $request, string $id): JsonResponse
     {
         try {
-            $analytics = $this->listeningAnalyticsService->getTaskAnalytics($listeningTask);
+            $task = $this->testService->findAnyTaskById($id);
+
+            if (!$task) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Listening task not found',
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            $taskType = $task instanceof ListeningTask ? 'listening' : ($task->type ?? null);
+            if ($taskType !== 'listening') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Task is not a listening test',
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            $user = Auth::user();
+            $ownerId = $task instanceof ListeningTask ? $task->created_by : $task->creator_id;
+
+            if ($user->role !== 'admin' && $ownerId !== $user->id) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized to view this task report',
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            $analytics = $this->listeningAnalyticsService->getTaskAnalytics($task, $request);
 
             return response()->json([
                 'status' => 'success',
                 'data' => new ListeningAnalyticsResource($analytics),
-                'message' => 'Task analytics retrieved successfully'
+                'message' => 'Task analytics retrieved successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to retrieve task analytics: ' . $e->getMessage()
+                'message' => 'Failed to retrieve task analytics: ' . $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -128,7 +159,7 @@ class ListeningAnalyticsController extends Controller
     public function getProgressAnalytics(Request $request, User $student): JsonResponse
     {
         try {
-            $timeframe = $request->get('timeframe', '30days'); // 7days, 30days, 90days, 1year
+            $timeframe = $request->get('timeframe', '30days');
 
             $analytics = $this->listeningAnalyticsService->getProgressAnalytics($student, $timeframe);
 

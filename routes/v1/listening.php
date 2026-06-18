@@ -151,7 +151,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // === LISTENING ANALYTICS ROUTES ===
     Route::prefix('listening/analytics')->group(function () {
         // Task Analytics
-        Route::get('/tasks/{listeningTask}', [ListeningAnalyticsController::class, 'getTaskAnalytics']); // GET /api/v1/listening/analytics/tasks/{id}
+        Route::get('/tasks/{id}', [ListeningAnalyticsController::class, 'getTaskAnalytics']); // GET /api/v1/listening/analytics/tasks/{id}
         
         // Student Analytics
         Route::get('/students/{student}', [ListeningAnalyticsController::class, 'getStudentAnalytics']); // GET /api/v1/listening/analytics/students/{id}

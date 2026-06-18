@@ -62,10 +62,10 @@ class ListeningAnalyticsResource extends JsonResource
             'best_performance' => $bestPerformance,
             'weak_performance' => $weakPerformance,
             'leaderboard' => $this->resource['leaderboard'] ?? [],
-            'meta' => [
+            'meta' => $this->resource['leaderboard_meta'] ?? [
                 'current_page' => 1,
                 'last_page' => 1,
-                'total' => count($this->resource['leaderboard'] ?? [])
+                'total' => count($this->resource['leaderboard'] ?? []),
             ],
             
             // Keep original for back-compat if needed

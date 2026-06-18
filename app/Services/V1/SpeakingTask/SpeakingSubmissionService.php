@@ -7,6 +7,7 @@ use App\Models\SpeakingSubmission;
 use App\Models\SpeakingRecording;
 use App\Models\SpeakingReview;
 use App\Helpers\FileUploadHelper;
+use App\Services\V1\Test\DualAttemptService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,8 @@ use Exception;
 
 class SpeakingSubmissionService
 {
+    private const COMPLETED_STATUSES = ['submitted', 'completed', 'reviewed'];
+
     private SpeechToTextService $speechToTextService;
 
     public function __construct(SpeechToTextService $speechToTextService)
@@ -35,9 +38,12 @@ class SpeakingSubmissionService
             ->when($filters['speaking_task_id'] ?? $filters['test_id'] ?? null, function ($q, $taskId) {
                 $q->where('speaking_task_id', $taskId);
                 
-                // Only show the latest attempt per student for this task
-                $q->whereIn('id', function($query) use ($taskId) {
-                    $query->select(DB::raw('MAX(id)'))
+                // Only show each student's official (first) attempt for teacher views
+                $q->whereIn('id', function ($query) use ($taskId) {
+                    $query->select(DB::raw('COALESCE(
+                        MAX(CASE WHEN attempt_number = ' . DualAttemptService::OFFICIAL_ATTEMPT . ' THEN id END),
+                        MIN(id)
+                    )'))
                         ->from('speaking_submissions')
                         ->where('speaking_task_id', $taskId)
                         ->groupBy('student_id');
@@ -81,101 +87,111 @@ class SpeakingSubmissionService
     public function startSubmission(SpeakingTask $test, string $studentId, array $data): SpeakingSubmission
     {
         $assignmentId = $data['assignment_id'] ?? null;
-        $attemptNumber = $data['attempt_number'] ?? null;
-        
-        \Log::info("Starting speaking submission", [
-            'task_id' => $test->id,
-            'student_id' => $studentId,
-            'assignment_id' => $assignmentId,
-            'attempt_number' => $attemptNumber
-        ]);
 
-        // If attempt number is not provided, or provided as 1 while student assignment is at a higher attempt,
-        // try to resolve it from the student assignment record
-        if ($assignmentId && (!$attemptNumber || $attemptNumber === 1)) {
-            $studentAssignment = \App\Models\StudentAssignment::where('student_id', $studentId)
-                ->where('assignment_id', $assignmentId)
-                ->first();
-            
-            if ($studentAssignment && ($studentAssignment->attempt_number > ($attemptNumber ?? 0))) {
-                // If the assignment exists and is at a higher attempt than provided, follow its current attempt
-                $attemptNumber = $studentAssignment->attempt_number;
-                \Log::info("Resolved higher attempt_number from StudentAssignment: " . $attemptNumber);
-            }
+        $baseQuery = SpeakingSubmission::where('speaking_task_id', $test->id)
+            ->where('student_id', $studentId);
+
+        if ($assignmentId) {
+            $baseQuery->where('assignment_id', $assignmentId);
+        } else {
+            $baseQuery->where(function ($q) {
+                $q->whereNull('assignment_id')->orWhere('assignment_id', '');
+            });
         }
 
-        $attemptNumber = (int) ($attemptNumber ?? 1);
+        $attemptNumber = isset($data['attempt_number']) && (int) $data['attempt_number'] > 0
+            ? (int) $data['attempt_number']
+            : DualAttemptService::resolveAttemptNumber(clone $baseQuery, self::COMPLETED_STATUSES);
 
-        // Check for existing in-progress/to-do submission to resume
-        $existing = SpeakingSubmission::where('speaking_task_id', $test->id)
-            ->where('student_id', $studentId)
-            ->where('assignment_id', $assignmentId)
-            ->where('attempt_number', $attemptNumber)
+        $inProgress = (clone $baseQuery)
             ->whereIn('status', [SpeakingSubmission::STATUS_IN_PROGRESS, SpeakingSubmission::STATUS_TO_DO])
             ->first();
 
+        if ($inProgress) {
+            return $inProgress;
+        }
+
+        $existing = (clone $baseQuery)
+            ->where('attempt_number', $attemptNumber)
+            ->first();
+
         if ($existing) {
-            \Log::info("Resuming existing submission: " . $existing->id);
+            if (DualAttemptService::shouldResetPracticeAttempt($existing, $attemptNumber, self::COMPLETED_STATUSES)) {
+                return $this->resetPracticeSubmission($existing);
+            }
+
             return $existing;
         }
 
-        // --- NEW LOGIC FOR DISCOVER TESTS ---
-        // If it's a public discover test (no assignment) and the attempt is already finished,
-        // automatically increment the attempt number instead of erroring out.
-        if (empty($assignmentId)) {
-            $latestSubmitted = SpeakingSubmission::where('speaking_task_id', $test->id)
-                ->where('student_id', $studentId)
-                ->where(function($q) {
-                    $q->whereNull('assignment_id')->orWhere('assignment_id', '');
-                })
-                ->whereIn('status', [
-                    SpeakingSubmission::STATUS_SUBMITTED,
-                    SpeakingSubmission::STATUS_COMPLETED,
-                    SpeakingSubmission::STATUS_REVIEWED
-                ])
-                ->orderBy('attempt_number', 'desc')
-                ->first();
+        $submission = SpeakingSubmission::create([
+            'speaking_task_id' => $test->id,
+            'student_id' => $studentId,
+            'assignment_id' => empty($assignmentId) ? null : $assignmentId,
+            'attempt_number' => $attemptNumber,
+            'status' => SpeakingSubmission::STATUS_IN_PROGRESS,
+            'started_at' => now(),
+        ]);
 
-            if ($latestSubmitted && $attemptNumber <= $latestSubmitted->attempt_number) {
-                $attemptNumber = $latestSubmitted->attempt_number + 1;
-                \Log::info("Discover Test: Incrementing attempt_number to " . $attemptNumber . " for student " . $studentId);
-            }
-        }
-
-        // 4. Use firstOrCreate to handle race conditions atomically
-        // This will find the existing record or create it, and automatically handle 
-        // the duplicate entry error if another request wins the race.
-        $submission = SpeakingSubmission::firstOrCreate(
-            [
-                'speaking_task_id' => $test->id,
-                'student_id' => $studentId,
-                'assignment_id' => empty($assignmentId) ? null : $assignmentId,
-                'attempt_number' => $attemptNumber,
-            ],
-            [
-                'status' => SpeakingSubmission::STATUS_IN_PROGRESS,
-                'started_at' => now(),
-            ]
-        );
-
-        // Sync with StudentAssignment if provided
         if ($assignmentId) {
             $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
                 ->where('student_id', $studentId)
                 ->first();
-            
+
             if ($studentAssignment) {
-                $studentAssignment->update([
+                $updateData = [
                     'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
                     'started_at' => $studentAssignment->started_at ?? now(),
                     'last_activity_at' => now(),
                     'attempt_number' => $attemptNumber,
-                    'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
-                ]);
+                    'attempt_count' => max((int) $studentAssignment->attempt_count, $attemptNumber),
+                ];
+
+                if ($attemptNumber === DualAttemptService::PRACTICE_ATTEMPT) {
+                    $updateData['score'] = 0;
+                    $updateData['completed_at'] = null;
+                }
+
+                $studentAssignment->update($updateData);
             }
         }
 
         return $submission;
+    }
+
+    public function resetPracticeSubmission(SpeakingSubmission $submission): SpeakingSubmission
+    {
+        $submission->recordings()->each(function (SpeakingRecording $recording) {
+            if ($recording->audio_file_path) {
+                Storage::disk('speaking_recordings')->delete($recording->audio_file_path);
+            }
+        });
+        $submission->recordings()->delete();
+        $submission->review()?->delete();
+
+        $submission->update([
+            'status' => SpeakingSubmission::STATUS_IN_PROGRESS,
+            'started_at' => now(),
+            'submitted_at' => null,
+            'time_taken_seconds' => null,
+        ]);
+
+        if ($submission->assignment_id) {
+            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $submission->assignment_id)
+                ->where('student_id', $submission->student_id)
+                ->first();
+
+            if ($studentAssignment) {
+                $studentAssignment->update([
+                    'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
+                    'score' => 0,
+                    'completed_at' => null,
+                    'last_activity_at' => now(),
+                    'attempt_number' => DualAttemptService::PRACTICE_ATTEMPT,
+                ]);
+            }
+        }
+
+        return $submission->fresh(['recordings', 'review']);
     }
 
     public function uploadRecording(array $data): SpeakingRecording

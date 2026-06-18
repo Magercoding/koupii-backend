@@ -20,10 +20,22 @@ class WritingAnalyticsController extends Controller
     {
         $studentId = Auth::id();
         $month = $request->query('month');
-        
+        $classId = $request->query('class_id');
+
+        $classAssignmentIds = null;
+        if ($classId && $classId !== 'all') {
+            $classAssignmentIds = DB::table('assignments')
+                ->where('class_id', $classId)
+                ->pluck('id');
+        }
+
         // 1. Score Progress (Trend)
         $query = WritingSubmission::where('student_id', $studentId)
             ->where('status', 'reviewed');
+
+        if ($classAssignmentIds !== null) {
+            $query->whereIn('assignment_id', $classAssignmentIds);
+        }
 
         if ($month) {
             try {
@@ -283,16 +295,25 @@ class WritingAnalyticsController extends Controller
      */
     public function taskReport(Request $request, $id)
     {
-        $teacherId = Auth::id();
-        
-        // 1. Get Task and verify ownership
-        $task = WritingTask::where('id', $id)
-            ->where('creator_id', $teacherId)
-            ->with(['assignments.class'])
-            ->firstOrFail();
+        $user = Auth::user();
+        $task = app(\App\Services\V1\Test\TestService::class)->findAnyTaskById($id);
+
+        if (!$task || !($task instanceof \App\Models\WritingTask)) {
+            if ($task && ($task->type ?? null) !== 'writing') {
+                return response()->json(['message' => 'Task is not a writing test'], 404);
+            }
+
+            return response()->json(['message' => 'Writing task not found'], 404);
+        }
+
+        if ($user->role !== 'admin' && $task->creator_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized to view this task report'], 403);
+        }
+
+        $task->load(['assignments.class']);
 
         // 2. Query submissions for this task
-        $query = WritingSubmission::where('writing_task_id', $id)
+        $query = WritingSubmission::where('writing_task_id', $task->id)
             ->with(['latestReview', 'student']);
 
         // --- FILTERING ---
@@ -344,22 +365,7 @@ class WritingAnalyticsController extends Controller
 
         $submissions = $query->get();
 
-        // Group by student to handle leaderboard and stats fairly (per student's best attempt)
-        $studentBestSubmissions = $submissions->groupBy('student_id')->map(function($studentWork) {
-            // Sort to get the highest scored attempt, then latest date
-            return $studentWork->sort(function($a, $b) {
-                $scoreA = $a->latestReview ? (float)$a->latestReview->score : -1;
-                $scoreB = $b->latestReview ? (float)$b->latestReview->score : -1;
-                
-                if ($scoreA != $scoreB) {
-                    return $scoreB <=> $scoreA;
-                }
-                
-                $dateA = $a->submitted_at ? $a->submitted_at->timestamp : 0;
-                $dateB = $b->submitted_at ? $b->submitted_at->timestamp : 0;
-                return $dateB <=> $dateA;
-            })->first();
-        });
+        $studentBestSubmissions = \App\Services\V1\Test\DualAttemptService::filterForTeacherView($submissions);
 
         $reviewedSubmissions = $studentBestSubmissions->filter(function($sub) {
             return ($sub->status === 'reviewed' || $sub->status === 'done') && $sub->latestReview;
@@ -425,8 +431,8 @@ class WritingAnalyticsController extends Controller
         $weakPerformance = array_reverse($bestPerformance);
 
         // 5. Leaderboard (Using student best submissions) with Pagination
-        $perPage = (int)$request->query('per_page', 10);
-        $page = (int)$request->query('page', 1);
+        $perPage = (int) $request->query('pageSize', $request->query('per_page', 10));
+        $page = (int) $request->query('page', 1);
 
         $allLeaderboard = $studentBestSubmissions->map(function($sub) {
             $status = 'ontime';
@@ -447,6 +453,7 @@ class WritingAnalyticsController extends Controller
 
         return response()->json([
             'data' => [
+                'test_name' => $task->title,
                 'task_name' => $task->title,
                 'attempts' => $submissions->count(),
                 'class' => $task->assignments->map(fn($a) => $a->class?->name)->filter()->unique()->implode(', '),
@@ -459,7 +466,13 @@ class WritingAnalyticsController extends Controller
                     'current_page' => $page,
                     'per_page' => $perPage,
                     'total' => $allLeaderboard->count(),
-                    'last_page' => ceil($allLeaderboard->count() / $perPage)
+                    'last_page' => (int) ceil(max(1, $allLeaderboard->count()) / $perPage)
+                ],
+                'meta' => [
+                    'current_page' => $page,
+                    'per_page' => $perPage,
+                    'total' => $allLeaderboard->count(),
+                    'last_page' => (int) ceil(max(1, $allLeaderboard->count()) / $perPage)
                 ]
             ]
         ]);

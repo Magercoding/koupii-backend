@@ -6,7 +6,8 @@ use App\Http\Controllers\V1\SpeakingTask\{
     SpeakingSubmissionController,
     SpeakingDashboardController,
     SpeakingRecordingController,
-    SpeakingReviewController
+    SpeakingReviewController,
+    SpeakingAnalyticsController
 };
 
 /*
@@ -91,6 +92,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // === ANALYTICS AND REPORTS ===
     Route::prefix('speaking/analytics')->middleware('role:admin,teacher')->group(function () {
+        Route::get('/tasks/{id}', [SpeakingAnalyticsController::class, 'getTaskAnalytics']);
         Route::get('/class/{classId}', [SpeakingDashboardController::class, 'getClassAnalytics']); // GET /api/v1/speaking/analytics/class/{id}
         Route::get('/student/{studentId}', [SpeakingDashboardController::class, 'getStudentAnalytics']); // GET /api/v1/speaking/analytics/student/{id}
         Route::get('/speech-quality', [SpeakingDashboardController::class, 'getSpeechQualityReport']); // GET /api/v1/speaking/analytics/speech-quality

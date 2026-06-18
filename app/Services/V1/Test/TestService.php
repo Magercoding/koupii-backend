@@ -216,6 +216,12 @@ class TestService
             if (!empty($filters['class_id'])) {
                 $q->where('class_id', $filters['class_id']);
             }
+            if (!empty($filters['from'])) {
+                $q->whereDate('created_at', '>=', $filters['from']);
+            }
+            if (!empty($filters['to'])) {
+                $q->whereDate('created_at', '<=', $filters['to']);
+            }
         };
 
         // 1. Base Test Query (generic tests table)
@@ -399,6 +405,26 @@ class TestService
             ->select(
                 'combined.*',
                 DB::raw("COALESCE(classes.name, assigned_class.class_name) as class_name"),
+                DB::raw("(SELECT MIN(a.due_date) FROM assignments a WHERE (a.test_id = combined.id OR a.task_id = combined.id) AND a.due_date IS NOT NULL) as due_date"),
+                DB::raw("(SELECT MIN(a.close_date) FROM assignments a WHERE (a.test_id = combined.id OR a.task_id = combined.id) AND a.close_date IS NOT NULL) as close_date"),
+                DB::raw("(
+                    CASE
+                        WHEN (
+                            SELECT MIN(COALESCE(a.close_date, a.due_date))
+                            FROM assignments a
+                            WHERE (a.test_id = combined.id OR a.task_id = combined.id)
+                              AND COALESCE(a.close_date, a.due_date) IS NOT NULL
+                        ) < NOW()
+                        THEN 'closed'
+                        WHEN combined.is_published = 1 OR EXISTS (
+                            SELECT 1 FROM assignments a
+                            WHERE (a.test_id = combined.id OR a.task_id = combined.id)
+                              AND a.status = 'active'
+                        )
+                        THEN 'on_going'
+                        ELSE 'scheduled'
+                    END
+                ) as dashboard_status"),
                 DB::raw("(SELECT COUNT(*) FROM reading_submissions WHERE student_id = '{$userId}' AND reading_task_id = combined.id AND submitted_at IS NOT NULL) as r_count"),
                 DB::raw("(SELECT COUNT(*) FROM listening_submissions WHERE student_id = '{$userId}' AND listening_task_id = combined.id AND submitted_at IS NOT NULL) as l_count"),
                 DB::raw("(SELECT COUNT(*) FROM writing_submissions WHERE student_id = '{$userId}' AND writing_task_id = combined.id AND submitted_at IS NOT NULL) as w_count"),

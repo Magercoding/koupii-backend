@@ -5,7 +5,11 @@ namespace App\Http\Controllers\V1\StudentDashboard;
 use App\Http\Controllers\Controller;
 use App\Models\Classes;
 use App\Models\ReadingSubmission;
+use App\Models\ListeningSubmission;
+use App\Models\SpeakingSubmission;
+use App\Models\WritingSubmission;
 use App\Models\StudentAssignment;
+use App\Services\V1\Test\DualAttemptService;
 use App\Models\ClassEnrollment;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +27,7 @@ class StudentDashboardController extends Controller
         $search = $request->query('search');
         $module = $request->query('module');
         $status = $request->query('status');
+        $classId = $request->query('class_id');
         $perPage = $request->query('size', 10);
 
         // Get all classes the student is enrolled in
@@ -30,10 +35,19 @@ class StudentDashboardController extends Controller
             ->where('status', 'active')
             ->pluck('class_id');
 
-        // --- Summary Stats Calculation ---
-        // Fetch all assignments for these classes once to calculate counts efficiently
-        $allAssignments = \App\Models\Assignment::whereIn('class_id', $enrolledClassIds)
-            ->where('is_published', true)
+        // Narrow to a specific class when the filter is active
+        $statsClassIds = ($classId && $enrolledClassIds->contains($classId))
+            ? collect([$classId])
+            : $enrolledClassIds;
+
+        // --- Summary Stats Calculation (respects class filter) ---
+        $allAssignments = \App\Models\Assignment::whereIn('class_id', $statsClassIds)
+            ->where(function ($q) use ($studentId) {
+                $q->where('is_published', true)
+                  ->orWhereHas('studentAssignments', function ($sq) use ($studentId) {
+                      $sq->where('student_id', $studentId);
+                  });
+            })
             ->with(['studentAssignments' => function($query) use ($studentId) {
                 $query->where('student_id', $studentId);
             }])
@@ -66,15 +80,48 @@ class StudentDashboardController extends Controller
 
         $averageOverallScore = $scoredCount > 0 ? round($scoreSum / $scoredCount, 1) : 0;
 
-        // Calculate Time Spent across modules
-        $readingSeconds = DB::table('reading_submissions')->where('student_id', $studentId)->sum('time_taken_seconds');
-        $listeningSeconds = DB::table('listening_submissions')->where('student_id', $studentId)->sum('time_taken_seconds');
-        $speakingSeconds = DB::table('speaking_submissions')->where('student_id', $studentId)->sum('total_time_seconds');
+        // Calculate Time Spent (respects class filter via assignments join)
+        $classFilter = fn ($q) => $q->join('assignments', function ($j) use ($studentId, $statsClassIds) {
+            // joined in each subquery below; this closure is just a placeholder pattern
+        });
+
+        $readingSeconds = DB::table('reading_submissions')
+            ->where('student_id', $studentId)
+            ->when($classId, function ($q) use ($statsClassIds) {
+                $q->whereIn('assignment_id', function ($sub) use ($statsClassIds) {
+                    $sub->select('id')->from('assignments')->whereIn('class_id', $statsClassIds);
+                });
+            })
+            ->sum('time_taken_seconds');
+
+        $listeningSeconds = DB::table('listening_submissions')
+            ->where('student_id', $studentId)
+            ->when($classId, function ($q) use ($statsClassIds) {
+                $q->whereIn('assignment_id', function ($sub) use ($statsClassIds) {
+                    $sub->select('id')->from('assignments')->whereIn('class_id', $statsClassIds);
+                });
+            })
+            ->sum('time_taken_seconds');
+
+        $speakingSeconds = DB::table('speaking_submissions')
+            ->where('student_id', $studentId)
+            ->when($classId, function ($q) use ($statsClassIds) {
+                $q->whereIn('assignment_id', function ($sub) use ($statsClassIds) {
+                    $sub->select('id')->from('assignments')->whereIn('class_id', $statsClassIds);
+                });
+            })
+            ->sum('total_time_seconds');
+
         $writingSeconds = DB::table('student_assignments')
             ->where('student_id', $studentId)
             ->where('assignment_type', 'writing_task')
+            ->when($classId, function ($q) use ($statsClassIds) {
+                $q->whereIn('assignment_id', function ($sub) use ($statsClassIds) {
+                    $sub->select('id')->from('assignments')->whereIn('class_id', $statsClassIds);
+                });
+            })
             ->sum('time_spent_seconds');
-        
+
         $totalSeconds = $readingSeconds + $listeningSeconds + $speakingSeconds + $writingSeconds;
         $hours = floor($totalSeconds / 3600);
         $minutes = floor(($totalSeconds / 60) % 60);
@@ -82,8 +129,15 @@ class StudentDashboardController extends Controller
         if ($hours == 0 && $minutes == 0) $timeSpentFormatted = "0h";
 
         // --- Assignments List Query with Filters ---
-        $query = \App\Models\Assignment::whereIn('class_id', $enrolledClassIds)
-            ->where('is_published', true)
+        // Include all assignments for enrolled classes, not just published ones,
+        // as long as the student has a StudentAssignment record OR the assignment is published.
+        $query = \App\Models\Assignment::whereIn('class_id', $statsClassIds)
+            ->where(function ($q) use ($studentId) {
+                $q->where('is_published', true)
+                  ->orWhereHas('studentAssignments', function ($sq) use ($studentId) {
+                      $sq->where('student_id', $studentId);
+                  });
+            })
             ->with(['studentAssignments' => function($q) use ($studentId) {
                 $q->where('student_id', $studentId);
             }, 'class']);
@@ -150,7 +204,7 @@ class StudentDashboardController extends Controller
                 'score' => $studentAssignment?->score,
                 'completion_date' => $studentAssignment?->completed_at,
                 'attempt_count' => $studentAssignment?->attempt_count ?? 0,
-                'max_attempts' => $assignment->max_attempts,
+                'max_attempts' => null,
             ];
         });
 
@@ -253,42 +307,54 @@ class StudentDashboardController extends Controller
 
         $latestReadingSubmissionId = null;
         if ($type === 'reading_task') {
-            $latestReadingSubmissionId = ReadingSubmission::query()
+            $readingQuery = ReadingSubmission::query()
                 ->where('student_id', $studentId)
-                ->where('assignment_id', $resolvedAssignmentId)
-                ->whereNotNull('submitted_at')
-                ->orderByDesc('submitted_at')
-                ->value('id');
+                ->where('assignment_id', $resolvedAssignmentId);
+
+            if ($assignmentData->task_id) {
+                $readingQuery->where('reading_task_id', $assignmentData->task_id);
+            } elseif ($assignmentData->test_id) {
+                $readingQuery->where('test_id', $assignmentData->test_id);
+            }
+
+            $latestReadingSubmissionId = DualAttemptService::getStudentDisplaySubmission(
+                $readingQuery,
+                ['completed', 'submitted'],
+                'in_progress',
+            )?->id;
         }
 
         $latestSpeakingSubmissionId = null;
         if ($type === 'speaking') {
-            $latestSpeakingSubmissionId = DB::table('speaking_submissions')
-                ->where('assignment_id', $assignmentId)
-                ->where('student_id', $studentId)
-                ->whereNotNull('submitted_at')
-                ->orderByDesc('submitted_at')
-                ->value('id');
+            $latestSpeakingSubmissionId = DualAttemptService::getStudentDisplaySubmission(
+                SpeakingSubmission::query()
+                    ->where('assignment_id', $assignmentId)
+                    ->where('student_id', $studentId),
+                ['submitted', 'completed', 'reviewed'],
+                'in_progress',
+            )?->id;
         }
 
         $latestWritingSubmissionId = null;
         if ($type === 'writing') {
-            $latestWritingSubmissionId = DB::table('writing_submissions')
-                ->where('assignment_id', $assignmentId)
-                ->where('student_id', $studentId)
-                ->whereNotNull('submitted_at')
-                ->orderByDesc('submitted_at')
-                ->value('id');
+            $latestWritingSubmissionId = DualAttemptService::getStudentDisplaySubmission(
+                WritingSubmission::query()
+                    ->where('assignment_id', $assignmentId)
+                    ->where('student_id', $studentId),
+                ['submitted', 'reviewed', 'done'],
+                'to_do',
+            )?->id;
         }
 
         $latestListeningSubmissionId = null;
         if ($type === 'listening_task') {
-            $latestListeningSubmissionId = DB::table('listening_submissions')
-                ->where('assignment_id', $resolvedAssignmentId)
-                ->where('student_id', $studentId)
-                ->whereNotNull('submitted_at')
-                ->orderByDesc('submitted_at')
-                ->value('id');
+            $latestListeningSubmissionId = DualAttemptService::getStudentDisplaySubmission(
+                ListeningSubmission::query()
+                    ->where('assignment_id', $resolvedAssignmentId)
+                    ->where('student_id', $studentId),
+                ['submitted', 'reviewed', 'done', 'completed'],
+                ListeningSubmission::STATUS_TO_DO,
+            )?->id;
         }
 
         return response()->json([
@@ -299,7 +365,7 @@ class StudentDashboardController extends Controller
                 'description' => $assignmentData->description ?? $resolvedTask?->description,
                 'difficulty' => $resolvedTask?->difficulty ?? $resolvedTask?->difficulty_level,
                 'due_date' => $assignmentData->due_date,
-                'max_attempts' => $assignmentData->max_attempts ?? 3,
+                'max_attempts' => null,
                 'latest_reading_submission_id' => $latestReadingSubmissionId,
                 'latest_speaking_submission_id' => $latestSpeakingSubmissionId,
                 'latest_writing_submission_id' => $latestWritingSubmissionId,
@@ -374,15 +440,17 @@ class StudentDashboardController extends Controller
                 $updateData['started_at'] = now();
             }
 
-            // If it was already finished, increment attempt count for a retake
-            if (in_array($studentAssignment->status, [StudentAssignment::STATUS_SUBMITTED, StudentAssignment::STATUS_COMPLETED, StudentAssignment::STATUS_GRADED])) {
-                $nextAttempt = ($studentAssignment->attempt_count ?? 0) + 1;
-                $updateData['attempt_count'] = $nextAttempt;
-                $updateData['attempt_number'] = $nextAttempt;
-                $updateData['score'] = 0;
-                $updateData['completed_at'] = null;
-                $updateData['started_at'] = now();
-            }
+        // Practice retakes reuse attempt #2 — do not increment past the dual-attempt cap.
+        if (in_array($studentAssignment->status, [StudentAssignment::STATUS_SUBMITTED, StudentAssignment::STATUS_COMPLETED, StudentAssignment::STATUS_GRADED])) {
+            $updateData['attempt_number'] = DualAttemptService::PRACTICE_ATTEMPT;
+            $updateData['attempt_count'] = max(
+                (int) ($studentAssignment->attempt_count ?? 0),
+                DualAttemptService::PRACTICE_ATTEMPT,
+            );
+            $updateData['score'] = 0;
+            $updateData['completed_at'] = null;
+            $updateData['started_at'] = now();
+        }
 
             $studentAssignment->update($updateData);
         }
@@ -645,117 +713,16 @@ class StudentDashboardController extends Controller
         try {
             if ($assignment->task_id) {
                 $task = \App\Models\ReadingTask::findOrFail($assignment->task_id);
-
-                $inProgress = ReadingSubmission::query()
-                    ->where('reading_task_id', $task->id)
-                    ->where('student_id', $studentId)
-                    ->where('assignment_id', $assignmentId)
-                    ->where('status', 'in_progress')
-                    ->first();
-
-                if ($inProgress) {
-                    $submission = $inProgress->load(['answers', 'readingTask']);
-                } else {
-                    $maxAttempt = (int) (ReadingSubmission::query()
-                        ->where('reading_task_id', $task->id)
-                        ->where('student_id', $studentId)
-                        ->where('assignment_id', $assignmentId)
-                        ->max('attempt_number') ?? 0);
-
-                    $priorCount = (int) ReadingSubmission::query()
-                        ->where('reading_task_id', $task->id)
-                        ->where('student_id', $studentId)
-                        ->where('assignment_id', $assignmentId)
-                        ->count();
-
-                    $cap = $this->resolveMaxAttemptsCapForAssignment(
-                        $assignment,
-                        $task->max_retake_attempts !== null ? (int) $task->max_retake_attempts : null,
-                    );
-                    if ($priorCount >= $cap) {
-                        return response()->json(['message' => 'Maximum attempts reached for this assignment'], 422);
-                    }
-
-                    $nextAttempt = $maxAttempt + 1;
-
-                    $submission = ReadingSubmission::create([
-                        'reading_task_id' => $task->id,
-                        'assignment_id' => $assignmentId,
-                        'student_id' => $studentId,
-                        'attempt_number' => $nextAttempt,
-                        'status' => 'in_progress',
-                        'started_at' => now(),
-                    ]);
-                    $submissionService->initializeAnswersFromTaskPublic($submission);
-                    $submission->load(['readingTask', 'answers']);
-
-                    $studentAssignment = StudentAssignment::where('assignment_id', $assignmentId)
-                        ->where('student_id', $studentId)
-                        ->first();
-                    if ($studentAssignment) {
-                        $isNewlyStarted = $nextAttempt > (int) $studentAssignment->attempt_count;
-                        $updateData = [
-                            'last_activity_at' => now(),
-                            'attempt_number' => $nextAttempt,
-                            'attempt_count' => max((int) $studentAssignment->attempt_count, $nextAttempt),
-                            'status' => StudentAssignment::STATUS_IN_PROGRESS,
-                        ];
-                        if (!$studentAssignment->started_at) {
-                            $updateData['started_at'] = now();
-                        }
-                        if ($isNewlyStarted) {
-                            $updateData['score'] = 0;
-                            $updateData['completed_at'] = null;
-                        }
-                        $studentAssignment->update($updateData);
-                    }
-                }
+                $submission = $submissionService->startReadingTask($task, $studentId, [
+                    'assignment_id' => $assignmentId,
+                    'attempt_number' => $request->input('attempt_number'),
+                ]);
             } elseif ($assignment->test_id) {
                 $test = \App\Models\Test::findOrFail($assignment->test_id);
-
-                $inProgress = ReadingSubmission::query()
-                    ->where('test_id', $test->id)
-                    ->where('student_id', $studentId)
-                    ->where('assignment_id', $assignmentId)
-                    ->where('status', 'in_progress')
-                    ->first();
-
-                if ($inProgress) {
-                    $submission = $inProgress->load(['answers', 'test']);
-                } else {
-                    $maxAttempt = (int) (ReadingSubmission::query()
-                        ->where('test_id', $test->id)
-                        ->where('student_id', $studentId)
-                        ->where('assignment_id', $assignmentId)
-                        ->max('attempt_number') ?? 0);
-
-                    $priorCount = (int) ReadingSubmission::query()
-                        ->where('test_id', $test->id)
-                        ->where('student_id', $studentId)
-                        ->where('assignment_id', $assignmentId)
-                        ->count();
-
-                    $cap = $this->resolveMaxAttemptsCapForAssignment(
-                        $assignment,
-                        $test->max_repetition_count !== null ? (int) $test->max_repetition_count : null,
-                    );
-                    if ($priorCount >= $cap) {
-                        return response()->json(['message' => 'Maximum attempts reached for this assignment'], 422);
-                    }
-
-                    $nextAttempt = $maxAttempt + 1;
-
-                    $submission = ReadingSubmission::create([
-                        'test_id' => $test->id,
-                        'assignment_id' => $assignmentId,
-                        'student_id' => $studentId,
-                        'attempt_number' => $nextAttempt,
-                        'status' => 'in_progress',
-                        'started_at' => now(),
-                    ]);
-                    $submissionService->initializeAnswersFromTestPublic($submission);
-                    $submission->load(['answers', 'test']);
-                }
+                $submission = $submissionService->startTest($test, $studentId, [
+                    'assignment_id' => $assignmentId,
+                    'attempt_number' => $request->input('attempt_number'),
+                ]);
             } else {
                 return response()->json(['message' => 'Assignment has no associated task or test'], 422);
             }

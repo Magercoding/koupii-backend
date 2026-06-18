@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\V1\ReadingTask\ReadingTaskController;
 use App\Http\Controllers\V1\ReadingTask\ReadingTaskAssignmentController;
+use App\Http\Controllers\V1\ReadingTest\ReadingAnalyticsController;
 use App\Http\Controllers\V1\ReadingTest\ReadingSubmissionController;
 use App\Http\Controllers\V1\ReadingTest\ReadingAnswerController;
 use App\Http\Controllers\V1\ReadingTest\ReadingVocabularyController;
@@ -38,7 +39,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         
         // Submission Routes
         Route::prefix('{taskId}/submissions')->name('submissions.')->group(function () {
-            Route::get('/', [ReadingSubmissionController::class, 'index'])->name('index');
+            Route::get('/', [ReadingSubmissionController::class, 'taskSubmissions'])->name('index');
             Route::post('/', [ReadingSubmissionController::class, 'submit'])->name('submit');
             Route::get('/{submissionId}', [ReadingSubmissionController::class, 'show'])->name('show');
             Route::patch('/{submissionId}/done', [ReadingSubmissionController::class, 'markAsDone'])->name('mark-done');
@@ -64,6 +65,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{id}', [ReadingAnswerController::class, 'show'])->name('show');
         Route::put('/{id}', [ReadingAnswerController::class, 'update'])->name('update');
         Route::delete('/{id}', [ReadingAnswerController::class, 'destroy'])->name('destroy');
+    });
+
+    // Reading Analytics Routes
+    Route::prefix('reading/analytics')->name('reading.analytics.')->group(function () {
+        Route::get('/tasks/{id}', [ReadingAnalyticsController::class, 'getTaskAnalytics'])
+            ->middleware('role:admin,teacher')
+            ->name('tasks.show');
     });
 
     // Reading Vocabulary Routes

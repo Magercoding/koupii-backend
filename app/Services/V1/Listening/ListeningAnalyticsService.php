@@ -6,10 +6,14 @@ use App\Models\ListeningTask;
 use App\Models\ListeningSubmission;
 use App\Models\User;
 use App\Models\Test;
+use App\Models\Classes;
+use App\Services\V1\Test\DualAttemptService;
 use App\Helpers\Listening\ListeningAnalyticsHelper;
 use App\Models\ListeningQuestion;
 use App\Models\ListeningQuestionAnswer;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -18,81 +22,216 @@ class ListeningAnalyticsService
     /**
      * Get comprehensive analytics for a listening task
      */
-    public function getTaskAnalytics(ListeningTask $task): array
+    public function getTaskAnalytics(ListeningTask|Test $task, ?Request $request = null): array
     {
-        $submissions = ListeningSubmission::where('test_id', $task->test_id)
-            ->with(['answers', 'student'])
-            ->get();
+        $request ??= request();
 
-        $completedSubmissions = $submissions->where('status', 'submitted');
-        
-        // Get class information from assignments
-        $assignment = $task->assignments()->with('classroom')->first();
-        $className = $assignment->classroom->name ?? 'No Class Assigned';
+        $query = $this->listeningSubmissionsQuery($task);
+        $query->with(['answers.question', 'student', 'assignment.class']);
+
+        $this->applyTaskReportFilters($query, $request);
+
+        $submissions = $query->get();
+        $teacherSubmissions = DualAttemptService::filterForTeacherView($submissions);
+        $completedSubmissions = $teacherSubmissions->filter(
+            fn ($s) => in_array($s->status, ['submitted', 'reviewed', 'done'], true) && $s->submitted_at !== null
+        );
 
         $analytics = [
             'task_id' => $task->id,
             'task_title' => $task->title,
-            'class_name' => $className,
+            'class_name' => $this->resolveListeningClassName($task),
             'created_at' => $task->created_at->format('d M Y'),
-            'total_submissions' => $submissions->count(),
+            'total_submissions' => $teacherSubmissions->count(),
             'completed_submissions' => $completedSubmissions->count(),
-            'in_progress_submissions' => $submissions->where('status', 'in_progress')->count(),
-            'completion_rate' => $submissions->count() > 0 ? 
-                round(($completedSubmissions->count() / $submissions->count()) * 100, 2) : 0,
+            'in_progress_submissions' => $teacherSubmissions->whereNotIn('status', ['submitted', 'reviewed', 'done'])->count(),
+            'completion_rate' => $teacherSubmissions->count() > 0
+                ? round(($completedSubmissions->count() / $teacherSubmissions->count()) * 100, 2)
+                : 0,
         ];
 
         if ($completedSubmissions->count() > 0) {
-            $scores = $completedSubmissions->pluck('score')->filter();
-            $completionTimes = $completedSubmissions->pluck('completion_time')->filter();
-            
+            $scores = $completedSubmissions->map(fn ($s) => (float) ($s->percentage ?? $s->total_score ?? 0));
+
             $analytics = array_merge($analytics, [
-                'average_score' => round($scores->avg(), 2),
+                'average_score' => round($scores->avg(), 1),
                 'median_score' => $this->calculateMedian($scores->toArray()),
-                'highest_score' => $scores->max(),
-                'lowest_score' => $scores->min(),
+                'highest_score' => round($scores->max(), 1),
+                'lowest_score' => round($scores->min(), 1),
                 'score_distribution' => $this->getScoreDistribution($scores->toArray()),
-                'average_completion_time' => round($completionTimes->avg(), 2),
-                'median_completion_time' => $this->calculateMedian($completionTimes->toArray()),
+            ]);
+        } else {
+            $analytics = array_merge($analytics, [
+                'average_score' => 0,
+                'median_score' => 0,
+                'highest_score' => 0,
+                'lowest_score' => 0,
+                'score_distribution' => [],
             ]);
         }
 
-        // Question-level analytics
-        $analytics['question_analytics'] = $this->getQuestionAnalytics($task);
-        
-        // Question type performance
-        $analytics['question_type_performance'] = $this->analyzeQuestionTypePerformance($submissions);
-        
-        // Audio interaction analytics
-        $analytics['audio_analytics'] = $this->getAudioInteractionSummary($task);
-        
-        // Difficulty analysis
-        $analytics['difficulty_analysis'] = $this->analyzeDifficulty($completedSubmissions);
+        if ($task instanceof ListeningTask) {
+            $analytics['question_analytics'] = $this->getQuestionAnalytics($task);
+            $analytics['audio_analytics'] = $this->getAudioInteractionSummary($task);
+            $analytics['difficulty_analysis'] = $this->analyzeDifficulty($completedSubmissions);
+        } else {
+            $analytics['question_analytics'] = [];
+            $analytics['audio_analytics'] = [];
+            $analytics['difficulty_analysis'] = [];
+        }
 
-        // Leaderboard
-        $analytics['leaderboard'] = $this->getLeaderboard($submissions);
+        $analytics['question_type_performance'] = $this->analyzeQuestionTypePerformance($submissions);
+
+        $leaderboard = $this->getTaskReportLeaderboard($teacherSubmissions, $request);
+        $analytics['leaderboard'] = $leaderboard['items'];
+        $analytics['leaderboard_meta'] = $leaderboard['meta'];
 
         return $analytics;
     }
 
-    /**
-     * Get leaderboard for a set of submissions
-     */
-    private function getLeaderboard(Collection $submissions): array
+    private function listeningSubmissionsQuery(ListeningTask|Test $task): Builder
     {
-        return $submissions->groupBy('student_id')->map(function($studentWork) {
-            // Get best attempt per student
-            $bestAttempt = $studentWork->sortByDesc('score')->first();
-            
+        if ($task instanceof ListeningTask) {
+            return ListeningSubmission::where('listening_task_id', $task->id);
+        }
+
+        return ListeningSubmission::whereRaw('1 = 0');
+    }
+
+    private function resolveListeningClassName(ListeningTask|Test $task): string
+    {
+        if ($task->class_id) {
+            $class = Classes::find($task->class_id);
+            if ($class) {
+                return $class->name;
+            }
+        }
+
+        $assignment = $task->assignments()->with('class')->first();
+        if ($assignment?->class) {
+            return $assignment->class->name;
+        }
+
+        return 'No Class Assigned';
+    }
+
+    private function applyTaskReportFilters(Builder $query, Request $request): void
+    {
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('student', fn ($q) => $q->where('name', 'like', "%{$search}%"));
+        }
+
+        if ($request->filled('status')) {
+            $statuses = array_map('trim', explode(',', strtolower($request->status)));
+            $query->where(function ($q) use ($statuses) {
+                foreach ($statuses as $status) {
+                    if ($status === 'pending') {
+                        $q->orWhere(fn ($subQ) => $subQ
+                            ->whereNull('submitted_at')
+                            ->orWhereIn('status', ['to_do', 'in_progress']));
+                    } elseif ($status === 'ontime') {
+                        $q->orWhere(function ($subQ) {
+                            $subQ->whereNotNull('submitted_at')
+                                ->whereIn('status', ['submitted', 'reviewed', 'done'])
+                                ->where(function ($timeQ) {
+                                    $timeQ->whereDoesntHave('assignment')
+                                        ->orWhereHas('assignment', fn ($a) => $a
+                                            ->where(fn ($d) => $d
+                                                ->whereNull('due_date')
+                                                ->orWhereColumn('listening_submissions.submitted_at', '<=', 'assignments.due_date')));
+                                });
+                        });
+                    } elseif ($status === 'late') {
+                        $q->orWhere(function ($subQ) {
+                            $subQ->whereNotNull('submitted_at')
+                                ->whereIn('status', ['submitted', 'reviewed', 'done'])
+                                ->whereHas('assignment', fn ($a) => $a
+                                    ->whereNotNull('due_date')
+                                    ->whereColumn('listening_submissions.submitted_at', '>', 'assignments.due_date'));
+                        });
+                    }
+                }
+            });
+        }
+
+        if ($request->filled('from')) {
+            $query->whereDate('submitted_at', '>=', $request->from);
+        }
+
+        if ($request->filled('to')) {
+            $query->whereDate('submitted_at', '<=', $request->to);
+        }
+
+        if ($request->filled('minScore')) {
+            $query->where('percentage', '>=', (float) $request->minScore);
+        }
+
+        if ($request->filled('maxScore')) {
+            $query->where('percentage', '<=', (float) $request->maxScore);
+        }
+    }
+
+    private function getTaskReportLeaderboard(Collection $submissions, Request $request): array
+    {
+        $search = $request->search;
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = max(1, (int) $request->query('pageSize', $request->query('per_page', 10)));
+
+        $leaderboard = $submissions->groupBy('student_id')->map(function ($studentWork) {
+            $official = $studentWork->firstWhere('attempt_number', DualAttemptService::OFFICIAL_ATTEMPT)
+                ?? $studentWork->sortBy('attempt_number')->first();
+            $bestAttempt = $official;
+
+            $status = 'pending';
+            if ($bestAttempt->submitted_at) {
+                $status = 'ontime';
+                if (
+                    $bestAttempt->assignment?->due_date &&
+                    $bestAttempt->submitted_at->gt($bestAttempt->assignment->due_date)
+                ) {
+                    $status = 'late';
+                }
+            }
+
             return [
                 'id' => $bestAttempt->id,
                 'student_name' => $bestAttempt->student->name ?? 'Unknown Student',
-                'submission_date' => $bestAttempt->submitted_at ? $bestAttempt->submitted_at->format('d M Y') : ($bestAttempt->created_at ? $bestAttempt->created_at->format('d M Y') : '-'),
-                'status' => $bestAttempt->status,
-                'score' => (float)($bestAttempt->score ?? 0),
+                'submission_date' => $bestAttempt->submitted_at
+                    ? $bestAttempt->submitted_at->format('d M Y')
+                    : ($bestAttempt->created_at ? $bestAttempt->created_at->format('d M Y') : '-'),
+                'status' => in_array($bestAttempt->status, ['submitted', 'reviewed', 'done'], true) ? $status : 'pending',
+                'score' => round((float) ($bestAttempt->percentage ?? $bestAttempt->total_score ?? 0), 1),
                 'type' => 'listening',
             ];
-        })->sortByDesc('score')->values()->toArray();
+        })->sortByDesc('score')->values();
+
+        if ($search) {
+            $needle = strtolower($search);
+            $leaderboard = $leaderboard->filter(
+                fn ($entry) => str_contains(strtolower($entry['student_name']), $needle)
+            )->values();
+        }
+
+        $total = $leaderboard->count();
+
+        return [
+            'items' => $leaderboard->slice(($page - 1) * $perPage, $perPage)->values()->toArray(),
+            'meta' => [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => max(1, (int) ceil($total / $perPage)),
+            ],
+        ];
+    }
+
+    /**
+     * Legacy leaderboard helper used by other analytics methods.
+     */
+    private function getLeaderboard(Collection $submissions): array
+    {
+        return $this->getTaskReportLeaderboard($submissions, request())['items'];
     }
 
     /**

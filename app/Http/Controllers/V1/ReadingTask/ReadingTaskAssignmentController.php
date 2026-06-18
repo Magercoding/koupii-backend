@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\V1\ReadingTask;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\V1\ReadingTask\ReadingTaskAssignmentResource;
 use App\Models\Assignment;
 use App\Models\ReadingTask;
+use App\Traits\CreatesStudentAssignments;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -13,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 
 class ReadingTaskAssignmentController extends Controller implements HasMiddleware
 {
+    use CreatesStudentAssignments;
     public static function middleware(): array
     {
         return [
@@ -38,7 +41,7 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
             ->with(['class', 'assignedBy'])
             ->get();
 
-        return response()->json(['data' => $assignments]);
+        return ReadingTaskAssignmentResource::collection($assignments);
     }
 
     public function assignToClassrooms(Request $request, string $id)
@@ -64,7 +67,7 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
                 ->first();
 
             if (!$existing) {
-                $assignments[] = Assignment::create([
+                $assignment = Assignment::create([
                     'id'          => Str::uuid(),
                     'class_id'    => $classroomId,
                     'task_id'     => $id,
@@ -78,10 +81,19 @@ class ReadingTaskAssignmentController extends Controller implements HasMiddlewar
                     'type'        => 'reading',
                     'max_attempts'=> 3,
                 ]);
+                $this->createStudentAssignmentsForAssignment($assignment);
+                $assignments[] = $assignment;
             }
         }
 
-        return response()->json(['message' => 'Task assigned successfully', 'assignments' => $assignments]);
+        if (!empty($assignments) && !$task->is_published) {
+            $task->update(['is_published' => true]);
+        }
+
+        return response()->json([
+            'message' => 'Task assigned successfully',
+            'assignments' => ReadingTaskAssignmentResource::collection(collect($assignments)),
+        ]);
     }
 
     public function removeFromClassroom(Request $request, string $id, string $classroomId)

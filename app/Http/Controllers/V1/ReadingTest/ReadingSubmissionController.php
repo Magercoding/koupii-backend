@@ -10,6 +10,7 @@ use App\Services\V1\ReadingTest\ReadingSubmissionService;
 use App\Models\Test;
 use App\Models\ReadingTask;
 use App\Models\ReadingSubmission;
+use App\Services\V1\Test\DualAttemptService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -238,5 +239,79 @@ class ReadingSubmissionController extends Controller implements HasMiddleware
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Teacher view: submissions for a specific reading task.
+     */
+    public function taskSubmissions(Request $request, string $taskId): JsonResponse
+    {
+        try {
+            $user = auth()->user();
+            $task = ReadingTask::findOrFail($taskId);
+
+            if ($user->role === 'student') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access denied',
+                ], 403);
+            }
+
+            if (
+                $user->role === 'teacher'
+                && $task->created_by !== $user->id
+                && !$this->teacherCanAccessTask($task, $user->id)
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access denied',
+                ], 403);
+            }
+
+            $submissions = ReadingSubmission::with(['student:id,name,email', 'readingTask:id,title'])
+                ->where('reading_task_id', $taskId)
+                ->whereNotNull('submitted_at')
+                ->when($user->role === 'teacher', function ($query) {
+                    $query->where(function ($inner) {
+                        $inner->where('attempt_number', DualAttemptService::OFFICIAL_ATTEMPT)
+                            ->orWhereNull('attempt_number');
+                    });
+                })
+                ->latest('submitted_at')
+                ->paginate($request->integer('per_page', 50));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task submissions retrieved successfully',
+                'data' => ReadingSubmissionResource::collection($submissions->items()),
+                'meta' => [
+                    'current_page' => $submissions->currentPage(),
+                    'last_page' => $submissions->lastPage(),
+                    'per_page' => $submissions->perPage(),
+                    'total' => $submissions->total(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('ReadingSubmissionController@taskSubmissions: Error', [
+                'task_id' => $taskId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve task submissions',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function teacherCanAccessTask(ReadingTask $task, string $teacherId): bool
+    {
+        return \Illuminate\Support\Facades\DB::table('assignments')
+            ->join('classes', 'assignments.class_id', '=', 'classes.id')
+            ->where('assignments.task_id', $task->id)
+            ->where('assignments.task_type', 'reading_task')
+            ->where('classes.teacher_id', $teacherId)
+            ->exists();
     }
 }

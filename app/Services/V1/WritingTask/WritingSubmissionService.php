@@ -4,12 +4,16 @@ namespace App\Services\V1\WritingTask;
 
 use App\Models\WritingTask;
 use App\Models\WritingSubmission;
+use App\Services\V1\Test\DualAttemptService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class WritingSubmissionService
 {
+    private const COMPLETED_STATUSES = ['submitted', 'reviewed', 'done'];
+
     /**
      * Submit student writing.
      */
@@ -18,17 +22,7 @@ class WritingSubmissionService
         return DB::transaction(function () use ($task, $data) {
             $assignmentId = $data['assignment_id'] ?? null;
             $studentId = Auth::id();
-
-            // Check if student already has a non-submitted submission for this task
-            $existingSubmission = WritingSubmission::where('writing_task_id', $task->id)
-                ->where('student_id', $studentId)
-                ->where('status', 'to_do');
-
-            if ($assignmentId) {
-                $existingSubmission->where('assignment_id', $assignmentId);
-            }
-
-            $existingSubmission = $existingSubmission->first();
+            $submission = $this->resolveActiveSubmission($task, $studentId, $assignmentId);
 
             $submissionData = [
                 'content' => $data['content'],
@@ -40,20 +34,13 @@ class WritingSubmissionService
                 'assignment_id' => $assignmentId,
             ];
 
-            if ($existingSubmission) {
-                // Update existing draft to submitted
-                $existingSubmission->update($submissionData);
-                $submission = $existingSubmission;
+            if ($submission) {
+                $submission->update($submissionData);
             } else {
-                // Create new submission
-                $attemptNumber = WritingSubmission::where('writing_task_id', $task->id)
-                    ->where('student_id', $studentId);
-                
-                if ($assignmentId) {
-                    $attemptNumber->where('assignment_id', $assignmentId);
-                }
-                
-                $attemptNumber = $attemptNumber->max('attempt_number') + 1;
+                $attemptNumber = DualAttemptService::resolveAttemptNumber(
+                    $this->baseQuery($task->id, $studentId, $assignmentId),
+                    self::COMPLETED_STATUSES,
+                );
 
                 $submission = WritingSubmission::create(array_merge($submissionData, [
                     'id' => Str::uuid(),
@@ -63,7 +50,6 @@ class WritingSubmissionService
                 ]));
             }
 
-            // Sync with StudentAssignment
             if ($assignmentId) {
                 $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
                     ->where('student_id', $studentId)
@@ -91,18 +77,8 @@ class WritingSubmissionService
     public function saveDraft($task, array $data): WritingSubmission
     {
         $assignmentId = $data['assignment_id'] ?? null;
-        
-        $matchCriteria = [
-            'writing_task_id' => $task->id,
-            'student_id' => Auth::id(),
-            'status' => 'to_do'
-        ];
-
-        if ($assignmentId) {
-            $matchCriteria['assignment_id'] = $assignmentId;
-        }
-
-        $submission = WritingSubmission::where($matchCriteria)->first();
+        $studentId = Auth::id();
+        $submission = $this->resolveActiveSubmission($task, $studentId, $assignmentId);
 
         if ($submission) {
             $submission->update([
@@ -112,29 +88,28 @@ class WritingSubmissionService
                 'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
             ]);
         } else {
-            $attemptNumberQuery = WritingSubmission::where('writing_task_id', $task->id)
-                ->where('student_id', Auth::id());
-                
-            if ($assignmentId) {
-                $attemptNumberQuery->where('assignment_id', $assignmentId);
-            }
-            
-            $attemptNumber = $attemptNumberQuery->max('attempt_number') + 1;
+            $attemptNumber = DualAttemptService::resolveAttemptNumber(
+                $this->baseQuery($task->id, $studentId, $assignmentId),
+                self::COMPLETED_STATUSES,
+            );
 
-            $submission = WritingSubmission::create(array_merge($matchCriteria, [
+            $submission = WritingSubmission::create([
                 'id' => Str::uuid(),
+                'writing_task_id' => $task->id,
+                'student_id' => $studentId,
+                'assignment_id' => $assignmentId,
                 'attempt_number' => $attemptNumber,
+                'status' => 'to_do',
                 'content' => $data['content'],
                 'files' => $data['files'] ?? null,
                 'word_count' => $this->countWords($data['content']),
                 'time_taken_seconds' => $data['time_taken_seconds'] ?? null,
-            ]));
+            ]);
         }
 
-        // Sync with StudentAssignment
         if ($assignmentId) {
             $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
-                ->where('student_id', Auth::id())
+                ->where('student_id', $studentId)
                 ->first();
 
             if ($studentAssignment) {
@@ -147,6 +122,11 @@ class WritingSubmissionService
                 if ($studentAssignment->status === \App\Models\StudentAssignment::STATUS_NOT_STARTED || !$studentAssignment->started_at) {
                     $updateData['status'] = \App\Models\StudentAssignment::STATUS_IN_PROGRESS;
                     $updateData['started_at'] = $studentAssignment->started_at ?? now();
+                }
+
+                if ($submission->attempt_number === DualAttemptService::PRACTICE_ATTEMPT) {
+                    $updateData['score'] = 0;
+                    $updateData['completed_at'] = null;
                 }
 
                 $studentAssignment->update($updateData);
@@ -162,87 +142,146 @@ class WritingSubmissionService
     public function createRetakeSubmission($task, string $retakeOption, array $data = []): WritingSubmission
     {
         return DB::transaction(function () use ($task, $retakeOption, $data) {
-            $attemptNumber = WritingSubmission::where('writing_task_id', $task->id)
-                ->where('student_id', Auth::id())
-                ->max('attempt_number') + 1;
+            $assignmentId = $data['assignment_id'] ?? null;
+            $studentId = Auth::id();
+            $baseQuery = $this->baseQuery($task->id, $studentId, $assignmentId);
+            $attemptNumber = DualAttemptService::resolveAttemptNumber($baseQuery, self::COMPLETED_STATUSES);
 
-            // Check if retakes are allowed
-            if (
-                !$task->allow_retake ||
-                ($task->max_retake_attempts && $attemptNumber > $task->max_retake_attempts)
-            ) {
-                throw new \Exception('Retakes not allowed or maximum attempts exceeded');
-            }
-
-            $previousSubmission = WritingSubmission::where('writing_task_id', $task->id)
-                ->where('student_id', Auth::id())
-                ->orderBy('attempt_number', 'desc')
+            $existing = (clone $baseQuery)
+                ->where('attempt_number', $attemptNumber)
                 ->first();
 
-            $content = '';
+            $displaySubmission = DualAttemptService::getStudentDisplaySubmission(
+                $baseQuery,
+                self::COMPLETED_STATUSES,
+                'to_do',
+            );
 
-            switch ($retakeOption) {
-                case 'rewrite_all':
-                    $content = ''; // Start fresh
-                    break;
+            $content = match ($retakeOption) {
+                'rewrite_all' => '',
+                'group_similar' => $this->generateSimilarMistakesTemplate($displaySubmission),
+                'choose_any' => $this->generateChosenMistakesTemplate($displaySubmission, $data['chosen_mistakes'] ?? []),
+                default => throw new \Exception('Invalid retake option'),
+            };
 
-                case 'group_similar':
-                    $content = $this->generateSimilarMistakesTemplate($previousSubmission);
-                    break;
+            if ($existing) {
+                if (DualAttemptService::shouldResetPracticeAttempt($existing, $attemptNumber, self::COMPLETED_STATUSES)) {
+                    return $this->resetPracticeSubmission($existing, $content);
+                }
 
-                case 'choose_any':
-                    $content = $this->generateChosenMistakesTemplate($previousSubmission, $data['chosen_mistakes'] ?? []);
-                    break;
+                $existing->update([
+                    'content' => $content,
+                    'status' => 'to_do',
+                    'submitted_at' => null,
+                    'word_count' => $this->countWords($content),
+                ]);
 
-                default:
-                    throw new \Exception('Invalid retake option');
+                return $existing;
             }
 
             $submission = WritingSubmission::create([
                 'id' => Str::uuid(),
                 'writing_task_id' => $task->id,
-                'student_id' => Auth::id(),
+                'student_id' => $studentId,
                 'content' => $content,
                 'status' => 'to_do',
                 'attempt_number' => $attemptNumber,
-                'assignment_id' => $data['assignment_id'] ?? null,
+                'assignment_id' => $assignmentId,
             ]);
 
-            // Sync with StudentAssignment
-            $assignmentId = $data['assignment_id'] ?? null;
             if ($assignmentId) {
                 $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $assignmentId)
-                    ->where('student_id', Auth::id())
+                    ->where('student_id', $studentId)
                     ->first();
 
                 if ($studentAssignment) {
-                    $isNewlyStarted = $attemptNumber > $studentAssignment->attempt_count;
-                    $isCompletedInSubmission = in_array($submission->status, ['completed', 'submitted', 'marked_as_done']);
-
-                    $updateData = [
+                    $studentAssignment->update([
                         'last_activity_at' => now(),
                         'attempt_number' => $attemptNumber,
                         'attempt_count' => max($studentAssignment->attempt_count, $attemptNumber),
-                    ];
-
-                    // ONLY set to IN_PROGRESS if the underlying submission data isn't already completed
-                    if (!$isCompletedInSubmission) {
-                        $updateData['status'] = \App\Models\StudentAssignment::STATUS_IN_PROGRESS;
-                    }
-
-                    // If this is truly a new attempt, clear the global score and completion date
-                    if ($isNewlyStarted) {
-                        $updateData['score'] = 0;
-                        $updateData['completed_at'] = null;
-                        $updateData['started_at'] = $updateData['last_activity_at'];
-                    }
-
-                    $studentAssignment->update($updateData);
+                        'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
+                        'score' => 0,
+                        'completed_at' => null,
+                        'started_at' => $studentAssignment->started_at ?? now(),
+                    ]);
                 }
             }
 
             return $submission;
         });
+    }
+
+    private function baseQuery(string $taskId, string $studentId, ?string $assignmentId): Builder
+    {
+        $query = WritingSubmission::where('writing_task_id', $taskId)
+            ->where('student_id', $studentId);
+
+        if ($assignmentId) {
+            $query->where('assignment_id', $assignmentId);
+        } else {
+            $query->where(function ($q) {
+                $q->whereNull('assignment_id')->orWhere('assignment_id', '');
+            });
+        }
+
+        return $query;
+    }
+
+    private function resolveActiveSubmission($task, string $studentId, ?string $assignmentId): ?WritingSubmission
+    {
+        $baseQuery = $this->baseQuery($task->id, $studentId, $assignmentId);
+        $attemptNumber = DualAttemptService::resolveAttemptNumber($baseQuery, self::COMPLETED_STATUSES);
+
+        $draft = (clone $baseQuery)
+            ->where('status', 'to_do')
+            ->first();
+
+        if ($draft) {
+            return $draft;
+        }
+
+        $existing = (clone $baseQuery)
+            ->where('attempt_number', $attemptNumber)
+            ->first();
+
+        if ($existing && DualAttemptService::shouldResetPracticeAttempt($existing, $attemptNumber, self::COMPLETED_STATUSES)) {
+            return $this->resetPracticeSubmission($existing);
+        }
+
+        return $existing && $existing->status === 'to_do' ? $existing : null;
+    }
+
+    public function resetPracticeSubmission(WritingSubmission $submission, string $content = ''): WritingSubmission
+    {
+        $submission->reviews()->delete();
+        $submission->latestReview()?->delete();
+
+        $submission->update([
+            'content' => $content,
+            'files' => null,
+            'status' => 'to_do',
+            'submitted_at' => null,
+            'word_count' => $this->countWords($content),
+            'time_taken_seconds' => null,
+        ]);
+
+        if ($submission->assignment_id) {
+            $studentAssignment = \App\Models\StudentAssignment::where('assignment_id', $submission->assignment_id)
+                ->where('student_id', $submission->student_id)
+                ->first();
+
+            if ($studentAssignment) {
+                $studentAssignment->update([
+                    'status' => \App\Models\StudentAssignment::STATUS_IN_PROGRESS,
+                    'score' => 0,
+                    'completed_at' => null,
+                    'last_activity_at' => now(),
+                    'attempt_number' => DualAttemptService::PRACTICE_ATTEMPT,
+                ]);
+            }
+        }
+
+        return $submission->fresh();
     }
 
     /**

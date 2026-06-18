@@ -74,9 +74,15 @@ class ReadingTaskController extends Controller implements HasMiddleware
             });
         }
 
-        // Optional class_id filter — only return tasks belonging to that class
-        if ($request->filled('class_id')) {
-            $query->where('class_id', $request->input('class_id'));
+        // Optional class_id filter — tasks linked directly or via class assignments
+        if ($request->filled('class_id') && $request->input('class_id') !== 'all') {
+            $classId = $request->input('class_id');
+            $query->where(function ($q) use ($classId) {
+                $q->where('class_id', $classId)
+                    ->orWhereHas('assignments', function ($assignmentQuery) use ($classId) {
+                        $assignmentQuery->where('class_id', $classId);
+                    });
+            });
         }
 
         $tasks = $query->orderBy('created_at', 'desc')->paginate($request->get('per_page', 15));
