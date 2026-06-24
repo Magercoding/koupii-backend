@@ -186,7 +186,7 @@ class StudentDashboardController extends Controller
             });
         }
 
-        $paginatedAssignments = $query->orderBy('due_date')->paginate($perPage);
+        $paginatedAssignments = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         $assignmentsData = collect($paginatedAssignments->items())->map(function($assignment) use ($studentId) {
             $studentAssignment = $assignment->studentAssignments->first();
@@ -199,7 +199,7 @@ class StudentDashboardController extends Controller
                 'description' => $assignment->description ?? $task?->description,
                 'class_name' => $assignment->class?->name ?? 'Unknown Class',
                 'due_date' => $assignment->due_date,
-                'assigned_date' => $assignment->created_at,
+                'created_at' => $assignment->created_at,
                 'status' => $studentAssignment?->status ?? 'pending',
                 'score' => $studentAssignment?->score,
                 'completion_date' => $studentAssignment?->completed_at,
