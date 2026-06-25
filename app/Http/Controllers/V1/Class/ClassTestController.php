@@ -58,11 +58,8 @@ class ClassTestController extends Controller
                 ], 403);
             }
 
-            // Legacy tests (class-specific + public)
-            $tests = Test::where(function ($q) use ($classId) {
-                    $q->where('class_id', $classId)
-                      ->orWhere('is_public', true);
-                })
+            // Legacy tests (class-specific only)
+            $tests = Test::where('class_id', $classId)
                 ->with(['passages.questionGroups.questions', 'creator'])
                 ->when($request->get('type'), function ($query, $type) {
                     return $query->where('type', $type);
