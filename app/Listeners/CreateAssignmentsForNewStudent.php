@@ -29,9 +29,10 @@ class CreateAssignmentsForNewStudent implements ShouldQueue
         try {
             DB::beginTransaction();
 
-            // Get all active assignments for the class
+            // Get all active assignments for the class (published or not — status is the
+            // authoritative signal for whether the assignment is ready for students)
             $assignments = Assignment::where('class_id', $event->class->id)
-                ->where('is_published', true)
+                ->where('status', 'active')
                 ->get();
 
             $createdCount = 0;

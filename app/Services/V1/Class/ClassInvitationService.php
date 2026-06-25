@@ -41,13 +41,26 @@ class ClassInvitationService
         // Check if invitation already exists (by email or student_id)
         $query = ClassInvitation::where('class_id', $class->id)
             ->where('email', $data['email']);
-        
+
         if ($is_registered) {
-            $query->orWhere('student_id', $student->id);
+            $query->orWhere(function ($q) use ($student) {
+                $q->where('student_id', $student->id);
+            });
         }
 
-        if ($query->exists()) {
-            throw new \Exception("Invitation already sent", 409);
+        $existingInvitation = $query->first();
+
+        if ($existingInvitation) {
+            // Block only if still active (pending and not expired)
+            $isActiveInvitation = $existingInvitation->status === 'pending'
+                && $existingInvitation->expires_at->isFuture();
+
+            if ($isActiveInvitation) {
+                throw new \Exception("Invitation already sent", 409);
+            }
+
+            // Otherwise (declined or expired) — remove old record so a fresh one can be created
+            $existingInvitation->delete();
         }
 
         $invitation = ClassInvitation::create([
@@ -64,7 +77,9 @@ class ClassInvitationService
 
         // Send in-app notification if student is already registered
         if ($is_registered && $student) {
-            $student->notify(new ClassInvitationNotification($class));
+            // Eager-load the teacher relationship so toArray() can access $class->teacher->name
+            $class->load('teacher');
+            $student->notify(new ClassInvitationNotification($class, $invitation));
         }
 
         return [

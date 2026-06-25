@@ -3,45 +3,41 @@
 namespace App\Notifications;
 
 use App\Models\Classes;
+use App\Models\ClassInvitation;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class ClassInvitationNotification extends Notification implements ShouldQueue
+class ClassInvitationNotification extends Notification
 {
     use Queueable;
 
-    protected $class;
+    protected Classes $class;
+    protected ?ClassInvitation $invitation;
 
-    public function __construct(Classes $class)
+    public function __construct(Classes $class, ?ClassInvitation $invitation = null)
     {
         $this->class = $class;
+        $this->invitation = $invitation;
     }
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        return (new MailMessage)
-            ->subject('Class Invitation: ' . $this->class->name)
-            ->greeting('Hello ' . $notifiable->name . '!')
-            ->line('You have been invited to join the class: "' . $this->class->name . '".')
-            ->line('Teacher: ' . ($this->class->teacher->name ?? 'Unknown'))
-            ->action('Join Class', url('/student/dashboard'))
-            ->line('We look forward to seeing you in class!');
+        return ['database'];
     }
 
     public function toArray(object $notifiable): array
     {
+        $teacherName = $this->class->teacher->name ?? 'Your teacher';
+
         return [
-            'class_id' => $this->class->id,
-            'title' => 'Class Invitation',
-            'message' => 'You have been invited to join class: ' . $this->class->name,
-            'type' => 'reminder', // Using reminder type for invitation as it requires action
+            'type'             => 'class_invitation',
+            'title'            => 'Class Invitation',
+            'message'          => "{$teacherName} invited you to join \"{$this->class->name}\"",
+            'class_id'         => $this->class->id,
+            'class_name'       => $this->class->name,
+            'teacher_name'     => $teacherName,
+            'invitation_id'    => $this->invitation?->id,
+            'invitation_token' => $this->invitation?->invitation_token,
         ];
     }
 }

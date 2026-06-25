@@ -13,12 +13,23 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
+
+        $notifications = $user->notifications()->paginate(15);
+
+        $notifications->getCollection()->transform(function ($notification) {
+            $data = $notification->data;
+            if (is_string($data)) {
+                $data = json_decode($data, true) ?? [];
+            }
+            $notification->data = $data;
+            return $notification;
+        });
+
         return response()->json([
             'message' => 'Notifications retrieved successfully',
             'data' => [
                 'unread_count' => $user->unreadNotifications()->count(),
-                'notifications' => $user->notifications()->paginate(15)
+                'notifications' => $notifications,
             ],
         ]);
     }
@@ -49,6 +60,23 @@ class NotificationController extends Controller
 
         return response()->json([
             'message' => 'All notifications marked as read',
+        ]);
+    }
+
+    /**
+     * Delete a specific notification.
+     */
+    public function destroy(Request $request, $id)
+    {
+        $user = $request->user();
+        $notification = $user->notifications()->where('id', $id)->first();
+
+        if ($notification) {
+            $notification->delete();
+        }
+
+        return response()->json([
+            'message' => 'Notification deleted successfully',
         ]);
     }
 }

@@ -20,6 +20,7 @@ Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [NotificationController::class, 'index']);
     Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/{id}', [NotificationController::class, 'destroy']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {

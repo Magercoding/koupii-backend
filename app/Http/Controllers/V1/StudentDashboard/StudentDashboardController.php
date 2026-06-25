@@ -41,9 +41,11 @@ class StudentDashboardController extends Controller
             : $enrolledClassIds;
 
         // --- Summary Stats Calculation (respects class filter) ---
+        // Show any active assignment in the class — the student may not have a StudentAssignment
+        // row yet if they enrolled before the assignment was created or before the listener ran.
         $allAssignments = \App\Models\Assignment::whereIn('class_id', $statsClassIds)
             ->where(function ($q) use ($studentId) {
-                $q->where('is_published', true)
+                $q->where('status', 'active')
                   ->orWhereHas('studentAssignments', function ($sq) use ($studentId) {
                       $sq->where('student_id', $studentId);
                   });
@@ -129,11 +131,11 @@ class StudentDashboardController extends Controller
         if ($hours == 0 && $minutes == 0) $timeSpentFormatted = "0h";
 
         // --- Assignments List Query with Filters ---
-        // Include all assignments for enrolled classes, not just published ones,
-        // as long as the student has a StudentAssignment record OR the assignment is published.
+        // Include any active assignment for the enrolled class — the student may not have a
+        // StudentAssignment row yet (e.g. enrolled before the assignment was created).
         $query = \App\Models\Assignment::whereIn('class_id', $statsClassIds)
             ->where(function ($q) use ($studentId) {
-                $q->where('is_published', true)
+                $q->where('status', 'active')
                   ->orWhereHas('studentAssignments', function ($sq) use ($studentId) {
                       $sq->where('student_id', $studentId);
                   });

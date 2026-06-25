@@ -8,6 +8,7 @@ use App\Http\Resources\V1\Class\ClassResource;
 use App\Http\Resources\V1\User\UserResource;
 use App\Models\Assignment;
 use App\Models\ClassEnrollment;
+use App\Models\StudentAssignment;
 use App\Models\Classes;
 use App\Models\User;
 use App\Services\V1\Class\ClassService;
@@ -319,8 +320,8 @@ class ClassController extends Controller
             return response()->json(['message' => 'Class not found'], 404);
         }
 
-        // Only the class teacher or admin can remove students
-        if ($user->role !== 'admin' && $class->teacher_id !== $user->id) {
+        // Only the class teacher, co-teachers, or admin can remove students
+        if ($user->role !== 'admin' && !$class->hasTeacher($user->id)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -332,9 +333,27 @@ class ClassController extends Controller
             return response()->json(['message' => 'Student is not enrolled in this class'], 404);
         }
 
-        $enrollment->delete();
+        DB::beginTransaction();
+        try {
+            // Remove the student's assignments for this class
+            StudentAssignment::where('student_id', $studentId)
+                ->whereIn('assignment_id', function ($query) use ($classId) {
+                    $query->select('id')->from('assignments')->where('class_id', $classId);
+                })
+                ->delete();
 
-        return response()->json(['message' => 'Student removed from class successfully']);
+            // Delete the enrollment
+            $enrollment->delete();
+
+            DB::commit();
+            return response()->json(['message' => 'Student removed from class successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to remove student from class',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
     /**
      * Join class by code (students enroll; teachers become co-teachers)

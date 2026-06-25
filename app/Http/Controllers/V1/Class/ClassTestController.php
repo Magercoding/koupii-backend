@@ -200,10 +200,15 @@ class ClassTestController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('ClassTestController@index failed', [
+                'class_id' => $classId,
+                'error'    => $e->getMessage(),
+                'trace'    => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'message' => 'Failed to retrieve tests',
                 'error' => $e->getMessage()
-            ], 404);
+            ], 500);
         }
     }
 

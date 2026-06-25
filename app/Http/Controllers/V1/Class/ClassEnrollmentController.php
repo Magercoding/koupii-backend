@@ -7,8 +7,10 @@ use App\Http\Requests\V1\Class\ClassEnrollmentRequest;
 use App\Http\Resources\V1\Class\ClassEnrollmentCollection;
 use App\Http\Resources\V1\Class\ClassEnrollmentResource;
 use App\Models\ClassEnrollment;
+use App\Models\StudentAssignment;
 use App\Events\StudentEnrolledInClass;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -91,9 +93,28 @@ class ClassEnrollmentController extends Controller
     public function destroy(ClassEnrollment $id)
     {
         Gate::authorize('delete', $id);
-        $id->delete();
-        return response()->json([
-            'message' => 'Enrollment deleted successfully',
-        ]);
+        
+        DB::beginTransaction();
+        try {
+            // Remove the student's assignments for this class
+            StudentAssignment::where('student_id', $id->student_id)
+                ->whereIn('assignment_id', function ($query) use ($id) {
+                    $query->select('id')->from('assignments')->where('class_id', $id->class_id);
+                })
+                ->delete();
+
+            $id->delete();
+
+            DB::commit();
+            return response()->json([
+                'message' => 'Enrollment deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to delete enrollment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
