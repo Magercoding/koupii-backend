@@ -848,6 +848,7 @@ class StudentDashboardController extends Controller
     {
         $requestedId = $request->query('student_id');
         $classId     = $request->query('class_id');
+        $month       = $request->query('month');
         $authUser = auth()->user();
         if ($requestedId && in_array($authUser->role, ['teacher', 'admin'])) {
             $userId = $requestedId;
@@ -959,10 +960,110 @@ class StudentDashboardController extends Controller
                 'average_score' => round($avgScore ?? 0, 1),
                 'recent_submissions' => $recentSubmissions,
                 'performance_trends' => $performanceTrends,
+                'performance_by_section' => $this->getListeningPerformanceBySection($userId, $classAssignmentIds, $month),
                 'question_type_accuracy' => $questionTypeAccuracy,
                 'category_performance' => []
             ]
         ]);
+    }
+
+    private function getListeningPerformanceBySection($userId, $classAssignmentIds = null, $month = null): array
+    {
+        $keys = [
+            'chooseCorrectAnswer',
+            'chooseMultipleAnswer',
+            'noteCompletion',
+            'sentenceCompletion',
+            'summaryCompletion',
+            'formCompletion',
+            'tableCompletion',
+            'mapLabeling',
+        ];
+
+        $typeMapping = [
+            'choose_correct_answer' => 'chooseCorrectAnswer',
+            'multiple_choice' => 'chooseCorrectAnswer',
+            'choose_multiple_answer' => 'chooseMultipleAnswer',
+            'multiple_answer' => 'chooseMultipleAnswer',
+            'note_completion' => 'noteCompletion',
+            'sentence_completion' => 'sentenceCompletion',
+            'summary_completion' => 'summaryCompletion',
+            'form_completion' => 'formCompletion',
+            'table_completion' => 'tableCompletion',
+            'map_labeling' => 'mapLabeling',
+            'matching' => 'mapLabeling',
+            'matching_labeling' => 'mapLabeling',
+        ];
+
+        $query = DB::table('listening_question_answers as lqa')
+            ->join('listening_questions as lq', 'lqa.question_id', '=', 'lq.id')
+            ->join('listening_submissions as ls', 'lqa.submission_id', '=', 'ls.id')
+            ->where('ls.student_id', $userId)
+            ->whereNotNull('ls.submitted_at')
+            ->whereNotNull('lqa.is_correct');
+
+        if ($classAssignmentIds !== null) {
+            $query->whereIn('ls.assignment_id', $classAssignmentIds);
+        }
+
+        $monthStart = null;
+        if ($month) {
+            try {
+                $monthStart = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+                $query->whereBetween('ls.submitted_at', [
+                    $monthStart->copy()->startOfMonth(),
+                    $monthStart->copy()->endOfMonth(),
+                ]);
+            } catch (\Exception $e) {
+                $monthStart = null;
+            }
+        }
+
+        $rows = $query->select(
+                'lq.question_type',
+                'lqa.is_correct',
+                'ls.submitted_at'
+            )
+            ->orderBy('ls.submitted_at')
+            ->get();
+
+        $periods = [];
+        foreach ($rows as $row) {
+            $key = $typeMapping[$row->question_type] ?? null;
+            if (!$key) {
+                continue;
+            }
+
+            $submittedAt = Carbon::parse($row->submitted_at);
+            $periodKey = $monthStart
+                ? 'week-' . (int) ceil($submittedAt->day / 7)
+                : $submittedAt->format('Y-m');
+            $periodLabel = $monthStart
+                ? 'Week ' . (int) ceil($submittedAt->day / 7)
+                : $submittedAt->format('M Y');
+
+            if (!isset($periods[$periodKey])) {
+                $periods[$periodKey] = ['week' => $periodLabel, 'counts' => []];
+                foreach ($keys as $chartKey) {
+                    $periods[$periodKey][$chartKey] = 0;
+                    $periods[$periodKey]['counts'][$chartKey] = 0;
+                }
+            }
+
+            $periods[$periodKey][$key] += $row->is_correct ? 100 : 0;
+            $periods[$periodKey]['counts'][$key]++;
+        }
+
+        return array_values(array_map(function ($period) use ($keys) {
+            foreach ($keys as $key) {
+                $period[$key] = $period['counts'][$key] > 0
+                    ? round($period[$key] / $period['counts'][$key], 1)
+                    : 0;
+            }
+
+            unset($period['counts']);
+            return $period;
+        }, $periods));
     }
 
     /**

@@ -44,27 +44,51 @@ class ClassAnalyticsService
             ->unique();
     }
 
-    /** Task IDs for a given task_type assigned to this class */
+    /**
+     * Task IDs for a given task_type assigned to this class.
+     * Checks both `task_type` (standalone task assignments) and
+     * `type` (test-derived assignments where task_type may be null).
+     */
     private function classTaskIds(string $classId, string $taskType)
     {
         return Assignment::where('class_id', $classId)
-            ->where('task_type', $taskType)
             ->whereNotNull('task_id')
+            ->where(function ($q) use ($taskType) {
+                $q->where('task_type', $taskType)
+                  ->orWhere('type', $taskType);
+            })
             ->pluck('task_id')
             ->unique();
     }
 
-    /** Average writing score from writing_reviews (column: score) */
+    private function allClassWritingTaskIds(string $classId)
+    {
+        $testIds = $this->classTestIds($classId);
+
+        $fromTests = WritingTask::whereIn('test_id',
+            Test::whereIn('id', $testIds)->where('type', 'writing')->pluck('id')
+        )->pluck('id');
+
+        $fromAssignments = $this->classTaskIds($classId, 'writing_task');
+
+        $fromClassId = WritingTask::where('class_id', $classId)->pluck('id');
+
+        return $fromTests->merge($fromAssignments)->merge($fromClassId)->unique();
+    }
+
     private function writingAvg($writingTaskIds): float
     {
         if ($writingTaskIds->isEmpty()) {
             return 0;
         }
-        return (float) (DB::table('writing_reviews')
+
+        $avg = DB::table('writing_reviews')
             ->join('writing_submissions', 'writing_reviews.submission_id', '=', 'writing_submissions.id')
             ->whereIn('writing_submissions.writing_task_id', $writingTaskIds)
             ->whereNotNull('writing_reviews.score')
-            ->avg('writing_reviews.score') ?? 0);
+            ->avg('writing_reviews.score');
+
+        return (float) ($avg ?? 0);
     }
 
     /** Average speaking score from speaking_reviews (column: total_score) */
@@ -101,13 +125,9 @@ class ClassAnalyticsService
         $listeningAvg = ListeningSubmission::whereIn('listening_task_id', $allListeningIds)
             ->whereNotNull('percentage')->avg('percentage') ?? 0;
 
-        // Writing
-        $writingTestTaskIds = WritingTask::whereIn('test_id',
-            Test::whereIn('id', $testIds)->where('type', 'writing')->pluck('id')
-        )->pluck('id');
-        $writingTaskIds = $this->classTaskIds($classId, 'writing_task');
-        $allWritingIds  = $writingTestTaskIds->merge($writingTaskIds)->unique();
-        $writingAvg = $this->writingAvg($allWritingIds);
+        // Writing — use unified helper
+        $allWritingIds = $this->allClassWritingTaskIds($classId);
+        $writingAvg    = $this->writingAvg($allWritingIds);
 
         // Speaking
         $speakingTestSectionIds = SpeakingSection::whereIn('test_id',
@@ -153,13 +173,9 @@ class ClassAnalyticsService
         $allSpeakingIds  = $speakingTestSectionIds->merge($speakingTaskIds)->unique();
         $speakingScore = $this->speakingAvg($allSpeakingIds);
 
-        // Writing
-        $writingTestTaskIds = WritingTask::whereIn('test_id',
-            Test::whereIn('id', $testIds)->where('type', 'writing')->pluck('id')
-        )->pluck('id');
-        $writingTaskIds = $this->classTaskIds($classId, 'writing_task');
-        $allWritingIds  = $writingTestTaskIds->merge($writingTaskIds)->unique();
-        $writingScore = $this->writingAvg($allWritingIds);
+        // Writing — use unified helper that covers tests + assignments + direct class_id
+        $allWritingIds = $this->allClassWritingTaskIds($classId);
+        $writingScore  = $this->writingAvg($allWritingIds);
 
         return [
             ['skill' => 'Reading',   'score' => round((float) $readingScore, 2)],
@@ -184,7 +200,7 @@ class ClassAnalyticsService
         [$trends, $weakest] = match ($type) {
             'reading'  => [$this->getReadingTrends($typeTestIds, $taskIds),  $this->getReadingWeakestAreas($typeTestIds, $taskIds)],
             'listening'=> [$this->getListeningTrends($typeTestIds, $taskIds),$this->getListeningWeakestAreas($typeTestIds, $taskIds)],
-            'writing'  => [$this->getWritingTrends($typeTestIds, $taskIds),  $this->getWritingRevisionInsights($taskIds)],
+            'writing'  => [$this->getWritingTrends($typeTestIds, $taskIds),  $this->getWritingRevisionInsights($typeTestIds, $taskIds)],
             'speaking' => [$this->getSpeakingTrends($typeTestIds, $taskIds), $this->getSpeakingRevisionInsights($typeTestIds, $taskIds)],
             default    => [collect(), []],
         };
@@ -217,8 +233,6 @@ class ClassAnalyticsService
 
     private function getReadingWeakestAreas($testIds, $taskIds): array
     {
-        // reading_question_answers has no question_type column — aggregate by task instead
-        // Show the tasks with the lowest average percentage as "weakest areas"
         $rows = ReadingSubmission::where(function ($q) use ($testIds, $taskIds) {
             $q->whereIn('test_id', $testIds)
               ->orWhereIn('reading_task_id', $taskIds);
@@ -269,7 +283,6 @@ class ClassAnalyticsService
             return [];
         }
 
-        // listening_questions has question_type; join via listening_question_answers
         $rows = DB::table('listening_question_answers as lqa')
             ->join('listening_submissions as ls', 'lqa.submission_id', '=', 'ls.id')
             ->join('listening_questions as lq', 'lqa.question_id', '=', 'lq.id')
@@ -312,14 +325,19 @@ class ClassAnalyticsService
         return collect($fromTests)->concat($fromTasks);
     }
 
-    private function getWritingRevisionInsights($taskIds): array
+    private function getWritingRevisionInsights($testIds, $taskIds): array
     {
-        if ($taskIds->isEmpty()) {
+        // Resolve writing task IDs from tests
+        $testWritingTaskIds = WritingTask::whereIn('test_id', $testIds)->pluck('id');
+
+        $allTaskIds = $testWritingTaskIds->merge($taskIds)->unique();
+
+        if ($allTaskIds->isEmpty()) {
             return [];
         }
 
         $rows = DB::table('writing_submissions')
-            ->whereIn('writing_task_id', $taskIds)
+            ->whereIn('writing_task_id', $allTaskIds)
             ->select(
                 'writing_task_id',
                 DB::raw('COUNT(*) as total_revisions'),
