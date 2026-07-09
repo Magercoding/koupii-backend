@@ -10,9 +10,33 @@ use Illuminate\Support\Facades\Route;
  */
 Route::get('/health', fn() => response()->json(['ok' => true, 'time' => time()]));
 
-Route::get('/audio/{path}', function (string $path) {
-    // Try local public storage first
-    $fullPath = storage_path('app/public/' . $path);
+/**
+ * Resolve a storage object key from a relative path or full cloud URL.
+ */
+$resolveStorageObjectKey = function (string $pathOrUrl, bool $isFullUrl = false): string {
+    $r2Bucket = env('CLOUDFLARE_R2_BUCKET', '');
+    $path = $pathOrUrl;
+
+    if ($isFullUrl || str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        $parsed = parse_url($path);
+        $path = ltrim($parsed['path'] ?? '', '/');
+    } else {
+        $path = urldecode($path);
+        $path = preg_replace('#^storage/#', '', $path);
+    }
+
+    if ($r2Bucket && str_starts_with($path, $r2Bucket . '/')) {
+        $path = substr($path, strlen($r2Bucket) + 1);
+    }
+
+    return $path;
+};
+
+/**
+ * Serve audio from local public storage or redirect to a signed cloud URL.
+ */
+$serveAudio = function (string $objectKey) {
+    $fullPath = storage_path('app/public/' . $objectKey);
 
     if (file_exists($fullPath)) {
         return response()->file($fullPath, [
@@ -21,19 +45,47 @@ Route::get('/audio/{path}', function (string $path) {
         ]);
     }
 
-    // Fall back to R2/cloud storage — generate a temporary signed URL and redirect
     try {
-        $disk = \Illuminate\Support\Facades\Storage::disk(config('filesystems.default', 'public'));
-        if ($disk->exists($path)) {
-            // Generate a signed URL valid for 1 hour
-            $signedUrl = $disk->temporaryUrl($path, now()->addHour());
-            return redirect($signedUrl);
+        $defaultDisk = config('filesystems.default', 'public');
+        $disk = \Illuminate\Support\Facades\Storage::disk($defaultDisk);
+        if ($disk->exists($objectKey)) {
+            return redirect($disk->temporaryUrl($objectKey, now()->addHour()));
+        }
+
+        if ($defaultDisk !== 'r2') {
+            $r2Disk = \Illuminate\Support\Facades\Storage::disk('r2');
+            if ($r2Disk->exists($objectKey)) {
+                return redirect($r2Disk->temporaryUrl($objectKey, now()->addHour()));
+            }
         }
     } catch (\Exception $e) {
-        // ignore and fall through to 404
+        // fall through
     }
 
     abort(404, 'Audio file not found');
+};
+
+/**
+ * Public audio proxy — accepts ?url=<encoded-full-url> or ?path=<relative-key>.
+ * @unauthenticated
+ */
+Route::get('/audio', function (\Illuminate\Http\Request $request) use ($resolveStorageObjectKey, $serveAudio) {
+    $rawUrl = (string) $request->query('url', '');
+    $path   = (string) $request->query('path', '');
+
+    if ($rawUrl) {
+        $objectKey = $resolveStorageObjectKey($rawUrl, true);
+    } elseif ($path) {
+        $objectKey = $resolveStorageObjectKey($path);
+    } else {
+        abort(400, 'Missing audio path or url parameter');
+    }
+
+    return $serveAudio($objectKey);
+});
+
+Route::get('/audio/{path}', function (string $path) use ($resolveStorageObjectKey, $serveAudio) {
+    return $serveAudio($resolveStorageObjectKey($path));
 })->where('path', '.*');
 
 /**

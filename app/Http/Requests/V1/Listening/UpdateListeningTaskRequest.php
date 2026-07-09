@@ -117,6 +117,8 @@ class UpdateListeningTaskRequest extends FormRequest
             'passages.*.audio_file.max' => 'Audio file size cannot exceed 50MB',
             'passages.*.audio_file.mimes' => 'Audio file must be in MP3, WAV, OGG, or M4A format',
             'passages.*.question_groups.*.image.file.max' => 'Image size cannot exceed 5MB',
+            'passages.*.question_groups.*.questions.*.question_data.images.*.max' => 'Image size cannot exceed 5MB',
+            'passages.*.question_groups.*.questions.*.question_data.images.*.mimes' => 'Image must be JPEG, PNG, or JPG',
             'passages.*.question_groups.*.image.file.mimes' => 'Image must be JPEG, PNG, or WEBP',
         ];
     }

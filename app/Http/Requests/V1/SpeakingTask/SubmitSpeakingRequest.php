@@ -32,6 +32,18 @@ class SubmitSpeakingRequest extends FormRequest
                 'min:0',
                 'max:7200' // 2 hours max
             ],
+            'time_taken_seconds' => [
+                'sometimes',
+                'integer',
+                'min:0',
+                'max:7200'
+            ],
+            'time_spent_seconds' => [
+                'sometimes',
+                'integer',
+                'min:0',
+                'max:7200'
+            ],
             'completion_notes' => [
                 'sometimes',
                 'string',
@@ -97,6 +109,8 @@ class SubmitSpeakingRequest extends FormRequest
         return [
             'force_submit' => 'force submit',
             'time_spent' => 'time spent',
+            'time_taken_seconds' => 'time taken',
+            'time_spent_seconds' => 'time spent',
             'completion_notes' => 'completion notes',
             'self_assessment.difficulty_rating' => 'difficulty rating',
             'self_assessment.confidence_rating' => 'confidence rating',
@@ -117,6 +131,10 @@ class SubmitSpeakingRequest extends FormRequest
         return [
             'time_spent.min' => 'Time spent cannot be negative.',
             'time_spent.max' => 'Time spent cannot exceed 2 hours.',
+            'time_taken_seconds.min' => 'Time taken cannot be negative.',
+            'time_taken_seconds.max' => 'Time taken cannot exceed 2 hours.',
+            'time_spent_seconds.min' => 'Time spent cannot be negative.',
+            'time_spent_seconds.max' => 'Time spent cannot exceed 2 hours.',
             'completion_notes.max' => 'Completion notes cannot exceed 1000 characters.',
             
             'self_assessment.difficulty_rating.min' => 'Difficulty rating must be between 1 and 5.',

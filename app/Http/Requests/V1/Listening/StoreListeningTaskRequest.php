@@ -109,6 +109,8 @@ class StoreListeningTaskRequest extends BaseRequest
             'passages.*.question_groups.*.questions.*.question_type.in'        => 'Question type must be one of the valid listening question types',
             'passages.*.audio_file.mimes'                                      => 'Audio file must be mp3, wav, ogg, or m4a',
             'passages.*.audio_file.max'                                        => 'Audio file cannot exceed 50 MB',
+            'passages.*.question_groups.*.questions.*.question_data.images.*.max' => 'Image size cannot exceed 5 MB',
+            'passages.*.question_groups.*.questions.*.question_data.images.*.mimes' => 'Image must be JPEG, PNG, or JPG',
         ];
     }
 

@@ -172,7 +172,7 @@ class SpeakingSubmissionService
             'status' => SpeakingSubmission::STATUS_IN_PROGRESS,
             'started_at' => now(),
             'submitted_at' => null,
-            'time_taken_seconds' => null,
+            'total_time_seconds' => null,
         ]);
 
         if ($submission->assignment_id) {
@@ -268,17 +268,25 @@ class SpeakingSubmissionService
         });
     }
 
-    public function submitSpeaking(SpeakingSubmission $submission): SpeakingSubmission
+    public function submitSpeaking(SpeakingSubmission $submission, array $data = []): SpeakingSubmission
     {
         if ($submission->status !== 'in_progress') {
             throw new Exception('Cannot submit submission that is not in progress');
         }
 
-        DB::transaction(function () use ($submission) {
+        DB::transaction(function () use ($submission, $data) {
+            $submittedAt = now();
+            $timeTaken = $data['time_taken_seconds']
+                ?? $data['time_spent_seconds']
+                ?? $data['time_spent']
+                ?? null;
+
             $submission->update([
                 'status' => SpeakingSubmission::STATUS_SUBMITTED,
-                'submitted_at' => now(),
-                'total_time_seconds' => $this->calculateTotalTime($submission),
+                'submitted_at' => $submittedAt,
+                'total_time_seconds' => $timeTaken !== null
+                    ? (int) $timeTaken
+                    : $this->calculateTotalTime($submission, $submittedAt),
             ]);
 
             // Sync with StudentAssignment if linked
@@ -300,7 +308,7 @@ class SpeakingSubmissionService
             }
         });
 
-        return $submission;
+        return $submission->fresh(['speakingTask', 'recordings', 'student', 'review']);
     }
 
     public function reviewSubmission(SpeakingSubmission $submission, array $reviewData, string $teacherId): SpeakingReview
@@ -330,7 +338,11 @@ class SpeakingSubmissionService
 
             // Sync with StudentAssignment if linked and dispatch notification
             if ($submission->assignment_id) {
-                $studentAssignment = \App\Models\StudentAssignment::with('student', 'assignment.class', 'test')->find($submission->assignment_id);
+                $studentAssignment = \App\Models\StudentAssignment::with('student', 'assignment.class', 'test')
+                    ->where('assignment_id', $submission->assignment_id)
+                    ->where('student_id', $submission->student_id)
+                    ->first();
+
                 if ($studentAssignment) {
                     $studentAssignment->update([
                         'score' => $review->total_score,
@@ -471,13 +483,15 @@ class SpeakingSubmissionService
         return "submission_{$submission->id}_question_{$questionId}_{$timestamp}.{$extension}";
     }
 
-    private function calculateTotalTime(SpeakingSubmission $submission): ?int
+    private function calculateTotalTime(SpeakingSubmission $submission, $submittedAt = null): ?int
     {
-        if (!$submission->started_at || !$submission->submitted_at) {
+        $submittedAt ??= $submission->submitted_at;
+
+        if (!$submission->started_at || !$submittedAt) {
             return null;
         }
 
-        return $submission->started_at->diffInSeconds($submission->submitted_at);
+        return $submission->started_at->diffInSeconds($submittedAt);
     }
 
     /**

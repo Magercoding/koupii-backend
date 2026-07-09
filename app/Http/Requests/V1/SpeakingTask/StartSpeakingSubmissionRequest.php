@@ -23,6 +23,10 @@ class StartSpeakingSubmissionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'task_id' => [
+                'required',
+                'uuid',
+            ],
             'assignment_id' => [
                 'sometimes',
                 'nullable',

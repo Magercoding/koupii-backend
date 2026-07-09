@@ -11,6 +11,33 @@ use Illuminate\Support\Facades\Auth;
 
 class ClassSubmissionController extends Controller
 {
+    private function normalizeStatus(?string $status): ?string
+    {
+        if (!$status || $status === 'all') {
+            return null;
+        }
+
+        return match ($status) {
+            'pending' => StudentAssignment::STATUS_NOT_STARTED,
+            default => $status,
+        };
+    }
+
+    private function normalizeTaskType(?string $taskType): ?array
+    {
+        if (!$taskType || $taskType === 'all') {
+            return null;
+        }
+
+        return match ($taskType) {
+            'reading', 'reading_task' => ['reading', 'reading_task'],
+            'listening', 'listening_task' => ['listening', 'listening_task'],
+            'speaking', 'speaking_task' => ['speaking', 'speaking_task'],
+            'writing', 'writing_task' => ['writing', 'writing_task'],
+            default => [$taskType],
+        };
+    }
+
     /**
      * Get all student submissions for a specific class
      */
@@ -19,15 +46,28 @@ class ClassSubmissionController extends Controller
         try {
             $user = Auth::user();
 
-            // Verify class exists and user has access (Teacher of the class)
-            $class = Classes::where('id', $classId)
-                ->where('teacher_id', $user->id)
-                ->firstOrFail();
+            // Verify class exists and user is allowed to access it
+            $class = Classes::where('id', $classId)->firstOrFail();
+
+            $isAdmin = $user->role === 'admin';
+            $isTeacher = $class->hasTeacher($user->id);
+            $isStudent = $class->students()->where('users.id', $user->id)->exists();
+
+            if (!($isAdmin || $isTeacher || $isStudent)) {
+                return response()->json([
+                    'message' => 'You are not authorized to view submissions for this class',
+                ], 403);
+            }
 
             // Fetch all student assignments linked to this class
             $query = StudentAssignment::whereHas('assignment', function ($q) use ($classId) {
                 $q->where('class_id', $classId);
             })->with(['student:id,name,email,avatar', 'test:id,title,type', 'assignment']);
+
+            // Students can only view their own submissions
+            if ($isStudent && !$isAdmin && !$isTeacher) {
+                $query->where('student_id', $user->id);
+            }
 
             // Filter: Search by student name
             if ($request->filled('search')) {
@@ -38,18 +78,19 @@ class ClassSubmissionController extends Controller
             }
 
             // Filter: Status
-            if ($request->filled('status') && $request->input('status') !== 'all') {
-                $query->where('status', $request->input('status'));
+            $status = $this->normalizeStatus($request->input('status'));
+            if ($status) {
+                $query->where('status', $status);
             }
 
             // Filter: Task Type
-            if ($request->filled('task_type') && $request->input('task_type') !== 'all') {
-                $taskType = $request->input('task_type');
-                $query->where(function ($q) use ($taskType) {
-                    $q->whereHas('test', function ($subQ) use ($taskType) {
-                        $subQ->where('type', $taskType);
-                    })->orWhereHas('assignment', function ($subQ) use ($taskType) {
-                        $subQ->where('task_type', $taskType)->orWhere('type', $taskType);
+            $taskTypes = $this->normalizeTaskType($request->input('task_type'));
+            if ($taskTypes) {
+                $query->where(function ($q) use ($taskTypes) {
+                    $q->whereHas('test', function ($subQ) use ($taskTypes) {
+                        $subQ->whereIn('type', $taskTypes);
+                    })->orWhereHas('assignment', function ($subQ) use ($taskTypes) {
+                        $subQ->whereIn('task_type', $taskTypes)->orWhereIn('type', $taskTypes);
                     });
                 });
             }
@@ -108,7 +149,7 @@ class ClassSubmissionController extends Controller
             return response()->json([
                 'message' => 'Failed to retrieve submissions',
                 'error' => $e->getMessage()
-            ], 404);
+            ], 500);
         }
     }
 }

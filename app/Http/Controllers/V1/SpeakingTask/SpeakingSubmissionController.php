@@ -70,8 +70,12 @@ class SpeakingSubmissionController extends Controller
         $submission = $this->speakingSubmissionService->startSubmission(
             $speakingTask,
             auth()->id(),
-            $request->validated()
+            array_merge($request->validated(), [
+                'assignment_id' => $request->input('assignment_id'),
+            ])
         );
+
+        $submission->loadMissing(['speakingTask', 'recordings', 'student']);
 
         return response()->json([
             'success' => true,
@@ -100,11 +104,15 @@ class SpeakingSubmissionController extends Controller
     {
        Gate::authorize('update', $submission);
 
-        $this->speakingSubmissionService->submitSpeaking($submission);
+        $submission = $this->speakingSubmissionService->submitSpeaking(
+            $submission,
+            $request->validated()
+        );
 
         return response()->json([
             'success' => true,
-            'message' => 'Speaking test submitted successfully'
+            'message' => 'Speaking test submitted successfully',
+            'data' => new SpeakingSubmissionResource($submission)
         ]);
     }
 

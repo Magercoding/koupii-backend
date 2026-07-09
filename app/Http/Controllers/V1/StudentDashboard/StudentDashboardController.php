@@ -64,11 +64,12 @@ class StudentDashboardController extends Controller
         foreach ($allAssignments as $assignment) {
             $studentAssignment = $assignment->studentAssignments->first();
             $asgnStatus = $studentAssignment?->status ?? 'pending';
+            $score = $this->resolveAssignmentScore($assignment, $studentId, $studentAssignment);
 
             if (in_array($asgnStatus, ['completed', 'submitted', 'graded', 'done'])) {
                 $completedCount++;
-                if ($studentAssignment && $studentAssignment->score !== null) {
-                    $scoreSum += $studentAssignment->score;
+                if ($score !== null) {
+                    $scoreSum += $score;
                     $scoredCount++;
                 }
             } else {
@@ -193,6 +194,7 @@ class StudentDashboardController extends Controller
         $assignmentsData = collect($paginatedAssignments->items())->map(function($assignment) use ($studentId) {
             $studentAssignment = $assignment->studentAssignments->first();
             $task = $assignment->getTask();
+            $score = $this->resolveAssignmentScore($assignment, $studentId, $studentAssignment);
             
             return [
                 'id' => $assignment->id,
@@ -203,7 +205,7 @@ class StudentDashboardController extends Controller
                 'due_date' => $assignment->due_date,
                 'created_at' => $assignment->created_at,
                 'status' => $studentAssignment?->status ?? 'pending',
-                'score' => $studentAssignment?->score,
+                'score' => $score,
                 'completion_date' => $studentAssignment?->completed_at,
                 'attempt_count' => $studentAssignment?->attempt_count ?? 0,
                 'max_attempts' => null,
@@ -308,7 +310,7 @@ class StudentDashboardController extends Controller
         }
 
         $latestReadingSubmissionId = null;
-        if ($type === 'reading_task') {
+        if ($type === 'reading') {
             $readingQuery = ReadingSubmission::query()
                 ->where('student_id', $studentId)
                 ->where('assignment_id', $resolvedAssignmentId);
@@ -349,7 +351,7 @@ class StudentDashboardController extends Controller
         }
 
         $latestListeningSubmissionId = null;
-        if ($type === 'listening_task') {
+        if ($type === 'listening') {
             $latestListeningSubmissionId = DualAttemptService::getStudentDisplaySubmission(
                 ListeningSubmission::query()
                     ->where('assignment_id', $resolvedAssignmentId)
@@ -372,8 +374,8 @@ class StudentDashboardController extends Controller
                 'latest_speaking_submission_id' => $latestSpeakingSubmissionId,
                 'latest_writing_submission_id' => $latestWritingSubmissionId,
                 'latest_listening_submission_id' => $latestListeningSubmissionId,
-                'task' => $type === 'speaking_task' && $resolvedTask 
-                    ? new \App\Http\Resources\V1\SpeakingTask\SpeakingTaskResource($resolvedTask) 
+                'task' => $type === 'speaking' && $resolvedTask
+                    ? new \App\Http\Resources\V1\SpeakingTask\SpeakingTaskResource($resolvedTask)
                     : $resolvedTask,
                 'student_progress' => [
                     'status' => $studentAssignment->status,
@@ -457,11 +459,16 @@ class StudentDashboardController extends Controller
             $studentAssignment->update($updateData);
         }
 
+        $resolvedAttemptNumber = max(
+            1,
+            (int) ($studentAssignment->attempt_number ?? $studentAssignment->attempt_count ?? 1),
+        );
+
         return response()->json([
             'message' => 'Assignment started successfully',
             'data' => [
                 'student_assignment_id' => $studentAssignment->id,
-                'attempt_number' => $studentAssignment->attempt_count,
+                'attempt_number' => $resolvedAttemptNumber,
                 'started_at' => $studentAssignment->started_at
             ]
         ]);
@@ -577,6 +584,19 @@ class StudentDashboardController extends Controller
             return response()->json(['message' => 'Assignment not found'], 404);
         }
 
+        $assignmentSkill = $this->normalizeType($assignment->task_type ?? $assignment->type ?? '');
+        if ($assignmentSkill !== $type) {
+            $isLegacyReadingTest = $type === 'reading'
+                && $assignment->test_id
+                && !$assignment->task_id;
+
+            if (!$isLegacyReadingTest) {
+                return response()->json([
+                    'message' => "This assignment is a {$assignmentSkill} task, not {$type}.",
+                ], 422);
+            }
+        }
+
         // Try task first, then fall back to test
         $task = $assignment->getTask();
 
@@ -690,6 +710,12 @@ class StudentDashboardController extends Controller
             ]);
         }
 
+        if ($task instanceof \App\Models\SpeakingTask) {
+            return response()->json([
+                'data' => new \App\Http\Resources\V1\SpeakingTask\SpeakingTaskResource($task),
+            ]);
+        }
+
         return response()->json(['data' => $task]);
     }
 
@@ -708,6 +734,13 @@ class StudentDashboardController extends Controller
         $assignment = \App\Models\Assignment::find($assignmentId);
         if (!$assignment) {
             return response()->json(['message' => 'Assignment not found'], 404);
+        }
+
+        $assignmentSkill = $this->normalizeType($assignment->task_type ?? $assignment->type ?? 'reading');
+        if ($assignmentSkill !== 'reading') {
+            return response()->json([
+                'message' => 'This assignment is not a reading task.',
+            ], 422);
         }
 
         $submissionService = app(\App\Services\V1\ReadingTest\ReadingSubmissionService::class);
@@ -1657,6 +1690,51 @@ class StudentDashboardController extends Controller
         $total = max(0, ($h * 3600) + ($m * 60) + $s);
 
         return $total > 0 ? $total : null;
+    }
+
+    private function resolveAssignmentScore($assignment, string $studentId, ?StudentAssignment $studentAssignment = null): ?float
+    {
+        if ($studentAssignment?->score !== null) {
+            return (float) $studentAssignment->score;
+        }
+
+        $type = $this->normalizeType((string) ($assignment->task_type ?? $assignment->type ?? ''));
+
+        $score = match ($type) {
+            'reading' => DB::table('reading_submissions')
+                ->where('assignment_id', $assignment->id)
+                ->where('student_id', $studentId)
+                ->whereNotNull('submitted_at')
+                ->whereNotNull('percentage')
+                ->orderByDesc('submitted_at')
+                ->value('percentage'),
+            'listening' => DB::table('listening_submissions')
+                ->where('assignment_id', $assignment->id)
+                ->where('student_id', $studentId)
+                ->whereNotNull('submitted_at')
+                ->whereNotNull('percentage')
+                ->orderByDesc('submitted_at')
+                ->value('percentage'),
+            'writing' => DB::table('writing_submissions')
+                ->join('writing_reviews', 'writing_reviews.submission_id', '=', 'writing_submissions.id')
+                ->where('writing_submissions.assignment_id', $assignment->id)
+                ->where('writing_submissions.student_id', $studentId)
+                ->whereNotNull('writing_reviews.score')
+                ->orderByDesc('writing_submissions.submitted_at')
+                ->orderByDesc('writing_reviews.created_at')
+                ->value('writing_reviews.score'),
+            'speaking' => DB::table('speaking_submissions')
+                ->join('speaking_reviews', 'speaking_reviews.submission_id', '=', 'speaking_submissions.id')
+                ->where('speaking_submissions.assignment_id', $assignment->id)
+                ->where('speaking_submissions.student_id', $studentId)
+                ->whereNotNull('speaking_reviews.total_score')
+                ->orderByDesc('speaking_submissions.submitted_at')
+                ->orderByDesc('speaking_reviews.created_at')
+                ->value('speaking_reviews.total_score'),
+            default => null,
+        };
+
+        return $score !== null ? round((float) $score, 1) : null;
     }
 
     private function normalizeType(string $type): string

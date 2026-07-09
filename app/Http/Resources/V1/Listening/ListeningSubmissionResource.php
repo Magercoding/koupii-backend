@@ -43,14 +43,22 @@ class ListeningSubmissionResource extends JsonResource
                     'id' => $this->task->id,
                     'title' => $this->task->title,
                     'description' => $this->task->description,
+                    'instructions' => $this->task->instructions,
                     'difficultyLevel' => $this->task->difficulty_level,
                     'timerType' => $this->task->timer_type,
                     'timeLimitSeconds' => $this->task->time_limit_seconds,
                     'audioUrl' => $this->task->audio_url,
-                    'questions' => $this->task->questions->map(function ($q) {
+                    'audio_url' => $this->task->audio_url,
+                    'passages_data' => $this->task->passages_data,
+                    'questions' => $this->task->questions
+                        ->sortBy(fn ($q) => $q->order_index ?? $q->order ?? 0)
+                        ->values()
+                        ->map(function ($q) {
                         return [
                             'id' => $q->id,
                             'question_number' => $q->order_index,
+                            'order_index' => $q->order_index,
+                            'passage_index' => $q->passage_index ?? 0,
                             'question_type' => $q->question_type,
                             'type' => $q->question_type,
                             'question_text' => $q->question_text,

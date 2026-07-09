@@ -97,6 +97,13 @@ class ReadingSubmissionController extends Controller implements HasMiddleware
             }
 
             if (!$task) {
+                if (\App\Models\SpeakingTask::find($taskId)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Failed to start task: The provided ID belongs to a speaking task, not a reading task.',
+                    ], 400);
+                }
+
                 $task = ReadingTask::findOrFail($taskId);
             }
 

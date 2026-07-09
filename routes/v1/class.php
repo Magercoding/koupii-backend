@@ -84,9 +84,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
             Route::post('tests/{testId}/assign', [ClassTestController::class, 'assignToClass']);
             Route::post('tests/{testId}/create-assignment', [ClassAssignmentController::class, 'assignTestToClass']);
 
-            // Class Submissions
-            Route::get('submissions', [\App\Http\Controllers\V1\Class\ClassSubmissionController::class, 'index']);
             Route::get('analytics', [\App\Http\Controllers\V1\Class\ClassAnalyticsController::class, 'show']);
+        });
+
+        // Class submissions:
+        // - teachers/admins can view all class submissions
+        // - students can view only their own submissions
+        Route::middleware('role:admin,teacher,student')->group(function () {
+            Route::get('submissions', [\App\Http\Controllers\V1\Class\ClassSubmissionController::class, 'index']);
         });
     });
 });

@@ -55,6 +55,7 @@ class SpeakingSubmissionResource extends JsonResource
                         ? url("/api/v1/speaking/recordings/{$recording->id}/stream")
                         : null,
                     'duration_seconds' => $recording->duration_seconds,
+                    'duration' => $recording->duration_seconds,
                     'transcript' => $recording->transcript,
                     'confidence_score' => $recording->confidence_score,
                     'fluency_score' => $recording->fluency_score,
